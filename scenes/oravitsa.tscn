@@ -1,0 +1,60 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/oravitsa.gd" id="1_oravitsa"]
+[ext_resource type="Resource" path="res://resources/default_stats.tres" id="2_stats"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_tunic"]
+albedo_color = Color(0.804, 0.769, 0.722, 1)
+roughness = 0.9
+
+[sub_resource type="StandardMaterial3D" id="Mat_bandana"]
+albedo_color = Color(0.216, 0.275, 0.376, 1)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id="Mat_motif"]
+albedo_color = Color(0.820, 0.647, 0.294, 1)
+roughness = 0.8
+
+[sub_resource type="CapsuleShape3D" id="Shape_body"]
+resource_local_to_scene = true
+radius = 0.28
+height = 1.5
+
+[sub_resource type="CapsuleMesh" id="Mesh_body"]
+resource_local_to_scene = true
+material = SubResource("Mat_tunic")
+radius = 0.28
+height = 1.5
+
+[sub_resource type="CylinderMesh" id="Mesh_cap"]
+resource_local_to_scene = true
+material = SubResource("Mat_bandana")
+top_radius = 0.3
+bottom_radius = 0.3
+height = 0.1
+
+[sub_resource type="BoxMesh" id="Mesh_prow"]
+material = SubResource("Mat_motif")
+size = Vector3(0.1, 0.06, 0.26)
+
+[node name="Oravitsa" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_oravitsa")
+stats = ExtResource("2_stats")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+shape = SubResource("Shape_body")
+
+[node name="Body" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+mesh = SubResource("Mesh_body")
+
+[node name="Cap" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.47, 0)
+mesh = SubResource("Mesh_cap")
+
+[node name="Prow" type="MeshInstance3D" parent="Cap"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.38)
+mesh = SubResource("Mesh_prow")

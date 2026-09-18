@@ -1,0 +1,44 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/mushroom.gd" id="1_mushroom"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_cap"]
+albedo_color = Color(0.70980, 0.40784, 0.12941, 1)
+roughness = 0.95
+
+[sub_resource type="StandardMaterial3D" id="Mat_stem"]
+albedo_color = Color(0.804, 0.769, 0.722, 1)
+roughness = 0.95
+
+[sub_resource type="SphereShape3D" id="Shape_pickup"]
+radius = 0.45
+
+[sub_resource type="CylinderMesh" id="Mesh_stem"]
+material = SubResource("Mat_stem")
+top_radius = 0.035
+bottom_radius = 0.05
+height = 0.16
+
+[sub_resource type="SphereMesh" id="Mesh_cap"]
+material = SubResource("Mat_cap")
+radius = 0.11
+height = 0.14
+is_hemisphere = true
+
+[node name="Mushroom" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+monitorable = false
+script = ExtResource("1_mushroom")
+
+[node name="PickupShape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.35, 0)
+shape = SubResource("Shape_pickup")
+
+[node name="Stem" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.08, 0)
+mesh = SubResource("Mesh_stem")
+
+[node name="Cap" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+mesh = SubResource("Mesh_cap")

@@ -1,0 +1,92 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/camera_rig.gd" id="1_camera"]
+[ext_resource type="Script" path="res://scripts/spawner.gd" id="2_spawner"]
+[ext_resource type="PackedScene" path="res://scenes/oravitsa.tscn" id="3_oravitsa"]
+[ext_resource type="PackedScene" path="res://scenes/mushroom.tscn" id="4_mushroom"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_material"]
+sky_top_color = Color(0.42, 0.55, 0.68, 1)
+sky_horizon_color = Color(0.72, 0.76, 0.75, 1)
+ground_bottom_color = Color(0.28, 0.3, 0.26, 1)
+ground_horizon_color = Color(0.72, 0.76, 0.75, 1)
+
+[sub_resource type="Sky" id="Sky"]
+sky_material = SubResource("Sky_material")
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 2
+sky = SubResource("Sky")
+ambient_light_source = 3
+ambient_light_energy = 0.25
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="Mat_ground"]
+albedo_color = Color(0.46275, 0.48627, 0.41961, 1)
+roughness = 1.0
+
+[sub_resource type="PlaneMesh" id="Mesh_ground"]
+material = SubResource("Mat_ground")
+size = Vector2(60, 60)
+
+[sub_resource type="BoxShape3D" id="Shape_ground"]
+size = Vector3(60, 1, 60)
+
+[node name="World" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.529919, 0.668271, -0.522111, 0, 0.615662, 0.788011, 0.848048, -0.417582, 0.326251, 0, 10, 0)
+light_energy = 1.3
+shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 1.5
+directional_shadow_mode = 0
+directional_shadow_max_distance = 50.0
+
+[node name="Ground" type="StaticBody3D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="GroundMesh" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("Mesh_ground")
+
+[node name="GroundShape" type="CollisionShape3D" parent="Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+shape = SubResource("Shape_ground")
+
+[node name="Oravitsa" parent="." node_paths=PackedStringArray("camera_rig", "inventory_label") instance=ExtResource("3_oravitsa")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, 0)
+camera_rig = NodePath("../CameraRig")
+inventory_label = NodePath("../HUD/InventoryLabel")
+
+[node name="CameraRig" type="Node3D" parent="." node_paths=PackedStringArray("target")]
+script = ExtResource("1_camera")
+target = NodePath("../Oravitsa")
+follow_speed = 6.0
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+transform = Transform3D(0.707107, -0.408248, 0.577350, 0, 0.816497, 0.577350, -0.707107, -0.408248, 0.577350, 12, 12, 12)
+projection = 1
+size = 10.0
+near = 0.1
+far = 100.0
+
+[node name="Spawner" type="Node3D" parent="."]
+script = ExtResource("2_spawner")
+mushroom_scene = ExtResource("4_mushroom")
+count = 24
+area_radius = 16.0
+clear_radius = 3.0
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="InventoryLabel" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 324.0
+offset_bottom = 52.0
+theme_override_font_sizes/font_size = 24
+text = "Mushrooms: 0"

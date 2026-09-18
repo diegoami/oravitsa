@@ -1,0 +1,30 @@
+# Godot 4 editor/import cache. Regenerated on open; never commit.
+.godot/
+/android/
+
+# Godot 3 leftovers, in case an old editor ever touches this folder.
+.import/
+export.cfg
+export_presets.cfg
+
+# Mono / .NET (this machine runs the mono build of 4.7.2; no C# in the project
+# yet, but the editor can still drop these).
+.mono/
+data_*/
+mono_crash.*.json
+*.sln
+*.csproj
+[Bb]in/
+[Oo]bj/
+
+# Builds
+/build/
+/export/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# NOTE: character-drafts/ is deliberately NOT ignored -- the reference sheets
+# are committed. They are kept out of Godot's importer by character-drafts/.gdignore,
+# not by git.

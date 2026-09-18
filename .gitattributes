@@ -1,0 +1,12 @@
+# Godot text resources: keep diffs readable and line endings stable.
+*.gd     text eol=lf
+*.uid    text eol=lf
+*.tscn   text eol=lf
+*.tres   text eol=lf
+*.godot  text eol=lf
+*.import text eol=lf
+*.svg    text eol=lf
+*.md     text eol=lf
+
+# Reference art
+*.png   binary
