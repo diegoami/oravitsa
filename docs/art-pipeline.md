@@ -49,7 +49,7 @@ blender --background --python art/setup_blend.py
 This writes `art/oravitsa.blend` with metric units, a 5 mm viewport near clip
 (Blender's 0.1 m default clips through a figure this small), the blockout
 imported into a locked `Reference` collection at true scale, and an empty
-`Model` collection set active. It refuses to save if the reference did not
+`Oravitsa` collection set active. It refuses to save if the reference did not
 import at ~1.5 m, so a broken scale fails loudly instead of silently.
 
 Export your work to `models/`:
