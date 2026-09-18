@@ -67,10 +67,16 @@ scenes/      world.tscn, oravitsa.tscn, mushroom.tscn
 scripts/     oravitsa.gd, mushroom.gd, camera_rig.gd,
              forager_stats.gd, spawner.gd
 resources/   default_stats.tres
+models/      exported .glb game assets
+art/         Blender sources + build scripts (outside res://)
 prototypes/  (empty, for future throwaway experiments)
-docs/        design.md, character.md, prototype_log.md
+docs/        design.md, character.md, art-pipeline.md, prototype_log.md
 character-drafts/
 ```
+
+`art/`, `docs/` and `character-drafts/` each carry a `.gdignore`, so Blender
+sources and reference material never enter Godot's asset tree. See
+`docs/art-pipeline.md`.
 
 ---
 
