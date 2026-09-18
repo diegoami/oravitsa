@@ -5,6 +5,66 @@ left undone. Newest entry at the top.
 
 ---
 
+## Iteration 1a — Oravitsa blockout replaces the capsule
+
+**Date:** 2026-09-18
+**Status:** complete, verified
+
+The capsule-with-a-cap from the brief was the right placeholder for testing
+movement and the wrong one for looking at. Replaced with a **primitive
+blockout** — 34 spheres, cylinders and boxes under a `Body` node. Still no
+imported art and no textures: every part is a Godot primitive with a flat
+colour from the named palette in `character.md`.
+
+Built from the measured landmark table, not by eye. Shoulder at 114 cm, belt
+at 91 cm, basket rim at 116 cm, skirt hem at 28 cm, and so on, so the figure
+is at true scale and the capsule still matches it. `Body` is scaled by
+`height / BLOCKOUT_HEIGHT`, so the canonical figure stays a single number in
+`default_stats.tres`.
+
+The parts that carry the silhouette, in the order `character.md` ranks them:
+bandana with its two tails, the basket rim above the shoulders, the bell
+skirt, the forward-hanging braids with amber beads.
+
+**Tails splay sideways, not down the back.** The top-down sheet shows them
+flung out to either side, and from a fixed isometric camera that is the only
+placement where they read at all. This is the character's main motion cue.
+
+**The facing marker is gone.** She now has a face, braids in front and a
+basket behind, so the greybox wedge is no longer needed — which also removes
+the one deliberate deviation from the brief.
+
+**Camera pulled in from `size = 10` to `6.5`.** At 10 the figure was about
+100 px tall at 720p and every bit of the above was invisible. Cozy games want
+the character legible; the trade is seeing less of the field at once.
+
+### What went wrong, twice
+
+Both bugs were the same class: **two primitives at nearly equal radius with
+different segment counts.** The flat faces of one stab through the flat faces
+of the other, and it looks like a ring of spikes, not like z-fighting.
+
+1. The tunic bottom (r 0.155, 16 segments) against the skirt top (r 0.150,
+   18 segments) produced a fringe of spikes around the waist. Fixed by
+   splitting the tunic into a bodice that stays inside the belt and a flare
+   that drapes clearly *outside* the skirt — which is what the sheet shows
+   anyway.
+2. The arms at x 0.150 sat just inside the tunic flare's widest point and
+   poked through. Moved out to 0.168.
+
+The tell: the artifact was **identical with shadows disabled**, which ruled
+out shadow acne immediately. Worth checking that first next time.
+
+### Verification
+
+18 checks against the running scene, all passing — including two new
+geometric ones: the whole blockout's AABB sits on the floor (lowest point
+0.000 m) and reaches the canonical height (highest 1.522 m; the extra 2 cm is
+bandana fabric above the crown, which the reference sheet also shows
+overshooting its own 150 cm guide).
+
+---
+
 ## Iteration 1 — camera, movement, mushrooms, count
 
 **Date:** 2026-09-18
@@ -124,13 +184,12 @@ Two real bugs were caught this way and fixed:
 
 ### Outstanding — needs a human
 
-**`character-drafts/oravitsa_2.png` is committed as a zero-byte file.** The
-working copy is the complete 1.3 MB master model sheet — the richest of the
-four, and the source of the named palette and the character vitals now written
-into `character.md`. The blob in git history is empty, so that image exists in
-exactly one place and is not backed up. It was a 0-byte file on disk at the
-start of this session and had content by the end of it, which is worth
-understanding before trusting the folder. **Commit it.**
+Nothing outstanding.
+
+`character-drafts/oravitsa_2.png` was briefly a zero-byte file — it was read
+while the copy into the folder was still in flight. The complete 1.3 MB master
+sheet is now committed, and it is the source of the named palette and the
+character vitals in `character.md`.
 
 ### Next
 

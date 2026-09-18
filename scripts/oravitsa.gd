@@ -21,6 +21,10 @@ signal inventory_changed(total: int)
 ## show -- see docs/prototype_log.md.
 @export var inventory_label: Label
 
+## The height the blockout meshes in oravitsa.tscn are modelled at, in metres.
+## This is the canonical 150 cm from docs/character.md; it is not a tunable.
+const BLOCKOUT_HEIGHT := 1.5
+
 var _mushrooms: int = 0
 
 
@@ -79,8 +83,9 @@ func _face(direction: Vector3, delta: float) -> void:
 	rotation.y = rotate_toward(rotation.y, target_yaw, stats.turn_speed * delta)
 
 
-## Sizes the collision capsule and its greybox mesh from the canonical height,
-## so changing docs/character.md's figure in the .tres changes the body too.
+## The blockout in oravitsa.tscn is authored at BLOCKOUT_HEIGHT. Sizing the
+## capsule and scaling the visual to match keeps the canonical figure in one
+## place -- change height in default_stats.tres and the body follows.
 func _apply_body_size() -> void:
 	var shape := $CollisionShape3D as CollisionShape3D
 	var capsule := shape.shape as CapsuleShape3D
@@ -92,23 +97,7 @@ func _apply_body_size() -> void:
 	# Origin sits at the feet; the capsule is centred on the body.
 	shape.position.y = stats.height * 0.5
 
-	var mesh_instance := $Body as MeshInstance3D
-	var mesh := mesh_instance.mesh as CapsuleMesh
-	if mesh:
-		mesh.height = stats.height
-		mesh.radius = stats.radius
-	mesh_instance.position.y = stats.height * 0.5
-
-	# The cap is the bandana stand-in and the only facing cue on a greybox
-	# capsule. It has to overlap the capsule's dome, or the dome's apex pokes
-	# through it; the marker has to clear the disc, or it is buried inside it.
-	var cap := $Cap as MeshInstance3D
-	var cap_mesh := cap.mesh as CylinderMesh
-	if cap_mesh:
-		cap_mesh.top_radius = stats.radius + 0.02
-		cap_mesh.bottom_radius = stats.radius + 0.02
-		cap.position.y = stats.height - cap_mesh.height * 0.3
-		$Cap/Prow.position.z = -(stats.radius + 0.1)
+	$Body.scale = Vector3.ONE * (stats.height / BLOCKOUT_HEIGHT)
 
 
 ## Called by mushrooms when they are walked into.

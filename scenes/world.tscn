@@ -70,7 +70,7 @@ follow_speed = 6.0
 [node name="Camera3D" type="Camera3D" parent="CameraRig"]
 transform = Transform3D(0.707107, -0.408248, 0.577350, 0, 0.816497, 0.577350, -0.707107, -0.408248, 0.577350, 12, 12, 12)
 projection = 1
-size = 10.0
+size = 6.5
 near = 0.1
 far = 100.0
 

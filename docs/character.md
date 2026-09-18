@@ -69,15 +69,14 @@ recorded here because the project brief records it, not because there is a
 draft still lying around to be mistaken for current — those drafts are simply
 not in this folder.
 
-### Warning: `oravitsa_2.png` is not committed
+### Note on `oravitsa_2.png`
 
-The copy of `oravitsa_2.png` **committed to git is a zero-byte file.** The
-working copy is a complete 1.3 MB image; the blob in history is empty.
+For a while this file was zero bytes, both on disk and in git — it was read
+while the copy into the folder was still in flight. The complete 1.3 MB image
+is now committed, and everything above was read from it.
 
-Everything above about the master sheet was read from the working copy. If
-that file is lost, it cannot be restored from this repo's history. **Commit
-it.** Until then, treat `oravitsa_1.png` (which is committed intact) as the
-recoverable fallback for the turnaround.
+Noted only so that an early-session reference to an "empty `oravitsa_2.png`"
+is not mistaken for a missing sheet.
 
 ---
 

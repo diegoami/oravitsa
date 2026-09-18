@@ -47,8 +47,12 @@ Exactly four things, and they are done:
 3. Mushrooms scattered in the scene that can be picked up
 4. An inventory count and a minimal on-screen label showing it
 
-No hunger, no animals, no spells, no menus, no save system. The player is a
-capsule with a coloured cap — no character model.
+No hunger, no animals, no spells, no menus, no save system.
+
+The player is a **primitive blockout** of Oravitsa — spheres, cylinders and
+boxes, no imported art and no textures — built to the measured proportions
+and the named palette in `docs/character.md`. It replaced the original
+capsule-with-a-cap placeholder so the character is recognisable on screen.
 
 What was decided and why, and the shortcuts taken, are in
 `docs/prototype_log.md`.
