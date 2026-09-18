@@ -21,9 +21,17 @@ signal inventory_changed(total: int)
 ## show -- see docs/prototype_log.md.
 @export var inventory_label: Label
 
+## A finished model to use instead of the primitive blockout. Leave this
+## empty and the blockout is used unless MODEL_PATH exists on disk.
+@export var model_scene: PackedScene
+
 ## The height the blockout meshes in oravitsa.tscn are modelled at, in metres.
 ## This is the canonical 150 cm from docs/character.md; it is not a tunable.
 const BLOCKOUT_HEIGHT := 1.5
+
+## Where export_glb.py puts a model exported from the "Oravitsa" collection.
+## Dropping a file here is enough to see it in game -- see docs/art-pipeline.md.
+const MODEL_PATH := "res://models/oravitsa.glb"
 
 var _mushrooms: int = 0
 
@@ -35,6 +43,7 @@ func _ready() -> void:
 		push_warning("Oravitsa has no ForagerStats; falling back to defaults.")
 		stats = ForagerStats.new()
 	_apply_body_size()
+	_use_model_if_available()
 	_refresh_label()
 
 
@@ -98,6 +107,56 @@ func _apply_body_size() -> void:
 	shape.position.y = stats.height * 0.5
 
 	$Body.scale = Vector3.ONE * (stats.height / BLOCKOUT_HEIGHT)
+
+
+## Swaps the primitive blockout for a real model when one exists, so that
+## exporting from Blender is the only step needed to see it in game.
+##
+## The blockout is kept in the scene rather than deleted: it is the measured
+## reference the model is built against, and being able to toggle back to it
+## is how you catch a model that came in at the wrong scale.
+func _use_model_if_available() -> void:
+	var scene := model_scene
+	if scene == null and ResourceLoader.exists(MODEL_PATH):
+		scene = load(MODEL_PATH) as PackedScene
+	if scene == null:
+		return
+
+	var model := scene.instantiate() as Node3D
+	if model == null:
+		push_warning("%s is not a 3D scene; keeping the blockout." % MODEL_PATH)
+		return
+
+	model.name = "Model"
+	add_child(model)
+	$Body.visible = false
+
+	# A model that is not close to the canonical height means the export scale
+	# is wrong. Say so loudly -- silently scaling it would hide the bug and
+	# break every measurement in docs/character.md.
+	var height := _measure_height(model)
+	if height > 0.0 and absf(height - stats.height) > 0.15:
+		push_warning(
+			"%s is %.2f m tall but Oravitsa is %.2f m. Check the glTF export scale (docs/art-pipeline.md)."
+			% [MODEL_PATH, height, stats.height]
+		)
+
+
+## World-space height of every mesh under a node, in metres.
+func _measure_height(root_node: Node3D) -> float:
+	var lo := INF
+	var hi := -INF
+	for child in root_node.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := child as MeshInstance3D
+		var box := mesh_instance.get_aabb()
+		var basis_xform := mesh_instance.global_transform
+		for i in 8:
+			var corner := box.position + box.size * Vector3(
+				float(i & 1), float((i >> 1) & 1), float((i >> 2) & 1))
+			var world_y := (basis_xform * corner).y
+			lo = minf(lo, world_y)
+			hi = maxf(hi, world_y)
+	return hi - lo if lo < INF else 0.0
 
 
 ## Called by mushrooms when they are walked into.

@@ -1,6 +1,6 @@
 """Export a collection from art/oravitsa.blend to res://models/<name>.glb.
 
-    blender --background art/oravitsa.blend --python art/export_glb.py -- Model
+    blender --background art/oravitsa.blend --python art/export_glb.py -- Oravitsa
 
 Godot imports the result directly. The settings below are the ones that
 matter: +Y up (Blender is Z-up, Godot is Y-up), modifiers applied, and no
@@ -12,7 +12,7 @@ import bpy
 from pathlib import Path
 
 PROJECT = Path(bpy.data.filepath).resolve().parent.parent
-DEFAULT_COLLECTION = "Model"
+DEFAULT_COLLECTION = "Oravitsa"
 
 
 def argv_after_dashes():

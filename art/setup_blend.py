@@ -7,7 +7,9 @@ Run headless from the project root:
 It does the fiddly setup that is easy to get wrong and expensive to discover
 later -- metric units at 1 unit = 1 metre, a near viewport clip so a 1.5 m
 figure is workable, and the blockout imported as a locked reference at true
-scale. Modelling happens in the Model collection, on top of that reference.
+scale. Modelling happens in the Oravitsa collection, on top of that reference.
+That name matters: export_glb.py writes models/<collection>.glb, and the
+player loads models/oravitsa.glb automatically.
 
 Blender is Z-up and Godot is Y-up; the glTF importer handles the conversion,
 so in here her height runs along +Z.
@@ -79,7 +81,7 @@ def main():
 
     root = scene.collection
     ref_col = collection("Reference", root)
-    model_col = collection("Model", root)
+    model_col = collection("Oravitsa", root)
 
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=str(REFERENCE))
@@ -105,7 +107,7 @@ def main():
     if not (CANONICAL_HEIGHT - 0.02 <= height <= CANONICAL_HEIGHT + 0.05):
         sys.exit(f"reference imported at {height:.4f} m, expected ~{CANONICAL_HEIGHT} m")
 
-    # Make Model the active collection so new geometry lands in the right place.
+    # Make it the active collection so new geometry lands in the right place.
     layer_root = bpy.context.view_layer.layer_collection
     for child in layer_root.children:
         if child.collection is model_col:

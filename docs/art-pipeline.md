@@ -52,14 +52,33 @@ imported into a locked `Reference` collection at true scale, and an empty
 `Model` collection set active. It refuses to save if the reference did not
 import at ~1.5 m, so a broken scale fails loudly instead of silently.
 
-Export a collection to `models/`:
+Export your work to `models/`:
 
 ```
-blender --background art/oravitsa.blend --python art/export_glb.py -- Model
+blender --background art/oravitsa.blend --python art/export_glb.py -- Oravitsa
 ```
 
 Selection-filtered, so the locked reference geometry can never leak into a
 shipped model.
+
+### The loop closes by itself
+
+Model in the **`Oravitsa`** collection. The export writes
+`models/<collection>.glb`, and the player loads `models/oravitsa.glb` on
+`_ready()` if it exists — so **exporting is the only step needed to see your
+model in the game.** Nothing to wire up, no scene to edit.
+
+The collection name is load-bearing: export a collection called anything else
+and the file lands at a path the player does not look at.
+
+With no model on disk, the primitive blockout is used instead. The blockout is
+never deleted, only hidden, so toggling `Body.visible` is a quick way to
+compare a model against the measured reference.
+
+If the model arrives more than 15 cm off the canonical 1.5 m, the player logs
+a warning naming this document rather than silently rescaling it — a wrong
+export scale invalidates every measurement in `character.md`, so it should be
+noisy.
 
 ---
 
