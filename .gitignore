@@ -28,3 +28,7 @@ Thumbs.db
 # NOTE: character-drafts/ is deliberately NOT ignored -- the reference sheets
 # are committed. They are kept out of Godot's importer by character-drafts/.gdignore,
 # not by git.
+
+# Blender rolling backups
+*.blend1
+*.blend2

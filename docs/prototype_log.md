@@ -5,6 +5,45 @@ left undone. Newest entry at the top.
 
 ---
 
+## Iteration 1b — a real mesh, built from the landmark table
+
+**Date:** 2026-09-18
+**Status:** complete, verified
+
+`art/build_oravitsa.py` generates the game mesh: continuous lofted quad
+surfaces built from horizontal cross-sections at the landmark heights, rather
+than 34 floating primitives. 2,886 triangles, smooth-shaded, no subdivision.
+It exports to `models/oravitsa.glb` and the player picks it up automatically.
+
+Generated rather than hand-modelled on purpose: a proportion change is an edit
+to one number and a rebuild. That stops being true the moment the mesh is
+edited by hand in Blender, and the script says so — it clears the collection
+before rebuilding.
+
+### Three bugs worth remembering
+
+1. **Colour space.** The palette is sRGB; Blender's Principled base colour is
+   linear. Feeding the values in raw made every surface pale and washed out.
+   Converting fixed it. Godot's `albedo_color` *is* sRGB, which is why the
+   same numbers were correct in the `.tscn` and wrong in Blender.
+2. **A closed loft has no face opening.** Widening the hair so it would show
+   below the bandana turned it into a shell that encased the whole head — the
+   "face" on screen was the back of the hair, with the eyes buried inside it.
+   Fixed by varying the ring radius with angle so the hair tucks behind the
+   face at the front and keeps full width at the temples and back.
+3. **The head tapered to a point** and read as a snout. Rounder, shorter jaw.
+
+All three were only visible by rendering and looking. None would have been
+caught by a scale or topology check.
+
+### Verification
+
+8 checks: the model loads from `models/`, the blockout is hidden, height is
+1.5000 m, triangle count is sane, no stray collision bodies came in with the
+glTF, input is still camera-relative, and pickup still updates the label.
+
+---
+
 ## Iteration 1a — Oravitsa blockout replaces the capsule
 
 **Date:** 2026-09-18

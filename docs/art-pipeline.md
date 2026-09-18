@@ -52,6 +52,19 @@ imported into a locked `Reference` collection at true scale, and an empty
 `Oravitsa` collection set active. It refuses to save if the reference did not
 import at ~1.5 m, so a broken scale fails loudly instead of silently.
 
+Build the current game mesh:
+
+```
+blender --background art/oravitsa.blend --python art/build_oravitsa.py
+```
+
+This generates the whole figure from horizontal cross-sections taken at the
+landmark heights in `character.md` — continuous lofted quad surfaces that can
+be rigged, rather than the blockout's 34 floating solids. It is a script so
+that a proportion change is an edit to one number, not a remodelling job. Once
+you start editing the mesh by hand in Blender, stop running it: it clears the
+`Oravitsa` collection before rebuilding.
+
 Export your work to `models/`:
 
 ```
@@ -103,9 +116,16 @@ Re-run this check after any change to export settings.
 ## Modelling notes
 
 **Budget.** At the game's camera she is roughly 160 px tall. That is the whole
-brief: silhouette and flat colour, not detail. Somewhere under ~1,500 triangles
-with flat-shaded material colours from the named palette in `character.md`.
-Detail below a couple of centimetres will never be visible.
+brief: silhouette and flat colour, not detail. Detail below a couple of
+centimetres will never be visible. The current mesh is **2,886 triangles**,
+smooth-shaded with no subdivision — above the ~1,500 first guess, and still
+cheap enough that it is not worth optimising until something is actually slow.
+
+**Colour space is the trap.** `character.md` stores the palette as sRGB, which
+is what Godot's `albedo_color` wants. Blender's Principled base colour is
+**linear**. Feeding sRGB values straight in makes every surface come out pale
+and washed out, which is exactly what happened on the first build.
+`build_oravitsa.py` converts; anything added by hand in Blender must too.
 
 **What must survive stylisation**, in priority order (from `character.md`):
 the two trailing bandana tails, the basket's hard rim above the shoulders, the
