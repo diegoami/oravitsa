@@ -137,10 +137,12 @@ Oravitsa is 5.6 heads at 150 cm, so the bones land in the wrong places, and
 auto-weights have nothing sensible to do with a gathered skirt. Rigify, or a
 hand-built rig of roughly 15 bones, is less work than correcting it.
 
-**Where generated 3D (Meshy, Tripo, and similar) does fit:** static props —
-mushrooms, rocks, stumps, logs, berry bushes. Many are needed, none animate,
-topology does not matter, and they can be decimated freely. It is a poor fit
-for the character, whose thin tails and braids get fused into the body and
-whose open-topped basket gets filled in, and whose topology has to deform.
+**Where generated 3D (Meshy, Tripo, and similar) fits most reliably:** static
+props — mushrooms, rocks, stumps, logs, berry bushes. They do not animate and
+their topology can be simplified freely. A user-directed, credit-conscious
+**Tripo character trial** is now specified in `docs/tripo-experiment.md`.
+The character remains a harder case: the thin tails and braids can fuse into
+the body, the open basket can close up, and the topology must deform. Keep the
+current game model until a Tripo candidate passes those checks at game scale.
 
 **Nothing she holds may read as a weapon** — see `design.md`.

@@ -85,8 +85,10 @@ sources and reference material never enter Godot's asset tree. See
 The folder holds AI-generated character design sheets for the protagonist:
 turnarounds, hair studies, a top-down view.
 
-**They are never imported.** Do not use them as textures, do not build a
-`res://` path that points at them, and do not generate 3D assets from them.
+**They are never imported into Godot.** Do not use them as textures or build a
+`res://` path that points at them. A cropped view may be used externally for
+the single Tripo trial in `docs/tripo-experiment.md`; any result stays
+provisional until it passes the character and game-camera checks there.
 `character-drafts/.gdignore` keeps the Godot editor out of the folder
 entirely. They are committed to git, so the `.gdignore` — not `.gitignore` —
 is what excludes them from the project.
