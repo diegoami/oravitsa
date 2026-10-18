@@ -18,14 +18,23 @@ export packaging has not been tested yet.
 | --- | --- | --- |
 | Grass, dirt, fern | Yes | None |
 | Mushroom | Yes | Collect by walking close |
+| Fallen berries | Yes | Collect by walking close; boars and deer eat them |
 | Tree, bush, stone, fallen log | No | Blocks movement |
 
-The tree line at the outer edge keeps the player inside the map. Boars, deer,
-foxes, and lynxes roam in short, obstacle-aware walks. They are ambient and can
-be walked through; there is no combat or animal-foraging behavior here. Oravitsa
-uses a new side-facing walk for horizontal travel and the existing front/back
-strips for vertical travel. The timed boar/deer loop remains in the older
-clearing scene.
+The tree line at the outer edge keeps the player inside the map. Dark green
+ground beneath trees and bushes marks blocked vegetation; bright grass and dirt
+remain passable. Animals and Oravitsa have solid circular footprints. A bump
+stuns both for 0.85 seconds. Space shoos animals within 200 px for 3 seconds,
+with a 7-second cooldown. Boars move slowly, forage for mushrooms and berries,
+and sometimes hold their ground near Oravitsa. Deer seek berries and flee
+lynxes; lynxes pursue nearby deer. Foxes flee every nearby animal. All species
+usually avoid Oravitsa, except for some boars. Their roaming targets persist
+for several seconds and movement eases toward a new heading.
+
+All five moving characters display eight compass directions. East, southeast,
+south, northeast, and north have distinct source strips; the three westward
+views mirror their eastward counterparts. The newest generated strips use a
+0-1-2-1 frame sequence because their fourth pose clipped the sheet edge.
 
 ## Art source
 
@@ -109,3 +118,6 @@ visual references. Their prompts were preserved verbatim:
 The boar/deer strips, front/back Oravitsa strips, and mushroom image are reused
 from the earlier playtest. The PNGs are the source bitmaps. The generation tool
 did not produce editable layer files.
+
+The later directional strips and berry art are documented in
+[ART_ECOLOGY.md](ART_ECOLOGY.md).

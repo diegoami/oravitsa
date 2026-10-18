@@ -13,10 +13,17 @@ func _run() -> void:
 	assert(forest.objects.size() == forest.MAP_SIZE * forest.MAP_SIZE)
 	assert(forest._ground.get_used_rect().size == Vector2i(21, 15))
 	assert(forest._dirt.get_used_rect().size == Vector2i(21, 15))
+	assert(forest._blocked_ground != null)
 	assert(forest._camera.limit_right == forest.MAP_SIZE * forest.TILE)
 	assert(forest._minimap != null)
 	assert(forest._active_animals.size() >= 4)
-	assert(forest._player.sprite_frames.get_frame_texture("side", 0) != null)
+	for direction in ["e", "se", "s", "ne", "n"]:
+		assert(forest._player.sprite_frames.get_frame_texture(direction, 0) != null)
+		for sprite in forest._active_animals.values():
+			assert(sprite.sprite_frames.get_frame_texture(direction, 0) != null)
+	assert(forest._direction_name(Vector2.LEFT) == "w")
+	assert(forest._direction_name(Vector2(-1, -1)) == "nw")
+	assert(forest._direction_name(Vector2(1, 1)) == "se")
 	assert(forest._ground.tile_set.get_source(forest.GRASS).texture != null)
 	for sprite in forest._active_animals.values():
 		assert(sprite != null and is_instance_valid(sprite))
@@ -33,7 +40,33 @@ func _run() -> void:
 	forest._process(1.0 / 60.0)
 	Input.action_release("move_right")
 	assert(forest._player.is_playing())
-	assert(forest._player.animation == "side")
+	assert(forest._player.animation == "e")
+	forest.player_position = forest._animals[0]["position"] + Vector2(-100.0, 0.0)
+	forest._shoo()
+	assert(forest.shoo_cooldown > 0.0)
+	assert(forest._animals[0]["shoo"] > 0.0)
+	forest.shoo_cooldown = 0.0
+	var boar_position: Vector2 = forest._animals[0]["position"]
+	forest.player_position = boar_position + Vector2(-forest.PLAYER_RADIUS - forest.ANIMAL_RADIUS[forest.BOAR] - 1.0, 0.0)
+	forest._try_move(Vector2(3.0, 0.0))
+	assert(forest.player_stun > 0.0)
+	assert(forest._animals[0]["stun"] > 0.0)
+	forest.player_stun = 0.0
+	forest._animals[0]["stun"] = 0.0
+	forest.player_position = forest._cell_center(forest.START)
+	var boar_food: Vector2i = forest.START + Vector2i(-2, -2)
+	forest.objects[forest._index(boar_food)] = forest.MUSHROOM
+	assert(forest._nearest_food(forest._animals[0]["position"], forest.BOAR) == boar_food)
+	forest.objects[forest._index(boar_food)] = forest.EMPTY
+	forest._animals[0]["shoo"] = 0.0
+	forest._animals[1]["position"] = forest._animals[3]["position"] + Vector2(0.0, -200.0)
+	forest._animals[2]["position"] = forest._animals[0]["position"] + Vector2(0.0, 120.0)
+	forest._move_animals(1.0 / 60.0)
+	assert(forest._animals[1]["state"] == "flee")
+	assert(forest._animals[2]["state"] == "flee")
+	assert(forest._animals[3]["state"] == "hunt")
+	forest._animals[2]["position"] = forest._cell_center(forest.START + Vector2i(-3, 2))
+	forest._animals[1]["position"] = forest._cell_center(forest.START + Vector2i(3, -2))
 	var before: Vector2 = forest._animals[0]["position"]
 	for i in 30:
 		forest._move_animals(1.0 / 60.0)
@@ -42,6 +75,7 @@ func _run() -> void:
 		assert(forest._can_stand(forest._animals[id]["position"]))
 	var found := {}
 	var mushroom := Vector2i(-1, -1)
+	var berries := Vector2i(-1, -1)
 	var grass_count := 0
 	var dirt_count := 0
 	for y in range(2, forest.MAP_SIZE - 2):
@@ -56,6 +90,8 @@ func _run() -> void:
 				found[kind] = cell
 			if kind == forest.MUSHROOM and mushroom.x < 0:
 				mushroom = cell
+			if kind == forest.BERRIES and berries.x < 0:
+				berries = cell
 	for kind in [forest.TREE, forest.BUSH, forest.STONE, forest.LOG]:
 		assert(found.has(kind))
 		assert(not forest._can_stand(forest._cell_center(found[kind])))
@@ -67,6 +103,13 @@ func _run() -> void:
 	forest._collect_nearby()
 	assert(forest.basket >= 1)
 	assert(forest.objects[forest._index(mushroom)] == forest.EMPTY)
+	assert(found.has(forest.BERRIES))
+	assert(forest._can_stand(forest._cell_center(berries)))
+	assert(forest._nearest_food(forest._cell_center(berries), forest.DEER) == berries)
+	forest.player_position = forest._cell_center(berries)
+	forest._collect_nearby()
+	assert(forest.berries_basket >= 1)
+	assert(forest.objects[forest._index(berries)] == forest.EMPTY)
 	assert(forest._in_bounds(Vector2i(forest.MAP_SIZE - 1, forest.MAP_SIZE - 1)))
 	assert(not forest._in_bounds(Vector2i(forest.MAP_SIZE, forest.MAP_SIZE - 1)))
 	forest.player_position = forest._cell_center(Vector2i(48, 48))
@@ -74,5 +117,5 @@ func _run() -> void:
 	assert(forest._ground.get_used_rect().position == Vector2i(38, 41))
 	assert(forest._ground.get_used_rect().size == Vector2i(21, 15))
 	assert(forest._dirt.get_used_rect().position == Vector2i(38, 41))
-	print("Forest smoke test passed: 10x world, tile streaming, blockers, pickup, four roaming species, side walk")
+	print("Forest smoke test passed: 10x world, tile streaming, blockers, two foods, animal stun/shoo, five art views and eight headings")
 	quit()

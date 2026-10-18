@@ -2,7 +2,7 @@
 
 Oravitsa is a cosy 2D forest game prototype. The current default scene explores a
 larger world built from connecting painted tiles, with winding dirt paths, trees,
-bushes, stones, ferns, fallen logs, and collectible mushrooms. See the
+bushes, stones, ferns, fallen logs, and collectible mushrooms and berries. See the
 [design](docs/design.md) and [character reference](docs/character.md).
 
 ## Play
@@ -10,9 +10,11 @@ bushes, stones, ferns, fallen logs, and collectible mushrooms. See the
 Open this folder in **Godot 4.7** (tested with 4.7.2) and press **F5**, or run
 `godot --path .` here. Use **WASD / arrows** to walk. The camera follows Oravitsa;
 the minimap in the upper right shows the full forest. Grass, dirt, ferns, and
-mushrooms are passable. Walking over a mushroom collects it. Trees, bushes,
-stones, and fallen logs block movement. Boars, deer, foxes, and lynxes roam as
-ambient wildlife; they do not attack or collect mushrooms in this scene.
+mushrooms and berries are passable. Walking over food collects it. Trees, bushes,
+stones, and fallen logs block movement; dark green ground marks blocked trees
+and bushes. Press **Space** to shoo nearby wildlife. Animals avoid each other
+and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
+stuns both of them.
 
 The forest is **416 × 416 tiles**, 10.56 times the previous map area. It uses a
 fixed seed, so paths and objects are the same on every run. Ground tiles and
@@ -35,7 +37,7 @@ play it. It includes the boar and deer and is documented in its
 - `scenes/`, `scripts/`, `models/`, `art/`, and `resources/` also contain earlier
   3D experiments retained for history.
 
-Oravitsa now has a dedicated side-facing walk strip, alongside the earlier
-front and back strips. These four-frame strips are still prototype animation.
-The new forest art was generated as bitmap assets and checked in Godot at play
-size; no Tripo, fal, or OpenRouter credits were used.
+Oravitsa and all four animals display eight movement directions using five
+painted views and three mirrored views. These strips are still prototype
+animation. The new forest art was generated as bitmap assets and checked in
+Godot at play size; no Tripo, Fal, or OpenRouter credits were used.

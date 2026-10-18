@@ -19,21 +19,30 @@ const STONE := 3
 const MUSHROOM := 4
 const FERN := 5
 const LOG := 6
+const BERRIES := 7
 const BLOCKED := [TREE, BUSH, STONE, LOG]
-const PROP_NAMES := {TREE: "tree", BUSH: "bush", STONE: "stone", MUSHROOM: "mushroom", FERN: "fern", LOG: "log"}
+const PROP_NAMES := {TREE: "tree", BUSH: "bush", STONE: "stone", MUSHROOM: "mushroom", FERN: "fern", LOG: "log", BERRIES: "berries"}
 const BOAR := 0
 const DEER := 1
 const FOX := 2
 const LYNX := 3
 const ANIMAL_NAMES := {BOAR: "Boar", DEER: "Deer", FOX: "Fox", LYNX: "Lynx"}
-const ANIMAL_SPEEDS := {BOAR: 75.0, DEER: 105.0, FOX: 95.0, LYNX: 88.0}
+const ANIMAL_SPEEDS := {BOAR: 52.0, DEER: 96.0, FOX: 112.0, LYNX: 91.0}
+const ANIMAL_RADIUS := {BOAR: 30.0, DEER: 25.0, FOX: 22.0, LYNX: 25.0}
+const PLAYER_RADIUS := 24.0
+const SHOO_RANGE := 200.0
+const SHOO_COOLDOWN := 7.0
 
 var terrain := PackedByteArray()
 var objects := PackedByteArray()
 var player_position := Vector2.ZERO
 var basket := 0
+var berries_basket := 0
+var player_stun := 0.0
+var shoo_cooldown := 0.0
 var _ground: TileMapLayer
 var _dirt: TileMapLayer
+var _blocked_ground: Node2D
 var _world: Node2D
 var _player: AnimatedSprite2D
 var _camera: Camera2D
@@ -61,15 +70,18 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	player_stun = maxf(0.0, player_stun - delta)
+	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
 	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	if direction.length_squared() > 0.0:
+	if direction.length_squared() > 0.0 and player_stun <= 0.0:
 		var step := direction.normalized() * SPEED * delta
 		_try_move(Vector2(step.x, 0.0))
 		_try_move(Vector2(0.0, step.y))
-		var wanted := "side" if absf(direction.x) > absf(direction.y) * 1.15 else ("away" if direction.y < 0.0 else "toward")
-		if _player.animation != wanted or not _player.is_playing():
-			_player.play(wanted)
-		_player.flip_h = wanted == "side" and direction.x < 0.0
+		var wanted := _direction_name(direction)
+		var base: String = {"w": "e", "sw": "se", "nw": "ne"}.get(wanted, wanted)
+		if _player.animation != base or not _player.is_playing():
+			_player.play(base)
+		_player.flip_h = wanted in ["w", "sw", "nw"]
 		_walk_phase += delta * 11.0 * TAU / 4.0
 		_player.offset.y = -290.0 + sin(_walk_phase * 2.0) * 5.0
 		_player.rotation = sin(_walk_phase) * 0.012
@@ -77,6 +89,7 @@ func _process(delta: float) -> void:
 		_player.stop()
 		_player.offset.y = -290.0
 		_player.rotation = 0.0
+	_player.modulate = Color(0.66, 0.78, 0.91) if player_stun > 0.0 else Color.WHITE
 	_player.position = player_position
 	_camera.position = player_position
 	_collect_nearby()
@@ -84,7 +97,18 @@ func _process(delta: float) -> void:
 	if cell != _loaded_center:
 		_refresh_visible()
 	_move_animals(delta)
+	_update_hud()
 	_minimap.queue_redraw()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE:
+		_shoo()
+
+
+func _direction_name(direction: Vector2) -> String:
+	var angle := wrapi(roundi(direction.angle() / (PI / 4.0)), 0, 8)
+	return ["e", "se", "s", "sw", "w", "nw", "n", "ne"][angle]
 
 
 func _generate_map() -> void:
@@ -120,7 +144,8 @@ func _generate_map() -> void:
 				objects[idx] = TREE
 				continue
 			if clearing or path:
-				objects[idx] = MUSHROOM if _hash(x, y, 23) < 0.012 and not clearing else EMPTY
+				var food_roll := _hash(x, y, 23)
+				objects[idx] = (MUSHROOM if food_roll < 0.012 else BERRIES if food_roll < 0.023 else EMPTY) if not clearing else EMPTY
 				continue
 			var density := grove_noise.get_noise_2d(x, y)
 			var roll := _hash(x, y, 0)
@@ -136,6 +161,8 @@ func _generate_map() -> void:
 				objects[idx] = FERN
 			elif roll < 0.29:
 				objects[idx] = MUSHROOM
+			elif roll < 0.323:
+				objects[idx] = BERRIES
 			else:
 				objects[idx] = EMPTY
 
@@ -191,6 +218,12 @@ func _build_world() -> void:
 	material.set_shader_parameter("world_size", float(MAP_SIZE * TILE))
 	_dirt.material = material
 	add_child(_dirt)
+	_blocked_ground = Node2D.new()
+	_blocked_ground.name = "BlockedUndergrowth"
+	_blocked_ground.z_index = -8
+	_blocked_ground.set_script(load("res://scenes/forest_2d/blocked_ground.gd"))
+	_blocked_ground.set("forest", self)
+	add_child(_blocked_ground)
 	_world = Node2D.new()
 	_world.name = "YSortedWorld"
 	_world.y_sort_enabled = true
@@ -204,7 +237,7 @@ func _build_world() -> void:
 	_player.scale = Vector2.ONE * 0.20
 	_player.offset = Vector2(0, -290)
 	_world.add_child(_player)
-	_player.play("toward")
+	_player.play("s")
 	_camera = Camera2D.new()
 	_camera.name = "FollowCamera"
 	_camera.limit_left = 0
@@ -220,13 +253,18 @@ func _build_world() -> void:
 
 func _make_character_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
-	for direction in ["toward", "away", "side"]:
+	for direction in ["e", "se", "s", "ne", "n"]:
 		frames.add_animation(direction)
 		frames.set_animation_speed(direction, 11.0)
-		var filename: String = ART + "oravitsa_walk_side.png" if direction == "side" else CHARACTER_ART + "oravitsa_walk_" + direction + ".png"
+		var filename: String
+		if direction in ["e", "se", "ne"]:
+			filename = ART + "oravitsa_walk_" + ("side" if direction == "e" else direction) + ".png"
+		else:
+			filename = CHARACTER_ART + "oravitsa_walk_" + ("toward" if direction == "s" else "away") + ".png"
 		var texture: Texture2D = _load_png(filename)
 		var width := float(texture.get_width()) / 4.0
-		for i in 4:
+		var sequence := [0, 1, 2, 1] if direction in ["se", "ne"] else [0, 1, 2, 3]
+		for i in sequence:
 			var frame := AtlasTexture.new()
 			frame.atlas = texture
 			frame.region = Rect2(width * i, 0, width, texture.get_height())
@@ -258,7 +296,7 @@ func _build_hud() -> void:
 	add_child(canvas)
 	var panel := PanelContainer.new()
 	panel.position = Vector2(18, 16)
-	panel.custom_minimum_size = Vector2(400, 76)
+	panel.custom_minimum_size = Vector2(750, 76)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.09, 0.17, 0.13, 0.88)
 	style.set_corner_radius_all(14)
@@ -271,7 +309,7 @@ func _build_hud() -> void:
 	canvas.add_child(_count_label)
 	var hint := Label.new()
 	hint.position = Vector2(36, 56)
-	hint.text = "WASD / arrows: explore   •   Walk over mushrooms to collect"
+	hint.text = "WASD / arrows: explore   •   Space: shoo   •   Collect mushrooms & berries"
 	hint.add_theme_font_size_override("font_size", 14)
 	hint.add_theme_color_override("font_color", Color("e9dfbb"))
 	canvas.add_child(hint)
@@ -289,6 +327,7 @@ func _refresh_visible() -> void:
 	var center := _world_cell(player_position)
 	_loaded_center = center
 	_refresh_ground(center)
+	_blocked_ground.queue_redraw()
 	var wanted := {}
 	for y in range(maxi(0, center.y - 7), mini(MAP_SIZE, center.y + 8)):
 		for x in range(maxi(0, center.x - 10), mini(MAP_SIZE, center.x + 11)):
@@ -311,8 +350,8 @@ func _make_prop(cell: Vector2i, kind: int) -> Sprite2D:
 	sprite.name = PROP_NAMES[kind].capitalize() + "_%d_%d" % [cell.x, cell.y]
 	sprite.texture = _textures[kind]
 	sprite.position = _cell_center(cell)
-	sprite.scale = Vector2.ONE * {TREE: 0.18, BUSH: 0.11, STONE: 0.09, MUSHROOM: 0.06, FERN: 0.075, LOG: 0.09}[kind]
-	sprite.offset.y = -sprite.texture.get_height() * {TREE: 0.30, BUSH: 0.17, STONE: 0.08, MUSHROOM: 0.08, FERN: 0.10, LOG: 0.08}[kind]
+	sprite.scale = Vector2.ONE * {TREE: 0.18, BUSH: 0.11, STONE: 0.09, MUSHROOM: 0.06, FERN: 0.075, LOG: 0.09, BERRIES: 0.052}[kind]
+	sprite.offset.y = -sprite.texture.get_height() * {TREE: 0.30, BUSH: 0.17, STONE: 0.08, MUSHROOM: 0.08, FERN: 0.10, LOG: 0.08, BERRIES: 0.04}[kind]
 	sprite.flip_h = _hash(cell.x, cell.y, 71) > 0.5
 	_world.add_child(sprite)
 	return sprite
@@ -345,7 +384,15 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 		"position": _cell_center(cell),
 		"target": _cell_center(cell),
 		"timeout": 0.0,
-		"turn": 0
+		"turn": 0,
+		"home": _cell_center(cell),
+		"stun": 0.0,
+		"shoo": 0.0,
+		"velocity": Vector2.ZERO,
+		"facing": Vector2.DOWN,
+		"state": "idle",
+		"food_cell": Vector2i(-1, -1),
+		"eat_time": 0.0
 	})
 
 
@@ -367,22 +414,26 @@ func _refresh_animals(center: Vector2i) -> void:
 
 func _make_animal_sprite(id: int) -> AnimatedSprite2D:
 	var kind: int = _animals[id]["kind"]
-	var filename: String = [
-		CHARACTER_ART + "boar_walk.png", CHARACTER_ART + "deer_walk.png",
-		ART + "fox_walk.png", ART + "lynx_walk.png"
-	][kind]
-	var texture: Texture2D = _load_png(filename)
-	if texture == null:
-		return null
+	var animal_name: String = ["boar", "deer", "fox", "lynx"][kind]
 	var frames := SpriteFrames.new()
-	frames.add_animation("walk")
-	frames.set_animation_speed("walk", 9.0)
-	var width := float(texture.get_width()) / 4.0
-	for i in 4:
-		var frame := AtlasTexture.new()
-		frame.atlas = texture
-		frame.region = Rect2(width * i, 0, width, texture.get_height())
-		frames.add_frame("walk", frame)
+	var texture: Texture2D
+	for direction in ["e", "se", "s", "ne", "n"]:
+		frames.add_animation(direction)
+		frames.set_animation_speed(direction, 7.0 if kind == BOAR else 9.0)
+		var filename: String = ART + animal_name + "_walk_" + direction + ".png"
+		# The original diagonal strip anchors the species' painted look.
+		if direction == "se":
+			filename = (CHARACTER_ART if kind <= DEER else ART) + animal_name + "_walk.png"
+		texture = _load_png(filename)
+		if texture == null:
+			return null
+		var width := float(texture.get_width()) / 4.0
+		var sequence := [0, 1, 2, 3] if direction == "se" else [0, 1, 2, 1]
+		for i in sequence:
+			var frame := AtlasTexture.new()
+			frame.atlas = texture
+			frame.region = Rect2(width * i, 0, width, texture.get_height())
+			frames.add_frame(direction, frame)
 	var sprite := AnimatedSprite2D.new()
 	sprite.name = ANIMAL_NAMES[kind] + "_%d" % id
 	sprite.sprite_frames = frames
@@ -390,7 +441,7 @@ func _make_animal_sprite(id: int) -> AnimatedSprite2D:
 	sprite.offset = Vector2(0, -texture.get_height() * 0.35)
 	sprite.position = _animals[id]["position"]
 	_world.add_child(sprite)
-	sprite.play("walk")
+	sprite.play("s")
 	return sprite
 
 
@@ -399,54 +450,199 @@ func _choose_animal_target(id: int) -> void:
 	var cell := _world_cell(data["position"])
 	var turn: int = data["turn"] + 1
 	data["turn"] = turn
-	for attempt in 8:
+	for attempt in 16:
 		var angle := _hash(id, turn + attempt, 201) * TAU
-		var distance := 1 + int(_hash(id, turn + attempt, 202) * 4.0)
+		var distance := 2 + int(_hash(id, turn + attempt, 202) * 5.0)
 		var target_cell := cell + Vector2i(roundi(cos(angle) * distance), roundi(sin(angle) * distance))
-		if _in_bounds(target_cell) and _can_stand(_cell_center(target_cell)):
+		if _in_bounds(target_cell) and _can_stand(_cell_center(target_cell)) and _cell_center(target_cell).distance_to(data["home"]) < 950.0:
 			data["target"] = _cell_center(target_cell)
-			data["timeout"] = 3.0 + _hash(id, turn, 203) * 2.0
+			data["timeout"] = 5.0 + _hash(id, turn, 203) * 3.0
+			data["state"] = "roam"
 			return
 	data["target"] = data["position"]
-	data["timeout"] = 1.0
+	data["timeout"] = 2.0
+	data["state"] = "idle"
+
+
+func _nearest_animal(position: Vector2, kinds: Array, except_id: int, radius: float) -> int:
+	var nearest := -1
+	var best := radius * radius
+	for other_id in _active_animals.keys():
+		if other_id == except_id or _animals[other_id]["kind"] not in kinds:
+			continue
+		var distance: float = position.distance_squared_to(_animals[other_id]["position"])
+		if distance < best:
+			best = distance
+			nearest = other_id
+	return nearest
+
+
+func _nearest_food(position: Vector2, kind: int) -> Vector2i:
+	var center := _world_cell(position)
+	var best := 99999999.0
+	var result := Vector2i(-1, -1)
+	for y in range(center.y - 4, center.y + 5):
+		for x in range(center.x - 4, center.x + 5):
+			var cell := Vector2i(x, y)
+			if not _in_bounds(cell):
+				continue
+			var item: int = objects[_index(cell)]
+			if item != BERRIES and not (kind == BOAR and item == MUSHROOM):
+				continue
+			var distance := position.distance_squared_to(_cell_center(cell))
+			if distance < best:
+				best = distance
+				result = cell
+	return result
+
+
+func _consume_food(cell: Vector2i) -> void:
+	if not _in_bounds(cell) or objects[_index(cell)] not in [MUSHROOM, BERRIES]:
+		return
+	objects[_index(cell)] = EMPTY
+	if _active_props.has(cell):
+		_active_props[cell].queue_free()
+		_active_props.erase(cell)
+
+
+func _can_animal_move(id: int, candidate: Vector2) -> bool:
+	if not _can_stand(candidate):
+		return false
+	var kind: int = _animals[id]["kind"]
+	if candidate.distance_to(player_position) < ANIMAL_RADIUS[kind] + PLAYER_RADIUS:
+		return false
+	for other_id in _active_animals.keys():
+		if other_id == id:
+			continue
+		var other := _animals[other_id]
+		if candidate.distance_to(other["position"]) < ANIMAL_RADIUS[kind] + ANIMAL_RADIUS[other["kind"]]:
+			return false
+	return true
+
+
+func _shoo() -> void:
+	if shoo_cooldown > 0.0 or player_stun > 0.0:
+		return
+	shoo_cooldown = SHOO_COOLDOWN
+	for id in _active_animals.keys():
+		if _animals[id]["position"].distance_to(player_position) <= SHOO_RANGE:
+			_animals[id]["shoo"] = 3.0
+			_animals[id]["timeout"] = 0.0
 
 
 func _move_animals(delta: float) -> void:
 	for id in _active_animals.keys():
 		var data := _animals[id]
 		var position: Vector2 = data["position"]
-		var target: Vector2 = data["target"]
+		var kind: int = data["kind"]
+		var sprite: AnimatedSprite2D = _active_animals[id]
+		data["stun"] = maxf(0.0, data["stun"] - delta)
+		data["shoo"] = maxf(0.0, data["shoo"] - delta)
+		if data["stun"] > 0.0:
+			sprite.stop()
+			sprite.modulate = Color(0.66, 0.78, 0.91)
+			continue
+		sprite.modulate = Color.WHITE
 		data["timeout"] = float(data["timeout"]) - delta
-		if position.distance_to(target) < 9.0 or data["timeout"] <= 0.0:
+		var target: Vector2 = data["target"]
+		var speed: float = ANIMAL_SPEEDS[kind]
+		var threat := -1
+		if kind == FOX:
+			threat = _nearest_animal(position, [BOAR, DEER, FOX, LYNX], id, 310.0)
+		elif kind == DEER:
+			threat = _nearest_animal(position, [LYNX], id, 340.0)
+		var player_distance := position.distance_to(player_position)
+		var avoid_player := player_distance < (135.0 if kind == BOAR else 235.0)
+		if kind == BOAR and _hash(id, 0, 451) < 0.45 and player_distance > 80.0:
+			avoid_player = false
+		if data["shoo"] > 0.0 or threat >= 0 or avoid_player:
+			var away := Vector2.ZERO
+			if data["shoo"] > 0.0 or avoid_player:
+				away += (position - player_position).normalized()
+			if threat >= 0:
+				away += (position - _animals[threat]["position"]).normalized() * 1.4
+			if away.length_squared() > 0.01:
+				target = position + away.normalized() * 300.0
+			data["state"] = "flee"
+			speed *= 1.35 if kind != BOAR else 1.1
+		elif kind == LYNX:
+			var prey := _nearest_animal(position, [DEER], id, 650.0)
+			if prey >= 0:
+				target = _animals[prey]["position"]
+				data["state"] = "hunt"
+				speed *= 1.18
+		elif kind in [BOAR, DEER]:
+			var food_cell: Vector2i = data["food_cell"]
+			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in [BERRIES, MUSHROOM] or (kind == DEER and objects[_index(food_cell)] != BERRIES):
+				food_cell = _nearest_food(position, kind)
+				data["food_cell"] = food_cell
+			if _in_bounds(food_cell):
+				target = _cell_center(food_cell)
+				data["state"] = "forage"
+				if position.distance_to(target) < 37.0:
+					data["eat_time"] = float(data["eat_time"]) + delta
+					if data["eat_time"] >= 0.7:
+						_consume_food(food_cell)
+						data["food_cell"] = Vector2i(-1, -1)
+						data["eat_time"] = 0.0
+						data["timeout"] = 0.0
+					sprite.stop()
+					continue
+				else:
+					data["eat_time"] = 0.0
+		if data["state"] in ["roam", "idle"] and (position.distance_to(target) < 15.0 or data["timeout"] <= 0.0):
+			_choose_animal_target(id)
+			target = data["target"]
+		if data["state"] in ["flee", "hunt", "forage"] and target == data["target"]:
 			_choose_animal_target(id)
 			target = data["target"]
 		var heading := position.direction_to(target)
-		var step: Vector2 = heading * ANIMAL_SPEEDS[data["kind"]] * delta
+		var velocity: Vector2 = data["velocity"]
+		velocity = velocity.move_toward(heading * speed, 290.0 * delta)
+		data["velocity"] = velocity
+		var step: Vector2 = velocity * delta
 		var candidate := position
-		if _can_stand(candidate + Vector2(step.x, 0)):
+		if _can_animal_move(id, candidate + Vector2(step.x, 0)):
 			candidate.x += step.x
-		if _can_stand(candidate + Vector2(0, step.y)):
+		if _can_animal_move(id, candidate + Vector2(0, step.y)):
 			candidate.y += step.y
+		if candidate.distance_squared_to(position) < 0.1 and heading.length_squared() > 0.1:
+			var side := Vector2(-heading.y, heading.x) * (1.0 if _hash(id, data["turn"], 377) < 0.5 else -1.0) * speed * delta
+			if _can_animal_move(id, position + side):
+				candidate = position + side
 		if candidate.distance_squared_to(position) < 0.1:
-			data["timeout"] = 0.0
+			data["velocity"] = Vector2.ZERO
+			if data["state"] == "roam":
+				data["timeout"] = 0.0
 		data["position"] = candidate
-		var sprite: AnimatedSprite2D = _active_animals[id]
 		sprite.position = candidate
-		if absf(heading.x) > 0.1:
-			sprite.flip_h = heading.x < 0.0
 		if candidate.distance_squared_to(position) > 0.1:
-			if not sprite.is_playing():
-				sprite.play("walk")
+			data["facing"] = velocity.normalized()
+			var facing: String = _direction_name(data["facing"])
+			var base: String = {"w": "e", "sw": "se", "nw": "ne"}.get(facing, facing)
+			sprite.flip_h = facing in ["w", "sw", "nw"]
+			if sprite.animation != base or not sprite.is_playing():
+				sprite.play(base)
 		else:
 			sprite.stop()
 
 
 func _try_move(step: Vector2) -> void:
+	if player_stun > 0.0:
+		return
 	var candidate := player_position + step
 	candidate.x = clampf(candidate.x, 16.0, MAP_SIZE * TILE - 16.0)
 	candidate.y = clampf(candidate.y, 12.0, MAP_SIZE * TILE - 12.0)
-	if _can_stand(candidate):
-		player_position = candidate
+	if not _can_stand(candidate):
+		return
+	for id in _active_animals.keys():
+		var animal := _animals[id]
+		if candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
+			player_stun = 0.85
+			animal["stun"] = 0.85
+			animal["velocity"] = Vector2.ZERO
+			return
+	player_position = candidate
 
 
 func _can_stand(point: Vector2) -> bool:
@@ -462,19 +658,20 @@ func _collect_nearby() -> void:
 	for y in range(center.y - 1, center.y + 2):
 		for x in range(center.x - 1, center.x + 2):
 			var cell := Vector2i(x, y)
-			if not _in_bounds(cell) or objects[_index(cell)] != MUSHROOM:
+			if not _in_bounds(cell) or objects[_index(cell)] not in [MUSHROOM, BERRIES]:
 				continue
 			if player_position.distance_to(_cell_center(cell)) <= PICKUP_RADIUS:
-				objects[_index(cell)] = EMPTY
-				basket += 1
-				if _active_props.has(cell):
-					_active_props[cell].queue_free()
-					_active_props.erase(cell)
+				if objects[_index(cell)] == MUSHROOM:
+					basket += 1
+				else:
+					berries_basket += 1
+				_consume_food(cell)
 				_update_hud()
 
 
 func _update_hud() -> void:
-	_count_label.text = "Oravitsa’s forest    Mushrooms: %d" % basket
+	var status := "Stunned" if player_stun > 0.0 else ("Shoo %.1fs" % shoo_cooldown if shoo_cooldown > 0.0 else "Shoo ready")
+	_count_label.text = "Oravitsa’s forest    Mushrooms: %d   Berries: %d   %s" % [basket, berries_basket, status]
 
 
 func _index(cell: Vector2i) -> int:
