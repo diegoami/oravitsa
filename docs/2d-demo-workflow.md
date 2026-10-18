@@ -37,11 +37,14 @@ The existing Oravitsa design sheets, especially
 `character-drafts/oravitsa_4.png` and `oravitsa_1.png`, supplied her identity:
 headscarf, braids, clothes, basket, palette, and the view from above. The
 forest clearing was selected as the style reference for the animal art. The
-assets were made with the image-generation tool available to the assistant
-in the chat session, then checked in the running game at their display size.
-This was an image-generation service used during creation, not a feature of
-Godot or runtime procedural art. We did not use Tripo, fal, OpenRouter,
-Blender, or Krita to produce this demo's 2D art.
+assets were made through the assistant's `image_gen.imagegen` chat tool,
+then checked in the running game at their display size. The tool took image
+instructions and references; it did not expose an API endpoint URL or a
+selectable model ID in the calls available to me. I therefore cannot name
+the underlying model or reproduce the request as a direct HTTP API call.
+This was a creation-time service, not a Godot feature or runtime procedural
+art. We did not call Tripo, fal, or OpenRouter endpoints or use Blender or
+Krita to produce this demo's 2D art.
 
 The committed files in `prototypes/foraging_2d/art/` are:
 
