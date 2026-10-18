@@ -1,46 +1,40 @@
 # Oravitsa
 
-Oravitsa is a cosy **2D foraging game** set in a Nordic summer forest. A young
-forager gathers mushrooms against a hunger clock while a boar seeks the same
-food. Deer roam the clearing. There is no combat: nothing can damage or kill a
-creature. See [the design](docs/design.md) and [character reference](docs/character.md).
-
-The current game is a one-clearing playtest. It uses painted raster art for the
-forest, Oravitsa, animals, and mushrooms. Its purpose is to find out whether
-moving, gathering, and competing for food make a satisfying loop before we
-expand the world or polish every animation.
+Oravitsa is a cosy 2D forest game prototype. The current default scene explores a
+larger world built from connecting painted tiles, with winding dirt paths, trees,
+bushes, stones, ferns, fallen logs, and collectible mushrooms. See the
+[design](docs/design.md) and [character reference](docs/character.md).
 
 ## Play
 
 Open this folder in **Godot 4.7** (tested with 4.7.2) and press **F5**, or run
-`godot --path .` from this folder.
+`godot --path .` here. Use **WASD / arrows** to walk. The camera follows Oravitsa;
+the minimap in the upper right shows the full forest. Grass, dirt, ferns, and
+mushrooms are passable. Walking over a mushroom collects it. Trees, bushes,
+stones, and fallen logs block movement.
 
-- **WASD / arrows:** move Oravitsa; walk near mushrooms to gather them.
-- **Space:** shoo a nearby boar briefly, without harming it. The ability has a
-  cooldown.
-- **R:** restart after a round.
+The forest is 128 × 128 tiles, or roughly 11 visible screens across and 20 down
+at the default window size. It uses a fixed seed, so paths and objects are the
+same on every run. Ground is a Godot `TileMapLayer`; nearby object sprites are
+loaded as Oravitsa explores. The [forest guide](scenes/forest_2d/README.md)
+explains the map and art sources.
 
-Gather **9 mushroom patches in 90 seconds**. The boar takes patches too; the
-deer is ambient wildlife. The layout is fixed so different routes can be
-compared. More playtest details and known art limitations are in the
-[2D game guide](prototypes/foraging_2d/README.md). The
-[creation workflow](docs/2d-demo-workflow.md) records how this demo was built
-and what is needed to make matching assets later.
+The earlier timed, single-clearing foraging loop remains available at
+`res://prototypes/foraging_2d/game.tscn`; open that scene and press **F6** to
+play it. It includes the boar and deer and is documented in its
+[playtest guide](prototypes/foraging_2d/README.md). The
+[creation workflow](docs/2d-demo-workflow.md) records the original demo.
 
 ## Project layout
 
-- `prototypes/foraging_2d/` — **current game**: scene, gameplay script, art,
-  smoke test, and guide. The folder retains its original experiment name; it
-  is the project's default scene in `project.godot`.
-- `docs/design.md` — current premise and loop.
-- `docs/character.md` and `character-drafts/` — canonical character design and
-  reference sheets. The sheets are reference material, not imported game art.
-- `scenes/`, `scripts/`, `models/`, `art/`, and `resources/` — earlier 3D
-  experiments, retained for history. They are not used by the 2D main scene.
-- `docs/prototype_log.md`, `docs/art-pipeline.md`, and
-  `docs/tripo-experiment.md` — development history and legacy 3D workflows.
+- `scenes/forest_2d/` — current scrolling forest scene, map script, minimap,
+  painted tiles and forest objects.
+- `prototypes/foraging_2d/` — earlier fixed-clearing game, retained as a
+  separate playable experiment.
+- `docs/character.md` and `character-drafts/` — canonical Oravitsa reference.
+- `scenes/`, `scripts/`, `models/`, `art/`, and `resources/` also contain earlier
+  3D experiments retained for history.
 
-The 2D art was generated from prompts and Oravitsa's reference sheets, then
-checked in the running game at its actual display size. No Tripo, fal, or
-OpenRouter API credits were used for these assets. The short four-frame walk
-strips and mirrored sideways views are playtest art, not final animation.
+The short four-frame Oravitsa walk strips remain prototype animation. The new
+forest art was generated as bitmap assets and checked in Godot at play size;
+no Tripo, fal, or OpenRouter credits were used.
