@@ -27,13 +27,17 @@ const BOAR := 0
 const DEER := 1
 const FOX := 2
 const LYNX := 3
-const ANIMAL_NAMES := {BOAR: "Boar", DEER: "Deer", FOX: "Fox", LYNX: "Lynx"}
-const ANIMAL_SPEEDS := {BOAR: 52.0, DEER: 96.0, FOX: 112.0, LYNX: 91.0}
-const ANIMAL_RADIUS := {BOAR: 30.0, DEER: 25.0, FOX: 22.0, LYNX: 25.0}
+const HARE := 4
+const ANIMAL_NAMES := {BOAR: "Boar", DEER: "Deer", FOX: "Fox", LYNX: "Lynx", HARE: "Hare"}
+const ANIMAL_SPEEDS := {BOAR: 52.0, DEER: 96.0, FOX: 112.0, LYNX: 91.0, HARE: 108.0}
+const ANIMAL_RADIUS := {BOAR: 30.0, DEER: 25.0, FOX: 22.0, LYNX: 25.0, HARE: 19.0}
 const LYNX_BURST_SPEED := 220.0
 const LYNX_BURST_TIME := 1.5
 const LYNX_BURST_RECOVERY := 3.4
-const DEER_RESPAWN_TIME := 25.0
+const PREY_RESPAWN_TIME := 25.0
+const LOCAL_POPULATION := {BOAR: 1, DEER: 1, FOX: 1, LYNX: 1, HARE: 2}
+const POPULATION_RADIUS := 1150.0
+const POPULATION_INTERVAL := 7.0
 const PLAYER_RADIUS := 24.0
 const SHOO_RANGE := 200.0
 const SHOO_COOLDOWN := 7.0
@@ -44,6 +48,7 @@ var player_position := Vector2.ZERO
 var basket := 0
 var berries_basket := 0
 var deer_caught := 0
+var hares_caught := 0
 var player_stun := 0.0
 var shoo_cooldown := 0.0
 var _ground: TileMapLayer
@@ -60,6 +65,8 @@ var _active_animals: Dictionary = {}
 var _textures: Dictionary = {}
 var _png_cache: Dictionary = {}
 var _loaded_center := Vector2i(-999, -999)
+var _population_timer := POPULATION_INTERVAL
+var _population_tick := 0
 
 
 func _ready() -> void:
@@ -101,6 +108,10 @@ func _process(delta: float) -> void:
 		_refresh_visible()
 	_update_respawns(delta)
 	_move_animals(delta)
+	_population_timer -= delta
+	if _population_timer <= 0.0:
+		_population_timer = POPULATION_INTERVAL
+		_replenish_local_animals()
 	_update_hud()
 	_minimap.queue_redraw()
 
@@ -321,8 +332,8 @@ func _build_hud() -> void:
 	_minimap.set_script(load("res://scenes/forest_2d/minimap.gd"))
 	_minimap.name = "Minimap"
 	_minimap.position = Vector2(1016, 16)
-	_minimap.custom_minimum_size = Vector2(244, 244)
-	_minimap.size = Vector2(244, 244)
+	_minimap.custom_minimum_size = Vector2(244, 272)
+	_minimap.size = Vector2(244, 272)
 	_minimap.set("forest", self)
 	canvas.add_child(_minimap)
 
@@ -362,11 +373,12 @@ func _make_prop(cell: Vector2i, kind: int) -> Sprite2D:
 
 
 func _seed_animals() -> void:
-	# The first four are deliberately near the starting clearing so each species
+	# The first animals are deliberately near the starting clearing so each species
 	# can be evaluated immediately. Other animals are stable across runs.
 	for entry in [
 		[BOAR, Vector2i(-3, -2)], [DEER, Vector2i(3, -2)],
-		[FOX, Vector2i(-3, 2)], [LYNX, Vector2i(3, 2)]
+		[FOX, Vector2i(-3, 2)], [LYNX, Vector2i(3, 2)],
+		[HARE, Vector2i(-4, 0)], [HARE, Vector2i(4, 0)]
 	]:
 		_add_animal(entry[0], START + entry[1])
 	for sector_y in range(1, MAP_SIZE / 24 - 1):
@@ -378,7 +390,7 @@ func _seed_animals() -> void:
 				sector_y * 24 + 4 + int(_hash(sector_x, sector_y, 103) * 16.0)
 			)
 			if _can_stand(_cell_center(cell)) and cell.distance_to(START) > 8.0:
-				_add_animal(mini(3, int(_hash(sector_x, sector_y, 104) * 4.0)), cell)
+				_add_animal(mini(HARE, int(_hash(sector_x, sector_y, 104) * 5.0)), cell)
 
 
 func _add_animal(kind: int, cell: Vector2i) -> void:
@@ -425,7 +437,7 @@ func _refresh_animals(center: Vector2i) -> void:
 
 func _make_animal_sprite(id: int) -> AnimatedSprite2D:
 	var kind: int = _animals[id]["kind"]
-	var animal_name: String = ["boar", "deer", "fox", "lynx"][kind]
+	var animal_name: String = ["boar", "deer", "fox", "lynx", "hare"][kind]
 	var frames := SpriteFrames.new()
 	var texture: Texture2D
 	for direction in ["e", "se", "s", "ne", "n"]:
@@ -433,7 +445,7 @@ func _make_animal_sprite(id: int) -> AnimatedSprite2D:
 		frames.set_animation_speed(direction, 7.0 if kind == BOAR else 9.0)
 		var filename: String = ART + animal_name + "_walk_" + direction + ".png"
 		# The original diagonal strip anchors the species' painted look.
-		if direction == "se":
+		if direction == "se" and kind != HARE:
 			filename = (CHARACTER_ART if kind <= DEER else ART) + animal_name + "_walk.png"
 		texture = _load_png(filename)
 		if texture == null:
@@ -448,7 +460,7 @@ func _make_animal_sprite(id: int) -> AnimatedSprite2D:
 	var sprite := AnimatedSprite2D.new()
 	sprite.name = ANIMAL_NAMES[kind] + "_%d" % id
 	sprite.sprite_frames = frames
-	sprite.scale = Vector2.ONE * [0.16, 0.17, 0.14, 0.15][kind]
+	sprite.scale = Vector2.ONE * [0.16, 0.17, 0.14, 0.15, 0.115][kind]
 	sprite.offset = Vector2(0, -texture.get_height() * 0.35)
 	sprite.position = _animals[id]["position"]
 	_world.add_child(sprite)
@@ -465,7 +477,7 @@ func _choose_animal_target(id: int) -> void:
 		var angle := _hash(id, turn + attempt, 201) * TAU
 		var distance := 2 + int(_hash(id, turn + attempt, 202) * 5.0)
 		var target_cell := cell + Vector2i(roundi(cos(angle) * distance), roundi(sin(angle) * distance))
-		if _in_bounds(target_cell) and _can_stand(_cell_center(target_cell)) and _cell_center(target_cell).distance_to(data["home"]) < 950.0:
+		if _in_bounds(target_cell) and _can_stand(_cell_center(target_cell)) and _cell_center(target_cell).distance_to(data["home"]) < 720.0:
 			data["target"] = _cell_center(target_cell)
 			data["timeout"] = 5.0 + _hash(id, turn, 203) * 3.0
 			data["state"] = "roam"
@@ -541,22 +553,25 @@ func _shoo() -> void:
 			_animals[id]["timeout"] = 0.0
 
 
-func _catch_deer(lynx_id: int, deer_id: int) -> void:
+func _catch_prey(lynx_id: int, prey_id: int) -> void:
 	var lynx := _animals[lynx_id]
-	var deer := _animals[deer_id]
-	if not deer["alive"] or lynx["kind"] != LYNX or deer["kind"] != DEER:
+	var prey := _animals[prey_id]
+	if not prey["alive"] or lynx["kind"] != LYNX or prey["kind"] not in [DEER, HARE]:
 		return
-	deer["alive"] = false
-	deer["respawn"] = DEER_RESPAWN_TIME
-	deer["velocity"] = Vector2.ZERO
+	prey["alive"] = false
+	prey["respawn"] = PREY_RESPAWN_TIME
+	prey["velocity"] = Vector2.ZERO
 	lynx["feeding"] = 1.7
 	lynx["burst"] = 0.0
 	lynx["velocity"] = Vector2.ZERO
 	lynx["state"] = "feed"
-	deer_caught += 1
-	if _active_animals.has(deer_id):
-		_active_animals[deer_id].queue_free()
-		_active_animals.erase(deer_id)
+	if prey["kind"] == DEER:
+		deer_caught += 1
+	else:
+		hares_caught += 1
+	if _active_animals.has(prey_id):
+		_active_animals[prey_id].queue_free()
+		_active_animals.erase(prey_id)
 
 
 func _update_respawns(delta: float) -> void:
@@ -579,6 +594,72 @@ func _update_respawns(delta: float) -> void:
 		data["alive"] = true
 		refreshed = true
 	if refreshed:
+		_refresh_animals(_loaded_center)
+
+
+func _local_population(kind: int) -> int:
+	var count := 0
+	for animal in _animals:
+		if animal["alive"] and animal["kind"] == kind and animal["position"].distance_to(player_position) <= POPULATION_RADIUS:
+			count += 1
+	return count
+
+
+func _find_local_spawn(kind: int) -> Vector2i:
+	# Enter from outside the camera rather than appearing beside Oravitsa.
+	var player_cell := _world_cell(player_position)
+	for attempt in 48:
+		var angle := _hash(_population_tick + attempt, kind, 801) * TAU
+		var distance := 7 + int(_hash(_population_tick + attempt, kind, 802) * 3.0)
+		var cell := player_cell + Vector2i(roundi(cos(angle) * distance), roundi(sin(angle) * distance))
+		if not _in_bounds(cell):
+			continue
+		var spot := _cell_center(cell)
+		if spot.distance_to(player_position) < 730.0 or not _can_stand(spot, ANIMAL_RADIUS[kind]):
+			continue
+		var clear := true
+		for animal in _animals:
+			if animal["alive"] and animal["position"].distance_to(spot) < 150.0:
+				clear = false
+				break
+		if clear:
+			return cell
+	return Vector2i(-1, -1)
+
+
+func _replenish_local_animals() -> void:
+	var changed := false
+	for kind in [BOAR, DEER, FOX, LYNX, HARE]:
+		for missing in maxi(0, int(LOCAL_POPULATION[kind]) - _local_population(kind)):
+			_population_tick += 1
+			var cell := _find_local_spawn(kind)
+			if cell.x < 0:
+				break
+			var donor := -1
+			for id in _animals.size():
+				var animal := _animals[id]
+				if animal["kind"] == kind and not _active_animals.has(id) and animal["position"].distance_to(player_position) > POPULATION_RADIUS * 1.5:
+					donor = id
+					break
+			if donor < 0:
+				if _animals.size() >= 260:
+					break
+				_add_animal(kind, cell)
+			else:
+				var data := _animals[donor]
+				data["position"] = _cell_center(cell)
+				data["home"] = data["position"]
+				data["target"] = data["position"]
+				data["velocity"] = Vector2.ZERO
+				data["timeout"] = 0.0
+				data["stun"] = 0.0
+				data["shoo"] = 0.0
+				data["feeding"] = 0.0
+				data["respawn"] = 0.0
+				data["alive"] = true
+				data["state"] = "idle"
+			changed = true
+	if changed:
 		_refresh_animals(_loaded_center)
 
 
@@ -612,8 +693,8 @@ func _move_animals(delta: float) -> void:
 		var speed: float = ANIMAL_SPEEDS[kind]
 		var threat := -1
 		if kind == FOX:
-			threat = _nearest_animal(position, [BOAR, DEER, FOX, LYNX], id, 310.0)
-		elif kind == DEER:
+			threat = _nearest_animal(position, [BOAR, DEER, FOX, LYNX, HARE], id, 310.0)
+		elif kind in [DEER, HARE]:
 			threat = _nearest_animal(position, [LYNX], id, 340.0)
 		var player_distance := position.distance_to(player_position)
 		var avoid_player := player_distance < (135.0 if kind == BOAR else 235.0)
@@ -629,12 +710,15 @@ func _move_animals(delta: float) -> void:
 				target = position + away.normalized() * 300.0
 			data["state"] = "flee"
 			speed *= 1.35 if kind != BOAR else 1.1
+		elif position.distance_to(data["home"]) > 850.0:
+			target = data["home"]
+			data["state"] = "return"
 		elif kind == LYNX:
-			var prey := _nearest_animal(position, [DEER], id, 650.0)
+			var prey := _nearest_animal(position, [DEER, HARE], id, 650.0)
 			if prey >= 0:
 				var prey_position: Vector2 = _animals[prey]["position"]
-				if position.distance_to(prey_position) <= ANIMAL_RADIUS[LYNX] + ANIMAL_RADIUS[DEER] + 8.0:
-					_catch_deer(id, prey)
+				if position.distance_to(prey_position) <= ANIMAL_RADIUS[LYNX] + ANIMAL_RADIUS[_animals[prey]["kind"]] + 8.0:
+					_catch_prey(id, prey)
 					sprite.stop()
 					continue
 				target = prey_position
@@ -643,9 +727,9 @@ func _move_animals(delta: float) -> void:
 					data["burst"] = LYNX_BURST_TIME
 					data["burst_cooldown"] = LYNX_BURST_RECOVERY
 				speed = LYNX_BURST_SPEED if data["burst"] > 0.0 else ANIMAL_SPEEDS[LYNX]
-		elif kind in [BOAR, DEER]:
+		elif kind in [BOAR, DEER, HARE]:
 			var food_cell: Vector2i = data["food_cell"]
-			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in [BERRIES, MUSHROOM] or (kind == DEER and objects[_index(food_cell)] != BERRIES):
+			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in [BERRIES, MUSHROOM] or (kind in [DEER, HARE] and objects[_index(food_cell)] != BERRIES):
 				food_cell = _nearest_food(position, kind)
 				data["food_cell"] = food_cell
 			if _in_bounds(food_cell):
@@ -662,7 +746,7 @@ func _move_animals(delta: float) -> void:
 					continue
 				else:
 					data["eat_time"] = 0.0
-		if data["state"] in ["roam", "idle"] and (position.distance_to(target) < 15.0 or data["timeout"] <= 0.0):
+		if data["state"] in ["roam", "idle", "return"] and (position.distance_to(target) < 15.0 or data["timeout"] <= 0.0 and data["state"] != "return"):
 			_choose_animal_target(id)
 			target = data["target"]
 		if data["state"] in ["flee", "hunt", "forage"] and target == data["target"]:

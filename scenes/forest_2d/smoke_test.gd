@@ -33,8 +33,9 @@ func _run() -> void:
 	var animal_kinds := {}
 	for animal in forest._animals:
 		animal_kinds[animal["kind"]] = true
-	for kind in [forest.BOAR, forest.DEER, forest.FOX, forest.LYNX]:
+	for kind in [forest.BOAR, forest.DEER, forest.FOX, forest.LYNX, forest.HARE]:
 		assert(animal_kinds.has(kind))
+	assert(forest._minimap.ANIMAL_COLORS.size() == 5)
 	assert(forest._can_stand(forest._cell_center(forest.START)))
 	assert(not forest._can_stand(forest._cell_center(Vector2i(1, forest.START.y))))
 	assert(forest.terrain[forest._index(forest.START)] == forest.DIRT)
@@ -112,11 +113,19 @@ func _run() -> void:
 	assert(forest.deer_caught == 1)
 	assert(forest._animals[3]["feeding"] > 0.0)
 	assert(not forest._active_animals.has(1))
+	forest._animals[4]["position"] = forest._animals[3]["position"] + Vector2(-200.0, 0.0)
+	forest._animals[3]["feeding"] = 0.0
+	forest._move_animals(1.0 / 60.0)
+	assert(forest._animals[4]["state"] == "flee")
+	forest._animals[4]["position"] = forest._animals[3]["position"] + Vector2(-45.0, 0.0)
+	forest._move_animals(1.0 / 60.0)
+	assert(not forest._animals[4]["alive"])
+	assert(forest.hares_caught == 1)
 	forest._animals[3]["feeding"] = 0.001
 	forest._move_animals(0.01)
 	assert(forest._animals[3]["state"] != "feed")
 	forest.player_position = forest._cell_center(forest.START + Vector2i(20, 20))
-	forest._update_respawns(forest.DEER_RESPAWN_TIME + 0.1)
+	forest._update_respawns(forest.PREY_RESPAWN_TIME + 0.1)
 	assert(forest._animals[1]["alive"])
 	forest.player_position = start
 	forest._animals[2]["position"] = forest._cell_center(forest.START + Vector2i(-3, 2))
@@ -171,5 +180,17 @@ func _run() -> void:
 	assert(forest._ground.get_used_rect().position == Vector2i(38, 41))
 	assert(forest._ground.get_used_rect().size == Vector2i(21, 15))
 	assert(forest._dirt.get_used_rect().position == Vector2i(38, 41))
-	print("Forest smoke test passed: southwest bush gap, diagonal movement, walk loops, lynx catch/respawn, streaming and pickups")
+	forest.player_position = start
+	forest._refresh_visible()
+	for id in forest._animals.size():
+		if forest._animals[id]["kind"] == forest.HARE:
+			forest._animals[id]["position"] = forest._cell_center(Vector2i(45, 45))
+	forest._refresh_animals(forest._loaded_center)
+	assert(forest._local_population(forest.HARE) == 0)
+	forest._replenish_local_animals()
+	assert(forest._local_population(forest.HARE) >= 2)
+	for animal in forest._animals:
+		if animal["kind"] == forest.HARE and animal["position"].distance_to(start) < forest.POPULATION_RADIUS:
+			assert(animal["position"].distance_to(start) >= 730.0)
+	print("Forest smoke test passed: movement, hare flight, local replenishment, lynx catch/respawn, minimap, streaming and pickups")
 	quit()

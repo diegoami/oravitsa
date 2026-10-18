@@ -48,3 +48,30 @@ The fourth poses of several strips reached the sheet boundary. Edit attempts
 for `lynx_walk_e.png`, `deer_walk_e.png`, and `oravitsa_walk_ne.png` did not
 fix that issue and were rejected. The scene plays the first three complete
 poses in a mirrored 0-1-2-1 cycle for generated strips.
+
+## Hare strips (2026-10-19)
+
+Five hare strips in `art/hare_walk_{e,se,s,ne,n}.png` were generated with
+Codex's built-in `image_gen.imagegen`. The deer and fox walk strips were
+supplied as style references. No external image service was used. The exact
+prompt template was:
+
+> Use case: stylized-concept. Transparent four-frame horizontal walk-cycle
+> strip for a cozy 2D top-down Nordic forest game. Draw ONE small European
+> brown hare, long upright black-tipped ears, tawny brown fur with cream
+> underside, compact body, long hind legs and short tail, moving
+> {orientation}. It must read as a WILD HARE, not a cartoon rabbit. Match the
+> exact painterly brushwork, camera height, softness and lighting of the
+> supplied deer/fox game sprite references, but do not copy their anatomy.
+> Four distinct consecutive natural hop/walk gait poses, stable head/body
+> size, feet on a common baseline. Entire hare centered with generous
+> transparent margins in each equal-width quarter of the image, including
+> frame 4. Genuine transparent alpha, no background, ground, shadow, glow,
+> borders, text or other animals.
+
+`{orientation}` was respectively “directly TOWARD viewer symmetrical front
+both ears” (s), “directly AWAY rear tail” (n), “DIAGONALLY UP-RIGHT
+three-quarter rear” (ne), “directly RIGHT strict side” (e), and “DIAGONALLY
+DOWN-RIGHT three-quarter front” (se). The left views are mirrored in Godot.
+The generated fourth pose of some strips touches the sheet edge, so the scene
+uses the same 0-1-2-1 sequence as the other directional animal strips.

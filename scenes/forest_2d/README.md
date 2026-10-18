@@ -18,7 +18,7 @@ export packaging has not been tested yet.
 | --- | --- | --- |
 | Grass, dirt, fern | Yes | None |
 | Mushroom | Yes | Collect by walking close |
-| Fallen berries | Yes | Collect by walking close; boars and deer eat them |
+| Fallen berries | Yes | Collect by walking close; boars, deer, and hares eat them |
 | Tree, bush, stone, fallen log | No | Blocks movement |
 
 The tree line at the outer edge keeps the player inside the map. Dark green
@@ -33,9 +33,16 @@ and sometimes hold their ground near Oravitsa. Deer seek berries and flee
 lynxes; lynxes pursue nearby deer in 1.5-second bursts at 220 px/s, then
 recover before sprinting again. A lynx that catches a deer pauses to feed;
 the deer returns at its home area after 25 seconds, once that area is clear
-and away from Oravitsa. Foxes flee every nearby animal. All species
-usually avoid Oravitsa, except for some boars. Their roaming targets persist
-for several seconds and movement eases toward a new heading.
+and away from Oravitsa. Hares seek berries and flee lynxes; lynxes can also
+catch hares. Foxes flee every nearby animal. All species avoid Oravitsa only
+when she comes close, except for some boars that hold their ground. Their
+roaming targets persist for several seconds and stay near their home area.
+Every seven seconds, the forest checks for wildlife within about 1,150 px of
+Oravitsa. When a species is scarce, it moves an offscreen animal of that
+species into a clear location 730–1,150 px away, or adds one if needed. This
+keeps at least one boar, deer, fox, and lynx and two hares in the local area.
+The minimap shows colored markers for all living animals, with a species key
+beneath it; Oravitsa is the bright outlined marker.
 
 All five moving characters display eight compass directions. East, southeast,
 south, northeast, and north have distinct source strips; the three westward
