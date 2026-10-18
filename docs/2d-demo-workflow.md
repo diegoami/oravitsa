@@ -1,8 +1,26 @@
 # How the 2D Oravitsa demo was made
 
-This records the workflow used for the playable clearing on `main`. It also
-explains what can be reproduced from this repository and what still depends on
-making new art. The demo is a loop test, not a finished asset pipeline.
+This records the workflow used for the playable clearing on `main`, using the
+project files and the surviving context of the creation session. It explains
+what can be reproduced from this repository and what still depends on making
+new art. The demo is a loop test, not a finished asset pipeline.
+
+## How this experiment arrived at 2D
+
+The project began with a 3D greybox and a Blender/Tripo experiment. The
+Tripo H2.5 result was judged unsuitable, and the earlier generated 3D model
+was not accepted as a game character. We then chose to test the game loop in
+2D: a cosy forest with a recognisable Oravitsa, boar, deer, and mushrooms.
+The request specifically called for attractive authored art rather than
+code-drawn or procedural placeholder trees and characters. Krita was
+installed as a possible art tool, but this first demo did not use it.
+
+The practical sequence was: define the one-clearing rules; use the existing
+character sheets to guide image generation; select a painted forest scene;
+make character, animal, and mushroom PNGs; put those images into a Godot 2D
+scene; build the interactions; play the scene and run the smoke test. This
+sequence is recoverable. The exact text of each image-generation request is
+not available in the project record.
 
 ## 1. Set a small playtest target
 
@@ -19,9 +37,11 @@ The existing Oravitsa design sheets, especially
 `character-drafts/oravitsa_4.png` and `oravitsa_1.png`, supplied her identity:
 headscarf, braids, clothes, basket, palette, and the view from above. The
 forest clearing was selected as the style reference for the animal art. The
-assets were made with built-in image generation and checked in the running
-game at their display size. We did not use Tripo, fal, OpenRouter, Blender, or
-Krita to produce this demo's 2D art.
+assets were made with the image-generation tool available to the assistant
+in the chat session, then checked in the running game at their display size.
+This was an image-generation service used during creation, not a feature of
+Godot or runtime procedural art. We did not use Tripo, fal, OpenRouter,
+Blender, or Krita to produce this demo's 2D art.
 
 The committed files in `prototypes/foraging_2d/art/` are:
 
@@ -34,12 +54,25 @@ The committed files in `prototypes/foraging_2d/art/` are:
 | `deer_walk.png` | Four-frame deer walk strip |
 | `mushrooms.png` | One mushroom illustration repeated at fixed positions |
 
-The exact generation prompts, rejected candidates, and editable source files
-were **not** saved in this repository. The checked-in PNGs reproduce the
-current game, but they do not reproduce the image-generation process. If we
-make replacement art, save its prompt, reference images, model/service,
-settings, source file, and accepted export alongside it. This is a proposed
-improvement for future assets, not a step completed for these PNGs.
+The image-generation briefs can be **reconstructed** from the selected
+images, reference sheets, and how the game uses them. These are descriptions
+of the intended output, **not verbatim prompts**:
+
+| Asset | Reconstructed brief |
+| --- | --- |
+| Forest | Warm, painterly Nordic summer clearing viewed from above, open in the middle for play, framed by birches, conifers, ferns, rocks, flowers, and soft paths; no characters or interface. |
+| Oravitsa | Keep the design-sheet identity (blue patterned headscarf, pale braids, cream tunic, green skirt, boots, basket); show four aligned phases of a walk on a transparent sheet, with one toward and one away view. |
+| Boar and deer | Friendly woodland animals in the forest's painted style, each as a transparent four-frame walk strip suitable for a small game sprite. |
+| Mushrooms | A readable painted cluster that can be repeated as a collectible on the forest floor. |
+
+The committed PNGs reproduce the current game. The exact generation
+prompts, generation settings, and any unused candidates have no known saved
+location. They might appear in earlier chat tool-call history if that history
+is available, but they were not archived as project files. No layered Krita,
+Photoshop, or other editable source file was created for these 2D assets.
+For the next asset, save the verbatim prompt, references, service/model,
+settings, accepted PNG, and any editable cleanup source together. That is a
+proposed improvement, not a step completed for these images.
 
 ## 3. Assemble the Godot scene
 
