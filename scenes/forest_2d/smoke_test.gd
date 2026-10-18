@@ -16,6 +16,10 @@ func _run() -> void:
 	assert(forest._camera.limit_right == forest.MAP_SIZE * forest.TILE)
 	assert(forest._minimap != null)
 	assert(forest._active_animals.size() >= 4)
+	assert(forest._player.sprite_frames.get_frame_texture("side", 0) != null)
+	assert(forest._ground.tile_set.get_source(forest.GRASS).texture != null)
+	for sprite in forest._active_animals.values():
+		assert(sprite != null and is_instance_valid(sprite))
 	var animal_kinds := {}
 	for animal in forest._animals:
 		animal_kinds[animal["kind"]] = true

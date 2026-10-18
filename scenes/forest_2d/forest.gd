@@ -43,6 +43,7 @@ var _active_props: Dictionary = {}
 var _animals: Array[Dictionary] = []
 var _active_animals: Dictionary = {}
 var _textures: Dictionary = {}
+var _png_cache: Dictionary = {}
 var _loaded_center := Vector2i(-999, -999)
 var _walk_phase := 0.0
 
@@ -145,6 +146,21 @@ func _hash(x: int, y: int, salt: int) -> float:
 	return float((n ^ (n >> 16)) & 0xffff) / 65535.0
 
 
+func _load_png(path: String) -> Texture2D:
+	# Loading a .png through ResourceLoader depends on Godot's .godot/imported
+	# cache, which is absent after a Git checkout until the editor imports it.
+	if _png_cache.has(path):
+		return _png_cache[path]
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var image := Image.new()
+	if bytes.is_empty() or image.load_png_from_buffer(bytes) != OK:
+		push_error("Cannot read forest art: " + path)
+		return null
+	var texture := ImageTexture.create_from_image(image)
+	_png_cache[path] = texture
+	return texture
+
+
 func _build_world() -> void:
 	_ground = TileMapLayer.new()
 	_ground.name = "ConnectedGround"
@@ -154,7 +170,7 @@ func _build_world() -> void:
 	tile_set.tile_size = Vector2i(TILE, TILE)
 	for kind in 2:
 		var source := TileSetAtlasSource.new()
-		source.texture = load(ART + ("grass.png" if kind == GRASS else "dirt.png"))
+		source.texture = _load_png(ART + ("grass.png" if kind == GRASS else "dirt.png"))
 		source.texture_region_size = Vector2i(TILE, TILE)
 		for ay in 11:
 			for ax in 11:
@@ -181,7 +197,7 @@ func _build_world() -> void:
 	add_child(_world)
 	for kind in PROP_NAMES:
 		var file: String = CHARACTER_ART + "mushrooms.png" if kind == MUSHROOM else ART + PROP_NAMES[kind] + ".png"
-		_textures[kind] = load(file)
+		_textures[kind] = _load_png(file)
 	_player = AnimatedSprite2D.new()
 	_player.name = "Oravitsa"
 	_player.sprite_frames = _make_character_frames()
@@ -208,7 +224,7 @@ func _make_character_frames() -> SpriteFrames:
 		frames.add_animation(direction)
 		frames.set_animation_speed(direction, 11.0)
 		var filename: String = ART + "oravitsa_walk_side.png" if direction == "side" else CHARACTER_ART + "oravitsa_walk_" + direction + ".png"
-		var texture: Texture2D = load(filename)
+		var texture: Texture2D = _load_png(filename)
 		var width := float(texture.get_width()) / 4.0
 		for i in 4:
 			var frame := AtlasTexture.new()
@@ -340,7 +356,9 @@ func _refresh_animals(center: Vector2i) -> void:
 		if abs(cell.x - center.x) <= 12 and abs(cell.y - center.y) <= 9:
 			wanted[id] = true
 			if not _active_animals.has(id):
-				_active_animals[id] = _make_animal_sprite(id)
+				var sprite := _make_animal_sprite(id)
+				if sprite != null:
+					_active_animals[id] = sprite
 	for id in _active_animals.keys():
 		if not wanted.has(id):
 			_active_animals[id].queue_free()
@@ -353,7 +371,9 @@ func _make_animal_sprite(id: int) -> AnimatedSprite2D:
 		CHARACTER_ART + "boar_walk.png", CHARACTER_ART + "deer_walk.png",
 		ART + "fox_walk.png", ART + "lynx_walk.png"
 	][kind]
-	var texture: Texture2D = load(filename)
+	var texture: Texture2D = _load_png(filename)
+	if texture == null:
+		return null
 	var frames := SpriteFrames.new()
 	frames.add_animation("walk")
 	frames.set_animation_speed("walk", 9.0)

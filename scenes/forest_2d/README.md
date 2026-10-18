@@ -9,6 +9,11 @@ seed shapes the winding dirt routes and object positions. Only the nearby
 ground tiles, props, and animals are instantiated as the player explores;
 collision and minimap colors come from the full map arrays.
 
+The scene decodes its checked-in PNG files at runtime. A fresh checkout can
+therefore launch directly without waiting for Godot to build `.godot/imported`.
+An exported build would need to include those source PNGs in its export preset;
+export packaging has not been tested yet.
+
 | Ground or object | Walkable | Interaction |
 | --- | --- | --- |
 | Grass, dirt, fern | Yes | None |
