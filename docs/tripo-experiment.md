@@ -1,5 +1,8 @@
 # Oravitsa: one-credit-conscious Tripo trial
 
+> Historical 3D experiment. No Tripo-generated model is used by the current 2D game on main.
+
+
 This is an experiment, not a replacement for the canonical design or the current game model. The source of truth remains `docs/character.md`. No Tripo GLB has been imported into this project. The image upload API has been tested successfully.
 
 **Studio outcome (reported by the user):** An H2.5 character result was generated in Tripo Studio and judged unsatisfactory. Studio also presented an upgrade requirement at export. Do not spend more credits retrying H2.5 merely to export it.

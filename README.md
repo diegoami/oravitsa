@@ -1,107 +1,44 @@
-# 2D playtest branch
-
-This branch runs a cosy 2D foraging prototype by default. See [the prototype guide](prototypes/foraging_2d/README.md) for controls and scope. The original 3D greybox scenes remain in `scenes/`; the documentation below describes that earlier baseline.
-
----
-
 # Oravitsa
 
-A cozy isometric 3D game. Oravitsa is a forager in a Nordic forest. She
-gathers food against a hunger clock, and animals compete with her for the same
-resources.
+Oravitsa is a cosy **2D foraging game** set in a Nordic summer forest. A young
+forager gathers mushrooms against a hunger clock while a boar seeks the same
+food. Deer roam the clearing. There is no combat: nothing can damage or kill a
+creature. See [the design](docs/design.md) and [character reference](docs/character.md).
 
-She has no attacks — only non-harmful influence spells (scare, attract,
-confuse, slow). **Nothing in this game may ever damage or kill a creature.**
-That is the premise, not a difficulty option. See `docs/design.md`.
+The current game is a one-clearing playtest. It uses painted raster art for the
+forest, Oravitsa, animals, and mushrooms. Its purpose is to find out whether
+moving, gathering, and competing for food make a satisfying loop before we
+expand the world or polish every animation.
 
-This repo is a **greybox prototype**. No art, no textures, no procedural
-generation.
+## Play
 
----
+Open this folder in **Godot 4.7** (tested with 4.7.2) and press **F5**, or run
+`godot --path .` from this folder.
 
-## World scale
+- **WASD / arrows:** move Oravitsa; walk near mushrooms to gather them.
+- **Space:** shoo a nearby boar briefly, without harming it. The ability has a
+  cooldown.
+- **R:** restart after a round.
 
-**1 Godot unit = 1 metre.**
+Gather **9 mushroom patches in 90 seconds**. The boar takes patches too; the
+deer is ambient wildlife. The layout is fixed so different routes can be
+compared. More playtest details and known art limitations are in the
+[2D game guide](prototypes/foraging_2d/README.md).
 
-Oravitsa is **150 cm**, so 1.5 units. Every asset must be modelled to this
-scale. The number is settled in `docs/character.md` (the design sheets
-disagreed; 150 cm is canonical) and is stored once, in
-`resources/default_stats.tres`, from which the player capsule sizes itself.
+## Project layout
 
----
+- `prototypes/foraging_2d/` — **current game**: scene, gameplay script, art,
+  smoke test, and guide. The folder retains its original experiment name; it
+  is the project's default scene in `project.godot`.
+- `docs/design.md` — current premise and loop.
+- `docs/character.md` and `character-drafts/` — canonical character design and
+  reference sheets. The sheets are reference material, not imported game art.
+- `scenes/`, `scripts/`, `models/`, `art/`, and `resources/` — earlier 3D
+  experiments, retained for history. They are not used by the 2D main scene.
+- `docs/prototype_log.md`, `docs/art-pipeline.md`, and
+  `docs/tripo-experiment.md` — development history and legacy 3D workflows.
 
-## Running it
-
-Requires **Godot 4.7** (developed against 4.7.2-stable). Open the folder as a
-project and press F5, or:
-
-```
-godot --path .
-```
-
-Controls: **WASD** or the **arrow keys**. Walk into a mushroom to pick it up;
-the count is in the top-left. That is all there is so far.
-
----
-
-## Iteration 1 scope
-
-Exactly four things, and they are done:
-
-1. Camera-relative character movement on a flat ground plane
-2. Orthographic isometric camera that follows the player smoothly
-3. Mushrooms scattered in the scene that can be picked up
-4. An inventory count and a minimal on-screen label showing it
-
-No hunger, no animals, no spells, no menus, no save system.
-
-The player is a **primitive blockout** of Oravitsa — spheres, cylinders and
-boxes, no imported art and no textures — built to the measured proportions
-and the named palette in `docs/character.md`. It replaced the original
-capsule-with-a-cap placeholder so the character is recognisable on screen.
-
-What was decided and why, and the shortcuts taken, are in
-`docs/prototype_log.md`.
-
----
-
-## Structure
-
-```
-project.godot
-scenes/      world.tscn, oravitsa.tscn, mushroom.tscn
-scripts/     oravitsa.gd, mushroom.gd, camera_rig.gd,
-             forager_stats.gd, spawner.gd
-resources/   default_stats.tres
-models/      exported .glb game assets
-art/         Blender sources + build scripts (outside res://)
-prototypes/  (empty, for future throwaway experiments)
-docs/        design.md, character.md, art-pipeline.md, prototype_log.md
-character-drafts/
-```
-
-`art/`, `docs/` and `character-drafts/` each carry a `.gdignore`, so Blender
-sources and reference material never enter Godot's asset tree. See
-`docs/art-pipeline.md`.
-
----
-
-## `character-drafts/` is reference only
-
-The folder holds AI-generated character design sheets for the protagonist:
-turnarounds, hair studies, a top-down view.
-
-**They are never imported into Godot.** Do not use them as textures or build a
-`res://` path that points at them. A cropped view may be used externally for
-the single Tripo trial in `docs/tripo-experiment.md`; any result stays
-provisional until it passes the character and game-camera checks there.
-`character-drafts/.gdignore` keeps the Godot editor out of the folder
-entirely. They are committed to git, so the `.gdignore` — not `.gitignore` —
-is what excludes them from the project.
-
-`docs/character.md` is the canonical description of the design: sampled
-palette, garments, measured proportions, and which drafts are superseded. Work
-from that document, not from the images.
-
-> The original project brief that this repo was bootstrapped from is preserved
-> in git history at commit `e8b6cbd`.
+The 2D art was generated from prompts and Oravitsa's reference sheets, then
+checked in the running game at its actual display size. No Tripo, fal, or
+OpenRouter API credits were used for these assets. The short four-frame walk
+strips and mirrored sideways views are playtest art, not final animation.

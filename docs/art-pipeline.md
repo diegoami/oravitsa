@@ -1,5 +1,8 @@
 # Art pipeline
 
+> Historical 3D pipeline. The current game on main is the 2D foraging prototype; see the root README for its assets and run instructions.
+
+
 How a model gets from Blender into the game. Verified end to end, not assumed
 — see "Round trip" below.
 

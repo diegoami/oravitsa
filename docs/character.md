@@ -1,5 +1,8 @@
 # Oravitsa — canonical character reference
 
+> The character identity and costume remain the reference for 2D art. The 3D proportions and camera notes below document the earlier prototype.
+
+
 Text summary of the design sheets in `character-drafts/`. **This document is
 the canonical source, not the images.** Where a sheet and this file disagree,
 this file wins.

@@ -1,5 +1,8 @@
 # Prototype log
 
+> Historical log of the 3D prototype. The current playable game is the 2D foraging scene described in the root README.
+
+
 Running record of what was built, what was decided, and what was deliberately
 left undone. Newest entry at the top.
 
