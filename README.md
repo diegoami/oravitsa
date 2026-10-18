@@ -1,3 +1,9 @@
+# 2D playtest branch
+
+This branch runs a cosy 2D foraging prototype by default. See [the prototype guide](prototypes/foraging_2d/README.md) for controls and scope. The original 3D greybox scenes remain in `scenes/`; the documentation below describes that earlier baseline.
+
+---
+
 # Oravitsa
 
 A cozy isometric 3D game. Oravitsa is a forager in a Nordic forest. She

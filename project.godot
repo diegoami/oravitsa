@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="Oravitsa"
-config/description="Cozy isometric foraging prototype. Greybox only."
-run/main_scene="res://scenes/world.tscn"
+config/description="Cozy 2D foraging playtest."
+run/main_scene="res://prototypes/foraging_2d/game.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
