@@ -23,7 +23,9 @@ Open this folder in **Godot 4.7** (tested with 4.7.2) and press **F5**, or run
 Gather **9 mushroom patches in 90 seconds**. The boar takes patches too; the
 deer is ambient wildlife. The layout is fixed so different routes can be
 compared. More playtest details and known art limitations are in the
-[2D game guide](prototypes/foraging_2d/README.md).
+[2D game guide](prototypes/foraging_2d/README.md). The
+[creation workflow](docs/2d-demo-workflow.md) records how this demo was built
+and what is needed to make matching assets later.
 
 ## Project layout
 
