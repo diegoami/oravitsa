@@ -23,7 +23,10 @@ export packaging has not been tested yet.
 
 The tree line at the outer edge keeps the player inside the map. Dark green
 ground beneath trees and bushes marks blocked vegetation; bright grass and dirt
-remain passable. Animals and Oravitsa have solid circular footprints. A bump
+remain passable. Tree, bush, stone, and log collision follows their small base
+footprints instead of filling their whole tile, so a visible diagonal gap
+between two props can be crossed. Animals and Oravitsa have solid circular
+footprints. A bump
 stuns both for 0.85 seconds. Space shoos animals within 200 px for 3 seconds,
 with a 7-second cooldown. Boars move slowly, forage for mushrooms and berries,
 and sometimes hold their ground near Oravitsa. Deer seek berries and flee
@@ -39,7 +42,8 @@ south, northeast, and north have distinct source strips; the three westward
 views mirror their eastward counterparts. The newest generated strips use a
 0-1-2-1 frame sequence because their fourth pose clipped the sheet edge.
 Oravitsa's new side and true back strips each play four distinct poses in a
-continuous cycle. Diagonal input first tests the direct diagonal destination;
+continuous cycle. South uses a straight-on front strip and southeast uses a
+three-quarter view. Diagonal input first tests the direct diagonal destination;
 if blocked, movement can still slide along a clear horizontal or vertical edge.
 
 ## Art source

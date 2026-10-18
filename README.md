@@ -11,8 +11,9 @@ Open this folder in **Godot 4.7** (tested with 4.7.2) and press **F5**, or run
 `godot --path .` here. Use **WASD / arrows** to walk. The camera follows Oravitsa;
 the minimap in the upper right shows the full forest. Grass, dirt, ferns, and
 mushrooms and berries are passable. Walking over food collects it. Trees, bushes,
-stones, and fallen logs block movement; dark green ground marks blocked trees
-and bushes. Press **Space** to shoo nearby wildlife. Animals avoid each other
+stones, and fallen logs block at their bases; dark green ground marks those
+footprints while open diagonal gaps remain walkable. Press **Space** to shoo
+nearby wildlife. Animals avoid each other
 and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
 stuns both of them.
 
@@ -45,3 +46,5 @@ Godot at play size; no Tripo, Fal, or OpenRouter credits were used.
 Diagonal movement uses the open diagonal cell when possible. Lynxes sprint in
 short bursts and can catch deer; deer return later away from the player. The
 new side and straight-back Oravitsa walk strips run four-pose loops.
+Her south view is now straight-on, distinct from the southeast three-quarter
+view.

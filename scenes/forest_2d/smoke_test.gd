@@ -25,6 +25,7 @@ func _run() -> void:
 	assert(forest._direction_name(Vector2(-1, -1)) == "nw")
 	assert(forest._direction_name(Vector2(1, 1)) == "se")
 	assert(forest._player.sprite_frames.get_frame_count("e") == 4)
+	assert(forest._player.sprite_frames.get_frame_count("s") == 4)
 	assert(forest._player.sprite_frames.get_frame_count("n") == 4)
 	assert(forest._ground.tile_set.get_source(forest.GRASS).texture != null)
 	for sprite in forest._active_animals.values():
@@ -35,6 +36,7 @@ func _run() -> void:
 	for kind in [forest.BOAR, forest.DEER, forest.FOX, forest.LYNX]:
 		assert(animal_kinds.has(kind))
 	assert(forest._can_stand(forest._cell_center(forest.START)))
+	assert(not forest._can_stand(forest._cell_center(Vector2i(1, forest.START.y))))
 	assert(forest.terrain[forest._index(forest.START)] == forest.DIRT)
 	forest._player.stop()
 	assert(not forest._player.is_playing())
@@ -59,6 +61,26 @@ func _run() -> void:
 	assert(forest._try_move(Vector2(forest.TILE, -forest.TILE)))
 	assert(forest.player_position == forest._cell_center(forest.START + Vector2i(1, -1)))
 	forest.objects[forest._index(right_cell)] = previous
+	forest.player_position = start
+	var left_cell: Vector2i = forest.START + Vector2i(-1, 0)
+	var down_cell: Vector2i = forest.START + Vector2i(0, 1)
+	var previous_left: int = forest.objects[forest._index(left_cell)]
+	var previous_down: int = forest.objects[forest._index(down_cell)]
+	forest.objects[forest._index(left_cell)] = forest.BUSH
+	forest.objects[forest._index(down_cell)] = forest.BUSH
+	assert(forest._try_move(Vector2(-50.0, 50.0)))
+	assert(forest.player_position == start + Vector2(-50.0, 50.0))
+	assert(not forest._can_stand(forest._cell_center(left_cell) + Vector2(45.0, 0.0)))
+	forest.objects[forest._index(left_cell)] = previous_left
+	forest.objects[forest._index(down_cell)] = previous_down
+	forest.player_position = start
+	Input.action_press("move_left")
+	Input.action_press("move_back")
+	forest._process(1.0 / 60.0)
+	Input.action_release("move_left")
+	Input.action_release("move_back")
+	assert(forest.player_position.x < start.x and forest.player_position.y > start.y)
+	assert(forest._player.animation == "se" and forest._player.flip_h)
 	forest.player_position = forest._animals[0]["position"] + Vector2(-100.0, 0.0)
 	forest._shoo()
 	assert(forest.shoo_cooldown > 0.0)
@@ -149,5 +171,5 @@ func _run() -> void:
 	assert(forest._ground.get_used_rect().position == Vector2i(38, 41))
 	assert(forest._ground.get_used_rect().size == Vector2i(21, 15))
 	assert(forest._dirt.get_used_rect().position == Vector2i(38, 41))
-	print("Forest smoke test passed: diagonal movement, full walk loops, lynx burst/catch/respawn, ecology, streaming and pickups")
+	print("Forest smoke test passed: southwest bush gap, diagonal movement, walk loops, lynx catch/respawn, streaming and pickups")
 	quit()

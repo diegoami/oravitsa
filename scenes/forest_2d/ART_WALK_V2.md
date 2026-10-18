@@ -48,3 +48,31 @@ The accepted strip has a transparent background and a clear rear view. The
 scene plays all four poses in each revised strip, without the prior repeated
 middle-frame workaround. The view and alpha were checked visually and sheet
 boundary pixels were inspected for clipping.
+
+## Straight south view
+
+`art/oravitsa_walk_s_v2.png` was generated with the same built-in tool on
+2026-10-18, using the old front strip and revised back strip as references.
+The old front strip and southeast strip both showed a similar three-quarter
+angle. The accepted prompt was:
+
+> Generate a NEW transparent four-frame horizontal 2D walking sprite strip
+> for Oravitsa, the exact same blonde young girl in the supplied references:
+> navy blue kerchief with gold flowers, two blonde braids, cream blouse,
+> brown vest, moss green skirt, brown boots, wicker basket. SOUTH direction
+> must be a STRICT STRAIGHT-ON FRONT VIEW walking DIRECTLY TOWARD the viewer,
+> facing the camera squarely, torso and shoulders symmetric, both eyes
+> equally visible, both braids visible at the same size, nose centered,
+> neither side of the face dominant, no three-quarter angle. This view must
+> read distinctly different from the existing diagonal southeast view. Four
+> clear sequential gait keyframes in four equal-width panels: left boot
+> forward contact/right arm forward, passing pose, right boot forward
+> contact/left arm forward, opposite passing pose. Body/head fixed at same
+> scale and center, skirt and kerchief subtly swaying, full loop. Each entire
+> figure fits inside its quarter with generous transparent margins;
+> especially no crop at last panel. Genuine transparent PNG alpha everywhere
+> outside figures, no shadow, ground, gradient, glow, border or text. Match
+> the painterly cozy forest style exactly.
+
+All four frame boundaries were checked for nontransparent edge pixels; none
+were found. The old front strip remains checked in for comparison.

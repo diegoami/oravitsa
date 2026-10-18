@@ -21,6 +21,7 @@ const FERN := 5
 const LOG := 6
 const BERRIES := 7
 const BLOCKED := [TREE, BUSH, STONE, LOG]
+const BLOCKER_RADIUS := {TREE: 32.0, BUSH: 31.0, STONE: 25.0, LOG: 33.0}
 const PROP_NAMES := {TREE: "tree", BUSH: "bush", STONE: "stone", MUSHROOM: "mushroom", FERN: "fern", LOG: "log", BERRIES: "berries"}
 const BOAR := 0
 const DEER := 1
@@ -263,7 +264,7 @@ func _make_character_frames() -> SpriteFrames:
 		if direction in ["e", "se", "ne"]:
 			filename = ART + ("oravitsa_walk_side_v2.png" if direction == "e" else "oravitsa_walk_" + direction + ".png")
 		else:
-			filename = CHARACTER_ART + "oravitsa_walk_toward.png" if direction == "s" else ART + "oravitsa_walk_back_v2.png"
+			filename = ART + "oravitsa_walk_s_v2.png" if direction == "s" else ART + "oravitsa_walk_back_v2.png"
 		var texture: Texture2D = _load_png(filename)
 		var width := float(texture.get_width()) / 4.0
 		var sequence := [0, 1, 2, 1] if direction in ["se", "ne"] else [0, 1, 2, 3]
@@ -516,9 +517,9 @@ func _consume_food(cell: Vector2i) -> void:
 
 
 func _can_animal_move(id: int, candidate: Vector2) -> bool:
-	if not _can_stand(candidate):
-		return false
 	var kind: int = _animals[id]["kind"]
+	if not _can_stand(candidate, ANIMAL_RADIUS[kind]):
+		return false
 	if candidate.distance_to(player_position) < ANIMAL_RADIUS[kind] + PLAYER_RADIUS:
 		return false
 	for other_id in _active_animals.keys():
@@ -704,7 +705,7 @@ func _try_move(step: Vector2) -> bool:
 	var candidate := player_position + step
 	candidate.x = clampf(candidate.x, 16.0, MAP_SIZE * TILE - 16.0)
 	candidate.y = clampf(candidate.y, 12.0, MAP_SIZE * TILE - 12.0)
-	if not _can_stand(candidate):
+	if not _can_stand(candidate, PLAYER_RADIUS):
 		return false
 	for id in _active_animals.keys():
 		var animal := _animals[id]
@@ -719,11 +720,18 @@ func _try_move(step: Vector2) -> bool:
 	return true
 
 
-func _can_stand(point: Vector2) -> bool:
-	for offset in [Vector2(-18, -12), Vector2(18, -12), Vector2(-18, 12), Vector2(18, 12)]:
-		var cell := _world_cell(point + offset)
-		if not _in_bounds(cell) or objects[_index(cell)] in BLOCKED:
-			return false
+func _can_stand(point: Vector2, actor_radius: float = PLAYER_RADIUS) -> bool:
+	var center := _world_cell(point)
+	if center.x < 2 or center.y < 2 or center.x >= MAP_SIZE - 2 or center.y >= MAP_SIZE - 2:
+		return false
+	for y in range(center.y - 1, center.y + 2):
+		for x in range(center.x - 1, center.x + 2):
+			var cell := Vector2i(x, y)
+			if not _in_bounds(cell):
+				return false
+			var kind: int = objects[_index(cell)]
+			if kind in BLOCKED and point.distance_to(_cell_center(cell)) < actor_radius + BLOCKER_RADIUS[kind]:
+				return false
 	return true
 
 
