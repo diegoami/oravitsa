@@ -29,6 +29,10 @@ const LYNX := 3
 const ANIMAL_NAMES := {BOAR: "Boar", DEER: "Deer", FOX: "Fox", LYNX: "Lynx"}
 const ANIMAL_SPEEDS := {BOAR: 52.0, DEER: 96.0, FOX: 112.0, LYNX: 91.0}
 const ANIMAL_RADIUS := {BOAR: 30.0, DEER: 25.0, FOX: 22.0, LYNX: 25.0}
+const LYNX_BURST_SPEED := 220.0
+const LYNX_BURST_TIME := 1.5
+const LYNX_BURST_RECOVERY := 3.4
+const DEER_RESPAWN_TIME := 25.0
 const PLAYER_RADIUS := 24.0
 const SHOO_RANGE := 200.0
 const SHOO_COOLDOWN := 7.0
@@ -38,6 +42,7 @@ var objects := PackedByteArray()
 var player_position := Vector2.ZERO
 var basket := 0
 var berries_basket := 0
+var deer_caught := 0
 var player_stun := 0.0
 var shoo_cooldown := 0.0
 var _ground: TileMapLayer
@@ -54,7 +59,6 @@ var _active_animals: Dictionary = {}
 var _textures: Dictionary = {}
 var _png_cache: Dictionary = {}
 var _loaded_center := Vector2i(-999, -999)
-var _walk_phase := 0.0
 
 
 func _ready() -> void:
@@ -75,20 +79,18 @@ func _process(delta: float) -> void:
 	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	if direction.length_squared() > 0.0 and player_stun <= 0.0:
 		var step := direction.normalized() * SPEED * delta
-		_try_move(Vector2(step.x, 0.0))
-		_try_move(Vector2(0.0, step.y))
+		if not _try_move(step) and player_stun <= 0.0:
+			_try_move(Vector2(step.x, 0.0))
+			_try_move(Vector2(0.0, step.y))
 		var wanted := _direction_name(direction)
 		var base: String = {"w": "e", "sw": "se", "nw": "ne"}.get(wanted, wanted)
 		if _player.animation != base or not _player.is_playing():
 			_player.play(base)
 		_player.flip_h = wanted in ["w", "sw", "nw"]
-		_walk_phase += delta * 11.0 * TAU / 4.0
-		_player.offset.y = -290.0 + sin(_walk_phase * 2.0) * 5.0
-		_player.rotation = sin(_walk_phase) * 0.012
+		_player.offset.y = -290.0
 	else:
 		_player.stop()
 		_player.offset.y = -290.0
-		_player.rotation = 0.0
 	_player.modulate = Color(0.66, 0.78, 0.91) if player_stun > 0.0 else Color.WHITE
 	_player.position = player_position
 	_camera.position = player_position
@@ -96,6 +98,7 @@ func _process(delta: float) -> void:
 	var cell := _world_cell(player_position)
 	if cell != _loaded_center:
 		_refresh_visible()
+	_update_respawns(delta)
 	_move_animals(delta)
 	_update_hud()
 	_minimap.queue_redraw()
@@ -258,9 +261,9 @@ func _make_character_frames() -> SpriteFrames:
 		frames.set_animation_speed(direction, 11.0)
 		var filename: String
 		if direction in ["e", "se", "ne"]:
-			filename = ART + "oravitsa_walk_" + ("side" if direction == "e" else direction) + ".png"
+			filename = ART + ("oravitsa_walk_side_v2.png" if direction == "e" else "oravitsa_walk_" + direction + ".png")
 		else:
-			filename = CHARACTER_ART + "oravitsa_walk_" + ("toward" if direction == "s" else "away") + ".png"
+			filename = CHARACTER_ART + "oravitsa_walk_toward.png" if direction == "s" else ART + "oravitsa_walk_back_v2.png"
 		var texture: Texture2D = _load_png(filename)
 		var width := float(texture.get_width()) / 4.0
 		var sequence := [0, 1, 2, 1] if direction in ["se", "ne"] else [0, 1, 2, 3]
@@ -392,13 +395,20 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 		"facing": Vector2.DOWN,
 		"state": "idle",
 		"food_cell": Vector2i(-1, -1),
-		"eat_time": 0.0
+		"eat_time": 0.0,
+		"alive": true,
+		"respawn": 0.0,
+		"feeding": 0.0,
+		"burst": 0.0,
+		"burst_cooldown": 0.0
 	})
 
 
 func _refresh_animals(center: Vector2i) -> void:
 	var wanted := {}
 	for id in _animals.size():
+		if not _animals[id]["alive"]:
+			continue
 		var cell := _world_cell(_animals[id]["position"])
 		if abs(cell.x - center.x) <= 12 and abs(cell.y - center.y) <= 9:
 			wanted[id] = true
@@ -468,7 +478,7 @@ func _nearest_animal(position: Vector2, kinds: Array, except_id: int, radius: fl
 	var nearest := -1
 	var best := radius * radius
 	for other_id in _active_animals.keys():
-		if other_id == except_id or _animals[other_id]["kind"] not in kinds:
+		if other_id == except_id or not _animals[other_id]["alive"] or _animals[other_id]["kind"] not in kinds:
 			continue
 		var distance: float = position.distance_squared_to(_animals[other_id]["position"])
 		if distance < best:
@@ -512,7 +522,7 @@ func _can_animal_move(id: int, candidate: Vector2) -> bool:
 	if candidate.distance_to(player_position) < ANIMAL_RADIUS[kind] + PLAYER_RADIUS:
 		return false
 	for other_id in _active_animals.keys():
-		if other_id == id:
+		if other_id == id or not _animals[other_id]["alive"]:
 			continue
 		var other := _animals[other_id]
 		if candidate.distance_to(other["position"]) < ANIMAL_RADIUS[kind] + ANIMAL_RADIUS[other["kind"]]:
@@ -525,22 +535,75 @@ func _shoo() -> void:
 		return
 	shoo_cooldown = SHOO_COOLDOWN
 	for id in _active_animals.keys():
-		if _animals[id]["position"].distance_to(player_position) <= SHOO_RANGE:
+		if _animals[id]["alive"] and _animals[id]["position"].distance_to(player_position) <= SHOO_RANGE:
 			_animals[id]["shoo"] = 3.0
 			_animals[id]["timeout"] = 0.0
 
 
+func _catch_deer(lynx_id: int, deer_id: int) -> void:
+	var lynx := _animals[lynx_id]
+	var deer := _animals[deer_id]
+	if not deer["alive"] or lynx["kind"] != LYNX or deer["kind"] != DEER:
+		return
+	deer["alive"] = false
+	deer["respawn"] = DEER_RESPAWN_TIME
+	deer["velocity"] = Vector2.ZERO
+	lynx["feeding"] = 1.7
+	lynx["burst"] = 0.0
+	lynx["velocity"] = Vector2.ZERO
+	lynx["state"] = "feed"
+	deer_caught += 1
+	if _active_animals.has(deer_id):
+		_active_animals[deer_id].queue_free()
+		_active_animals.erase(deer_id)
+
+
+func _update_respawns(delta: float) -> void:
+	var refreshed := false
+	for id in _animals.size():
+		var data := _animals[id]
+		if data["alive"]:
+			continue
+		data["respawn"] = maxf(0.0, float(data["respawn"]) - delta)
+		if data["respawn"] > 0.0:
+			continue
+		var home: Vector2 = data["home"]
+		if home.distance_to(player_position) < 450.0 or not _can_animal_move(id, home):
+			data["respawn"] = 3.0
+			continue
+		data["position"] = home
+		data["target"] = home
+		data["timeout"] = 0.0
+		data["state"] = "idle"
+		data["alive"] = true
+		refreshed = true
+	if refreshed:
+		_refresh_animals(_loaded_center)
+
+
 func _move_animals(delta: float) -> void:
 	for id in _active_animals.keys():
+		if not _active_animals.has(id) or not _animals[id]["alive"]:
+			continue
 		var data := _animals[id]
 		var position: Vector2 = data["position"]
 		var kind: int = data["kind"]
 		var sprite: AnimatedSprite2D = _active_animals[id]
 		data["stun"] = maxf(0.0, data["stun"] - delta)
 		data["shoo"] = maxf(0.0, data["shoo"] - delta)
+		var was_feeding: bool = data["feeding"] > 0.0
+		data["feeding"] = maxf(0.0, data["feeding"] - delta)
+		if was_feeding and data["feeding"] <= 0.0:
+			data["state"] = "idle"
+			data["timeout"] = 0.0
+		data["burst"] = maxf(0.0, data["burst"] - delta)
+		data["burst_cooldown"] = maxf(0.0, data["burst_cooldown"] - delta)
 		if data["stun"] > 0.0:
 			sprite.stop()
 			sprite.modulate = Color(0.66, 0.78, 0.91)
+			continue
+		if data["feeding"] > 0.0:
+			sprite.stop()
 			continue
 		sprite.modulate = Color.WHITE
 		data["timeout"] = float(data["timeout"]) - delta
@@ -568,9 +631,17 @@ func _move_animals(delta: float) -> void:
 		elif kind == LYNX:
 			var prey := _nearest_animal(position, [DEER], id, 650.0)
 			if prey >= 0:
-				target = _animals[prey]["position"]
+				var prey_position: Vector2 = _animals[prey]["position"]
+				if position.distance_to(prey_position) <= ANIMAL_RADIUS[LYNX] + ANIMAL_RADIUS[DEER] + 8.0:
+					_catch_deer(id, prey)
+					sprite.stop()
+					continue
+				target = prey_position
 				data["state"] = "hunt"
-				speed *= 1.18
+				if data["burst_cooldown"] <= 0.0 and position.distance_to(prey_position) < 410.0:
+					data["burst"] = LYNX_BURST_TIME
+					data["burst_cooldown"] = LYNX_BURST_RECOVERY
+				speed = LYNX_BURST_SPEED if data["burst"] > 0.0 else ANIMAL_SPEEDS[LYNX]
 		elif kind in [BOAR, DEER]:
 			var food_cell: Vector2i = data["food_cell"]
 			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in [BERRIES, MUSHROOM] or (kind == DEER and objects[_index(food_cell)] != BERRIES):
@@ -598,7 +669,7 @@ func _move_animals(delta: float) -> void:
 			target = data["target"]
 		var heading := position.direction_to(target)
 		var velocity: Vector2 = data["velocity"]
-		velocity = velocity.move_toward(heading * speed, 290.0 * delta)
+		velocity = velocity.move_toward(heading * speed, (520.0 if kind == LYNX and data["burst"] > 0.0 else 290.0) * delta)
 		data["velocity"] = velocity
 		var step: Vector2 = velocity * delta
 		var candidate := position
@@ -627,22 +698,25 @@ func _move_animals(delta: float) -> void:
 			sprite.stop()
 
 
-func _try_move(step: Vector2) -> void:
+func _try_move(step: Vector2) -> bool:
 	if player_stun > 0.0:
-		return
+		return false
 	var candidate := player_position + step
 	candidate.x = clampf(candidate.x, 16.0, MAP_SIZE * TILE - 16.0)
 	candidate.y = clampf(candidate.y, 12.0, MAP_SIZE * TILE - 12.0)
 	if not _can_stand(candidate):
-		return
+		return false
 	for id in _active_animals.keys():
 		var animal := _animals[id]
+		if not animal["alive"]:
+			continue
 		if candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
 			player_stun = 0.85
 			animal["stun"] = 0.85
 			animal["velocity"] = Vector2.ZERO
-			return
+			return false
 	player_position = candidate
+	return true
 
 
 func _can_stand(point: Vector2) -> bool:

@@ -41,3 +41,7 @@ Oravitsa and all four animals display eight movement directions using five
 painted views and three mirrored views. These strips are still prototype
 animation. The new forest art was generated as bitmap assets and checked in
 Godot at play size; no Tripo, Fal, or OpenRouter credits were used.
+
+Diagonal movement uses the open diagonal cell when possible. Lynxes sprint in
+short bursts and can catch deer; deer return later away from the player. The
+new side and straight-back Oravitsa walk strips run four-pose loops.

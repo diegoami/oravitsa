@@ -27,7 +27,10 @@ remain passable. Animals and Oravitsa have solid circular footprints. A bump
 stuns both for 0.85 seconds. Space shoos animals within 200 px for 3 seconds,
 with a 7-second cooldown. Boars move slowly, forage for mushrooms and berries,
 and sometimes hold their ground near Oravitsa. Deer seek berries and flee
-lynxes; lynxes pursue nearby deer. Foxes flee every nearby animal. All species
+lynxes; lynxes pursue nearby deer in 1.5-second bursts at 220 px/s, then
+recover before sprinting again. A lynx that catches a deer pauses to feed;
+the deer returns at its home area after 25 seconds, once that area is clear
+and away from Oravitsa. Foxes flee every nearby animal. All species
 usually avoid Oravitsa, except for some boars. Their roaming targets persist
 for several seconds and movement eases toward a new heading.
 
@@ -35,6 +38,9 @@ All five moving characters display eight compass directions. East, southeast,
 south, northeast, and north have distinct source strips; the three westward
 views mirror their eastward counterparts. The newest generated strips use a
 0-1-2-1 frame sequence because their fourth pose clipped the sheet edge.
+Oravitsa's new side and true back strips each play four distinct poses in a
+continuous cycle. Diagonal input first tests the direct diagonal destination;
+if blocked, movement can still slide along a clear horizontal or vertical edge.
 
 ## Art source
 
@@ -121,3 +127,4 @@ did not produce editable layer files.
 
 The later directional strips and berry art are documented in
 [ART_ECOLOGY.md](ART_ECOLOGY.md).
+The revised Oravitsa walking art is documented in [ART_WALK_V2.md](ART_WALK_V2.md).

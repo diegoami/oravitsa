@@ -24,6 +24,8 @@ func _run() -> void:
 	assert(forest._direction_name(Vector2.LEFT) == "w")
 	assert(forest._direction_name(Vector2(-1, -1)) == "nw")
 	assert(forest._direction_name(Vector2(1, 1)) == "se")
+	assert(forest._player.sprite_frames.get_frame_count("e") == 4)
+	assert(forest._player.sprite_frames.get_frame_count("n") == 4)
 	assert(forest._ground.tile_set.get_source(forest.GRASS).texture != null)
 	for sprite in forest._active_animals.values():
 		assert(sprite != null and is_instance_valid(sprite))
@@ -41,6 +43,22 @@ func _run() -> void:
 	Input.action_release("move_right")
 	assert(forest._player.is_playing())
 	assert(forest._player.animation == "e")
+	var start: Vector2 = forest._cell_center(forest.START)
+	forest.player_position = start
+	Input.action_press("move_right")
+	Input.action_press("move_forward")
+	forest._process(1.0 / 60.0)
+	Input.action_release("move_right")
+	Input.action_release("move_forward")
+	assert(forest.player_position.x > start.x and forest.player_position.y < start.y)
+	assert(forest._player.animation == "ne")
+	forest.player_position = start
+	var right_cell: Vector2i = forest.START + Vector2i(1, 0)
+	var previous: int = forest.objects[forest._index(right_cell)]
+	forest.objects[forest._index(right_cell)] = forest.TREE
+	assert(forest._try_move(Vector2(forest.TILE, -forest.TILE)))
+	assert(forest.player_position == forest._cell_center(forest.START + Vector2i(1, -1)))
+	forest.objects[forest._index(right_cell)] = previous
 	forest.player_position = forest._animals[0]["position"] + Vector2(-100.0, 0.0)
 	forest._shoo()
 	assert(forest.shoo_cooldown > 0.0)
@@ -65,6 +83,20 @@ func _run() -> void:
 	assert(forest._animals[1]["state"] == "flee")
 	assert(forest._animals[2]["state"] == "flee")
 	assert(forest._animals[3]["state"] == "hunt")
+	assert(forest._animals[3]["burst"] > 0.0)
+	forest._animals[1]["position"] = forest._animals[3]["position"] + Vector2(-54.0, 0.0)
+	forest._move_animals(1.0 / 60.0)
+	assert(not forest._animals[1]["alive"])
+	assert(forest.deer_caught == 1)
+	assert(forest._animals[3]["feeding"] > 0.0)
+	assert(not forest._active_animals.has(1))
+	forest._animals[3]["feeding"] = 0.001
+	forest._move_animals(0.01)
+	assert(forest._animals[3]["state"] != "feed")
+	forest.player_position = forest._cell_center(forest.START + Vector2i(20, 20))
+	forest._update_respawns(forest.DEER_RESPAWN_TIME + 0.1)
+	assert(forest._animals[1]["alive"])
+	forest.player_position = start
 	forest._animals[2]["position"] = forest._cell_center(forest.START + Vector2i(-3, 2))
 	forest._animals[1]["position"] = forest._cell_center(forest.START + Vector2i(3, -2))
 	var before: Vector2 = forest._animals[0]["position"]
@@ -117,5 +149,5 @@ func _run() -> void:
 	assert(forest._ground.get_used_rect().position == Vector2i(38, 41))
 	assert(forest._ground.get_used_rect().size == Vector2i(21, 15))
 	assert(forest._dirt.get_used_rect().position == Vector2i(38, 41))
-	print("Forest smoke test passed: 10x world, tile streaming, blockers, two foods, animal stun/shoo, five art views and eight headings")
+	print("Forest smoke test passed: diagonal movement, full walk loops, lynx burst/catch/respawn, ecology, streaming and pickups")
 	quit()
