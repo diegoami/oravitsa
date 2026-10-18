@@ -57,7 +57,7 @@ func _process(delta: float) -> void:
 		_try_move(Vector2(0.0, step.y))
 		_facing_up = direction.y < -0.15 if absf(direction.y) > 0.15 else _facing_up
 		var wanted := "away" if _facing_up else "toward"
-		if _player.animation != wanted:
+		if _player.animation != wanted or not _player.is_playing():
 			_player.play(wanted)
 		_player.flip_h = direction.x < -0.1
 	else:

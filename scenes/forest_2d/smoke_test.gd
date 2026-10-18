@@ -15,6 +15,12 @@ func _run() -> void:
 	assert(forest._minimap != null)
 	assert(forest._can_stand(forest._cell_center(forest.START)))
 	assert(forest.terrain[forest._index(forest.START)] == forest.DIRT)
+	forest._player.stop()
+	assert(not forest._player.is_playing())
+	Input.action_press("move_right")
+	forest._process(1.0 / 60.0)
+	Input.action_release("move_right")
+	assert(forest._player.is_playing())
 	var found := {}
 	var mushroom := Vector2i(-1, -1)
 	var grass_count := 0
