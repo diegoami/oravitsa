@@ -11,13 +11,13 @@ Open this folder in **Godot 4.7** (tested with 4.7.2) and press **F5**, or run
 `godot --path .` here. Use **WASD / arrows** to walk. The camera follows Oravitsa;
 the minimap in the upper right shows the full forest. Grass, dirt, ferns, and
 mushrooms are passable. Walking over a mushroom collects it. Trees, bushes,
-stones, and fallen logs block movement.
+stones, and fallen logs block movement. Boars, deer, foxes, and lynxes roam as
+ambient wildlife; they do not attack or collect mushrooms in this scene.
 
-The forest is 128 × 128 tiles, or roughly 11 visible screens across and 20 down
-at the default window size. It uses a fixed seed, so paths and objects are the
-same on every run. Ground is a Godot `TileMapLayer`; nearby object sprites are
-loaded as Oravitsa explores. The [forest guide](scenes/forest_2d/README.md)
-explains the map and art sources.
+The forest is **416 × 416 tiles**, 10.56 times the previous map area. It uses a
+fixed seed, so paths and objects are the same on every run. Ground tiles and
+nearby sprites stream around Oravitsa as she explores. The
+[forest guide](scenes/forest_2d/README.md) explains the map and art sources.
 
 The earlier timed, single-clearing foraging loop remains available at
 `res://prototypes/foraging_2d/game.tscn`; open that scene and press **F6** to
@@ -35,6 +35,7 @@ play it. It includes the boar and deer and is documented in its
 - `scenes/`, `scripts/`, `models/`, `art/`, and `resources/` also contain earlier
   3D experiments retained for history.
 
-The short four-frame Oravitsa walk strips remain prototype animation. The new
-forest art was generated as bitmap assets and checked in Godot at play size;
-no Tripo, fal, or OpenRouter credits were used.
+Oravitsa now has a dedicated side-facing walk strip, alongside the earlier
+front and back strips. These four-frame strips are still prototype animation.
+The new forest art was generated as bitmap assets and checked in Godot at play
+size; no Tripo, fal, or OpenRouter credits were used.

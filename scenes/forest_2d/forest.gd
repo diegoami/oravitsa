@@ -1,15 +1,15 @@
 extends Node2D
 
-## A finite, seeded forest made of connected painted ground tiles. Props are
-## streamed around the camera; the map data also drives collision and minimap.
+## A finite, seeded forest made of connected painted ground tiles. Ground,
+## props, and animals are streamed around the camera; map data drives collision.
 
 const TILE := 114
-const MAP_SIZE := 128
+const MAP_SIZE := 416
 const ART := "res://scenes/forest_2d/art/"
 const CHARACTER_ART := "res://prototypes/foraging_2d/art/"
-const SPEED := 240.0
+const SPEED := 210.0
 const PICKUP_RADIUS := 40.0
-const START := Vector2i(64, 64)
+const START := Vector2i(208, 208)
 const GRASS := 0
 const DIRT := 1
 const EMPTY := 0
@@ -21,31 +21,41 @@ const FERN := 5
 const LOG := 6
 const BLOCKED := [TREE, BUSH, STONE, LOG]
 const PROP_NAMES := {TREE: "tree", BUSH: "bush", STONE: "stone", MUSHROOM: "mushroom", FERN: "fern", LOG: "log"}
+const BOAR := 0
+const DEER := 1
+const FOX := 2
+const LYNX := 3
+const ANIMAL_NAMES := {BOAR: "Boar", DEER: "Deer", FOX: "Fox", LYNX: "Lynx"}
+const ANIMAL_SPEEDS := {BOAR: 75.0, DEER: 105.0, FOX: 95.0, LYNX: 88.0}
 
 var terrain := PackedByteArray()
 var objects := PackedByteArray()
 var player_position := Vector2.ZERO
 var basket := 0
 var _ground: TileMapLayer
+var _dirt: TileMapLayer
 var _world: Node2D
 var _player: AnimatedSprite2D
 var _camera: Camera2D
 var _minimap: Control
 var _count_label: Label
 var _active_props: Dictionary = {}
+var _animals: Array[Dictionary] = []
+var _active_animals: Dictionary = {}
 var _textures: Dictionary = {}
 var _loaded_center := Vector2i(-999, -999)
-var _facing_up := false
+var _walk_phase := 0.0
 
 
 func _ready() -> void:
 	_generate_map()
 	_build_world()
+	_seed_animals()
 	player_position = _cell_center(START)
 	_player.position = player_position
 	_camera.position = player_position
 	_camera.reset_smoothing()
-	_refresh_props()
+	_refresh_visible()
 	_update_hud()
 
 
@@ -55,19 +65,24 @@ func _process(delta: float) -> void:
 		var step := direction.normalized() * SPEED * delta
 		_try_move(Vector2(step.x, 0.0))
 		_try_move(Vector2(0.0, step.y))
-		_facing_up = direction.y < -0.15 if absf(direction.y) > 0.15 else _facing_up
-		var wanted := "away" if _facing_up else "toward"
+		var wanted := "side" if absf(direction.x) > absf(direction.y) * 1.15 else ("away" if direction.y < 0.0 else "toward")
 		if _player.animation != wanted or not _player.is_playing():
 			_player.play(wanted)
-		_player.flip_h = direction.x < -0.1
+		_player.flip_h = wanted == "side" and direction.x < 0.0
+		_walk_phase += delta * 11.0 * TAU / 4.0
+		_player.offset.y = -290.0 + sin(_walk_phase * 2.0) * 5.0
+		_player.rotation = sin(_walk_phase) * 0.012
 	else:
 		_player.stop()
+		_player.offset.y = -290.0
+		_player.rotation = 0.0
 	_player.position = player_position
 	_camera.position = player_position
 	_collect_nearby()
 	var cell := _world_cell(player_position)
 	if cell != _loaded_center:
-		_refresh_props()
+		_refresh_visible()
+	_move_animals(delta)
 	_minimap.queue_redraw()
 
 
@@ -77,15 +92,28 @@ func _generate_map() -> void:
 	var grove_noise := FastNoiseLite.new()
 	grove_noise.seed = 81824
 	grove_noise.frequency = 0.075
+	var horizontal_paths: Array[PackedFloat32Array] = []
+	var vertical_paths: Array[PackedFloat32Array] = []
+	for band in [0.22, 0.5, 0.78]:
+		var horizontal := PackedFloat32Array()
+		var vertical := PackedFloat32Array()
+		horizontal.resize(MAP_SIZE)
+		vertical.resize(MAP_SIZE)
+		for i in MAP_SIZE:
+			horizontal[i] = MAP_SIZE * band + 10.0 * sin(i * 0.075 + band * 8.0) + 4.0 * sin(i * 0.19)
+			vertical[i] = MAP_SIZE * band + 13.0 * sin(i * 0.068 + band * 6.0) + 3.0 * cos(i * 0.16)
+		horizontal_paths.append(horizontal)
+		vertical_paths.append(vertical)
 	for y in MAP_SIZE:
 		for x in MAP_SIZE:
 			var cell := Vector2i(x, y)
 			var idx := _index(cell)
-			var horizontal := absf(y - (64.0 + 10.0 * sin(x * 0.075) + 4.0 * sin(x * 0.19)))
-			var vertical := absf(x - (64.0 + 13.0 * sin(y * 0.068) + 3.0 * cos(y * 0.16)))
-			var clearing := Vector2(x - 64, y - 64).length() < 6.0
-			var side_path := absf(y - (28.0 + 7.0 * sin(x * 0.09))) < 1.7
-			var path := horizontal < 1.8 or vertical < 1.8 or side_path or clearing
+			var clearing := Vector2(x - START.x, y - START.y).length_squared() < 36.0
+			var path := clearing
+			for line in 3:
+				if absf(y - horizontal_paths[line][x]) < 1.8 or absf(x - vertical_paths[line][y]) < 1.8:
+					path = true
+					break
 			terrain[idx] = DIRT if path else GRASS
 			if x < 2 or y < 2 or x > MAP_SIZE - 3 or y > MAP_SIZE - 3:
 				objects[idx] = TREE
@@ -133,18 +161,20 @@ func _build_world() -> void:
 				source.create_tile(Vector2i(ax, ay))
 		tile_set.add_source(source, kind)
 	_ground.tile_set = tile_set
+	_dirt = TileMapLayer.new()
+	_dirt.name = "SoftDirt"
+	_dirt.z_index = -9
+	_dirt.tile_set = tile_set
+	var mask := Image.create(MAP_SIZE, MAP_SIZE, false, Image.FORMAT_RGBA8)
 	for y in MAP_SIZE:
 		for x in MAP_SIZE:
-			var sx := posmod(x, 22)
-			var sy := posmod(y, 22)
-			var flip := 0
-			if sx >= 11:
-				sx = 21 - sx
-				flip |= TileSetAtlasSource.TRANSFORM_FLIP_H
-			if sy >= 11:
-				sy = 21 - sy
-				flip |= TileSetAtlasSource.TRANSFORM_FLIP_V
-			_ground.set_cell(Vector2i(x, y), terrain[y * MAP_SIZE + x], Vector2i(sx, sy), flip)
+			mask.set_pixel(x, y, Color.WHITE if terrain[y * MAP_SIZE + x] == DIRT else Color.BLACK)
+	var material := ShaderMaterial.new()
+	material.shader = load("res://scenes/forest_2d/dirt_blend.gdshader")
+	material.set_shader_parameter("terrain_mask", ImageTexture.create_from_image(mask))
+	material.set_shader_parameter("world_size", float(MAP_SIZE * TILE))
+	_dirt.material = material
+	add_child(_dirt)
 	_world = Node2D.new()
 	_world.name = "YSortedWorld"
 	_world.y_sort_enabled = true
@@ -174,10 +204,11 @@ func _build_world() -> void:
 
 func _make_character_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
-	for direction in ["toward", "away"]:
+	for direction in ["toward", "away", "side"]:
 		frames.add_animation(direction)
-		frames.set_animation_speed(direction, 8.0)
-		var texture: Texture2D = load(CHARACTER_ART + "oravitsa_walk_" + direction + ".png")
+		frames.set_animation_speed(direction, 11.0)
+		var filename: String = ART + "oravitsa_walk_side.png" if direction == "side" else CHARACTER_ART + "oravitsa_walk_" + direction + ".png"
+		var texture: Texture2D = load(filename)
 		var width := float(texture.get_width()) / 4.0
 		for i in 4:
 			var frame := AtlasTexture.new()
@@ -185,6 +216,24 @@ func _make_character_frames() -> SpriteFrames:
 			frame.region = Rect2(width * i, 0, width, texture.get_height())
 			frames.add_frame(direction, frame)
 	return frames
+
+
+func _refresh_ground(center: Vector2i) -> void:
+	_ground.clear()
+	_dirt.clear()
+	for y in range(maxi(0, center.y - 7), mini(MAP_SIZE, center.y + 8)):
+		for x in range(maxi(0, center.x - 10), mini(MAP_SIZE, center.x + 11)):
+			var sx := posmod(x, 22)
+			var sy := posmod(y, 22)
+			var flip := 0
+			if sx >= 11:
+				sx = 21 - sx
+				flip |= TileSetAtlasSource.TRANSFORM_FLIP_H
+			if sy >= 11:
+				sy = 21 - sy
+				flip |= TileSetAtlasSource.TRANSFORM_FLIP_V
+			_ground.set_cell(Vector2i(x, y), GRASS, Vector2i(sx, sy), flip)
+			_dirt.set_cell(Vector2i(x, y), DIRT, Vector2i(sx, sy), flip)
 
 
 func _build_hud() -> void:
@@ -220,9 +269,10 @@ func _build_hud() -> void:
 	canvas.add_child(_minimap)
 
 
-func _refresh_props() -> void:
+func _refresh_visible() -> void:
 	var center := _world_cell(player_position)
 	_loaded_center = center
+	_refresh_ground(center)
 	var wanted := {}
 	for y in range(maxi(0, center.y - 7), mini(MAP_SIZE, center.y + 8)):
 		for x in range(maxi(0, center.x - 10), mini(MAP_SIZE, center.x + 11)):
@@ -237,6 +287,7 @@ func _refresh_props() -> void:
 		if not wanted.has(cell):
 			_active_props[cell].queue_free()
 			_active_props.erase(cell)
+	_refresh_animals(center)
 
 
 func _make_prop(cell: Vector2i, kind: int) -> Sprite2D:
@@ -249,6 +300,125 @@ func _make_prop(cell: Vector2i, kind: int) -> Sprite2D:
 	sprite.flip_h = _hash(cell.x, cell.y, 71) > 0.5
 	_world.add_child(sprite)
 	return sprite
+
+
+func _seed_animals() -> void:
+	# The first four are deliberately near the starting clearing so each species
+	# can be evaluated immediately. Other animals are stable across runs.
+	for entry in [
+		[BOAR, Vector2i(-3, -2)], [DEER, Vector2i(3, -2)],
+		[FOX, Vector2i(-3, 2)], [LYNX, Vector2i(3, 2)]
+	]:
+		_add_animal(entry[0], START + entry[1])
+	for sector_y in range(1, MAP_SIZE / 24 - 1):
+		for sector_x in range(1, MAP_SIZE / 24 - 1):
+			if _hash(sector_x, sector_y, 101) > 0.65:
+				continue
+			var cell := Vector2i(
+				sector_x * 24 + 4 + int(_hash(sector_x, sector_y, 102) * 16.0),
+				sector_y * 24 + 4 + int(_hash(sector_x, sector_y, 103) * 16.0)
+			)
+			if _can_stand(_cell_center(cell)) and cell.distance_to(START) > 8.0:
+				_add_animal(mini(3, int(_hash(sector_x, sector_y, 104) * 4.0)), cell)
+
+
+func _add_animal(kind: int, cell: Vector2i) -> void:
+	assert(_can_stand(_cell_center(cell)))
+	_animals.append({
+		"kind": kind,
+		"position": _cell_center(cell),
+		"target": _cell_center(cell),
+		"timeout": 0.0,
+		"turn": 0
+	})
+
+
+func _refresh_animals(center: Vector2i) -> void:
+	var wanted := {}
+	for id in _animals.size():
+		var cell := _world_cell(_animals[id]["position"])
+		if abs(cell.x - center.x) <= 12 and abs(cell.y - center.y) <= 9:
+			wanted[id] = true
+			if not _active_animals.has(id):
+				_active_animals[id] = _make_animal_sprite(id)
+	for id in _active_animals.keys():
+		if not wanted.has(id):
+			_active_animals[id].queue_free()
+			_active_animals.erase(id)
+
+
+func _make_animal_sprite(id: int) -> AnimatedSprite2D:
+	var kind: int = _animals[id]["kind"]
+	var filename: String = [
+		CHARACTER_ART + "boar_walk.png", CHARACTER_ART + "deer_walk.png",
+		ART + "fox_walk.png", ART + "lynx_walk.png"
+	][kind]
+	var texture: Texture2D = load(filename)
+	var frames := SpriteFrames.new()
+	frames.add_animation("walk")
+	frames.set_animation_speed("walk", 9.0)
+	var width := float(texture.get_width()) / 4.0
+	for i in 4:
+		var frame := AtlasTexture.new()
+		frame.atlas = texture
+		frame.region = Rect2(width * i, 0, width, texture.get_height())
+		frames.add_frame("walk", frame)
+	var sprite := AnimatedSprite2D.new()
+	sprite.name = ANIMAL_NAMES[kind] + "_%d" % id
+	sprite.sprite_frames = frames
+	sprite.scale = Vector2.ONE * [0.16, 0.17, 0.14, 0.15][kind]
+	sprite.offset = Vector2(0, -texture.get_height() * 0.35)
+	sprite.position = _animals[id]["position"]
+	_world.add_child(sprite)
+	sprite.play("walk")
+	return sprite
+
+
+func _choose_animal_target(id: int) -> void:
+	var data := _animals[id]
+	var cell := _world_cell(data["position"])
+	var turn: int = data["turn"] + 1
+	data["turn"] = turn
+	for attempt in 8:
+		var angle := _hash(id, turn + attempt, 201) * TAU
+		var distance := 1 + int(_hash(id, turn + attempt, 202) * 4.0)
+		var target_cell := cell + Vector2i(roundi(cos(angle) * distance), roundi(sin(angle) * distance))
+		if _in_bounds(target_cell) and _can_stand(_cell_center(target_cell)):
+			data["target"] = _cell_center(target_cell)
+			data["timeout"] = 3.0 + _hash(id, turn, 203) * 2.0
+			return
+	data["target"] = data["position"]
+	data["timeout"] = 1.0
+
+
+func _move_animals(delta: float) -> void:
+	for id in _active_animals.keys():
+		var data := _animals[id]
+		var position: Vector2 = data["position"]
+		var target: Vector2 = data["target"]
+		data["timeout"] = float(data["timeout"]) - delta
+		if position.distance_to(target) < 9.0 or data["timeout"] <= 0.0:
+			_choose_animal_target(id)
+			target = data["target"]
+		var heading := position.direction_to(target)
+		var step: Vector2 = heading * ANIMAL_SPEEDS[data["kind"]] * delta
+		var candidate := position
+		if _can_stand(candidate + Vector2(step.x, 0)):
+			candidate.x += step.x
+		if _can_stand(candidate + Vector2(0, step.y)):
+			candidate.y += step.y
+		if candidate.distance_squared_to(position) < 0.1:
+			data["timeout"] = 0.0
+		data["position"] = candidate
+		var sprite: AnimatedSprite2D = _active_animals[id]
+		sprite.position = candidate
+		if absf(heading.x) > 0.1:
+			sprite.flip_h = heading.x < 0.0
+		if candidate.distance_squared_to(position) > 0.1:
+			if not sprite.is_playing():
+				sprite.play("walk")
+		else:
+			sprite.stop()
 
 
 func _try_move(step: Vector2) -> void:
