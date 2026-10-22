@@ -59,6 +59,9 @@ var _player: AnimatedSprite2D
 var _camera: Camera2D
 var _minimap: Control
 var _count_label: Label
+var _hud_panel: PanelContainer
+var _hint_label: Label
+var _touch_controls: Control
 var _active_props: Dictionary = {}
 var _animals: Array[Dictionary] = []
 var _active_animals: Dictionary = {}
@@ -85,8 +88,9 @@ func _process(delta: float) -> void:
 	player_stun = maxf(0.0, player_stun - delta)
 	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
 	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	direction = (direction + _touch_controls.direction).limit_length()
 	if direction.length_squared() > 0.0 and player_stun <= 0.0:
-		var step := direction.normalized() * SPEED * delta
+		var step := direction * SPEED * delta
 		if not _try_move(step) and player_stun <= 0.0:
 			_try_move(Vector2(step.x, 0.0))
 			_try_move(Vector2(0.0, step.y))
@@ -189,10 +193,15 @@ func _hash(x: int, y: int, salt: int) -> float:
 
 
 func _load_png(path: String) -> Texture2D:
-	# Loading a .png through ResourceLoader depends on Godot's .godot/imported
-	# cache, which is absent after a Git checkout until the editor imports it.
 	if _png_cache.has(path):
 		return _png_cache[path]
+	# Exports contain imported textures, not the source PNG bytes. Keep the raw
+	# fallback for running a fresh checkout before the editor imports its art.
+	if ResourceLoader.exists(path):
+		var imported := load(path) as Texture2D
+		if imported != null:
+			_png_cache[path] = imported
+			return imported
 	var bytes := FileAccess.get_file_as_bytes(path)
 	var image := Image.new()
 	if bytes.is_empty() or image.load_png_from_buffer(bytes) != OK:
@@ -309,25 +318,23 @@ func _build_hud() -> void:
 	var canvas := CanvasLayer.new()
 	canvas.name = "HUD"
 	add_child(canvas)
-	var panel := PanelContainer.new()
-	panel.position = Vector2(18, 16)
-	panel.custom_minimum_size = Vector2(750, 76)
+	_hud_panel = PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.09, 0.17, 0.13, 0.88)
 	style.set_corner_radius_all(14)
-	panel.add_theme_stylebox_override("panel", style)
-	canvas.add_child(panel)
+	_hud_panel.add_theme_stylebox_override("panel", style)
+	_hud_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(_hud_panel)
 	_count_label = Label.new()
 	_count_label.position = Vector2(36, 22)
 	_count_label.add_theme_font_size_override("font_size", 22)
 	_count_label.add_theme_color_override("font_color", Color("f8eed5"))
 	canvas.add_child(_count_label)
-	var hint := Label.new()
-	hint.position = Vector2(36, 56)
-	hint.text = "WASD / arrows: explore   •   Space: shoo   •   Collect mushrooms & berries"
-	hint.add_theme_font_size_override("font_size", 14)
-	hint.add_theme_color_override("font_color", Color("e9dfbb"))
-	canvas.add_child(hint)
+	_hint_label = Label.new()
+	_hint_label.text = "WASD / arrows: explore   •   Space: shoo   •   Collect mushrooms & berries"
+	_hint_label.add_theme_font_size_override("font_size", 14)
+	_hint_label.add_theme_color_override("font_color", Color("e9dfbb"))
+	canvas.add_child(_hint_label)
 	_minimap = Control.new()
 	_minimap.set_script(load("res://scenes/forest_2d/minimap.gd"))
 	_minimap.name = "Minimap"
@@ -335,7 +342,38 @@ func _build_hud() -> void:
 	_minimap.custom_minimum_size = Vector2(244, 272)
 	_minimap.size = Vector2(244, 272)
 	_minimap.set("forest", self)
+	_minimap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(_minimap)
+	_touch_controls = Control.new()
+	_touch_controls.set_script(load("res://scenes/forest_2d/touch_controls.gd"))
+	_touch_controls.name = "TouchControls"
+	_touch_controls.shoo_requested.connect(_shoo)
+	_touch_controls.touch_mode_changed.connect(_layout_hud)
+	canvas.add_child(_touch_controls)
+	get_viewport().size_changed.connect(_layout_hud)
+	_layout_hud()
+
+
+func _layout_hud() -> void:
+	var touch: bool = _touch_controls.touch_enabled
+	if touch:
+		var window := get_window()
+		var wanted := Vector2i(960, 540) if window.size.x >= window.size.y else Vector2i(540, 960)
+		if window.content_scale_size != wanted:
+			window.content_scale_size = wanted
+			call_deferred("_layout_hud")
+			return
+	var viewport_size := get_viewport_rect().size
+	var map_scale := 0.58 if touch and viewport_size.x < 800.0 else (0.8 if touch else 1.0)
+	_minimap.scale = Vector2.ONE * map_scale
+	_minimap.position = Vector2(viewport_size.x - 20.0 - 244.0 * map_scale, 16.0)
+	_hud_panel.position = Vector2(18, 16)
+	_hud_panel.size = Vector2(minf(750.0, _minimap.position.x - 36.0), 82.0 if touch else 76.0)
+	_count_label.position = Vector2(34, 24)
+	_count_label.add_theme_font_size_override("font_size", 20 if touch else 22)
+	_hint_label.position = Vector2(34, 56)
+	_hint_label.visible = not touch
+	_update_hud()
 
 
 func _refresh_visible() -> void:
@@ -838,6 +876,11 @@ func _collect_nearby() -> void:
 func _update_hud() -> void:
 	var status := "Stunned" if player_stun > 0.0 else ("Shoo %.1fs" % shoo_cooldown if shoo_cooldown > 0.0 else "Shoo ready")
 	_count_label.text = "Oravitsa’s forest    Mushrooms: %d   Berries: %d   %s" % [basket, berries_basket, status]
+	if _touch_controls.touch_enabled:
+		_count_label.text = "Mushrooms: %d   Berries: %d\n%s" % [basket, berries_basket, status]
+		_touch_controls.cooldown = shoo_cooldown
+		_touch_controls.stunned = player_stun > 0.0
+		_touch_controls.queue_redraw()
 
 
 func _index(cell: Vector2i) -> int:
