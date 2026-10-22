@@ -46,65 +46,124 @@
   <script src="$GODOT_URL"></script>
   <script>
     const config = $GODOT_CONFIG;
-    const packParts = /* ORAVITSA_PACK */ null;
-    const engine = new Engine(config);
+    const assets = /* ORAVITSA_ASSETS */ null;
     const play = document.getElementById('play');
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
     const canvas = document.getElementById('canvas');
     const fullscreen = document.getElementById('fullscreen');
+    let downloaded = 0;
+    let lastActivity = Date.now();
+    const total = assets ? assets.engine.size + assets.pack.reduce((sum, part) => sum + part.size, 0) : 0;
+    const controller = new AbortController();
+
+    function showProgress() {
+      lastActivity = Date.now();
+      progress.max = total || 1;
+      progress.value = downloaded;
+      status.textContent = 'Loading the forest… ' +
+        (downloaded / 1048576).toFixed(1) + ' / ' + (total / 1048576).toFixed(1) + ' MB';
+    }
+
+    async function download(asset) {
+      // Names contain content hashes, so cached bytes are safe across updates.
+      const response = await fetch(asset.name, {cache: 'force-cache', signal: controller.signal});
+      if (!response.ok) throw new Error('Download failed: ' + response.status);
+      const bytes = new Uint8Array(asset.size);
+      const reader = response.body.getReader();
+      let offset = 0;
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        if (offset + result.value.length > bytes.length) throw new Error('Unexpected download size');
+        bytes.set(result.value, offset);
+        offset += result.value.length;
+        downloaded += result.value.length;
+        showProgress();
+      }
+      if (offset !== bytes.length) throw new Error('Incomplete download');
+      return bytes;
+    }
+
     play.addEventListener('click', async () => {
       play.disabled = true;
-      const missing = Engine.getMissingFeatures({ threads: $GODOT_THREADS_ENABLED });
+      progress.style.display = 'block';
+      lastActivity = Date.now();
+      let watchdog;
       try {
-        if (missing.length) throw new Error('This browser needs: ' + missing.join(', '));
-        status.textContent = 'Loading the forest…';
-        progress.style.display = 'block';
+        if (typeof Engine !== 'function') throw new Error('Engine script unavailable');
+        const missing = Engine.getMissingFeatures({threads: $GODOT_THREADS_ENABLED});
+        if (missing.length) throw new Error('Browser features unavailable: ' + missing.join(', '));
+        const engine = new Engine(config);
         const startOptions = {
           canvas,
-          onProgress(current, total) {
-            if (total > 0) {
-              progress.max = total;
+          onProgress(current, size) {
+            lastActivity = Date.now();
+            if (size > 0) {
+              progress.max = size;
               progress.value = current;
-              status.textContent = 'Loading the forest… ' + Math.round(current / total * 100) + '%';
+              status.textContent = 'Loading the forest… ' + Math.round(current / size * 100) + '%';
             }
           }
         };
-        if (packParts) {
-          // Standard Godot preload API, with small static files for CDN hosts.
-          // Download one part at a time to limit temporary memory on phones.
-          await engine.init(config.executable);
-          let pack = new Uint8Array(packParts.reduce((sum, part) => sum + part.size, 0));
-          let offset = 0;
-          for (const part of packParts) {
-            const response = await fetch(part.name);
-            if (!response.ok) throw new Error('Could not download forest artwork. Please retry.');
-            const bytes = new Uint8Array(await response.arrayBuffer());
-            if (bytes.length !== part.size) throw new Error('Incomplete forest download. Please retry.');
-            pack.set(bytes, offset);
-            offset += bytes.length;
-            startOptions.onProgress(offset, pack.length);
+        const stalled = new Promise((_, reject) => {
+          watchdog = setInterval(() => {
+            if (Date.now() - lastActivity > 90000) {
+              controller.abort();
+              reject(new Error('Loading stopped responding'));
+            }
+          }, 1000);
+        });
+        const startGame = async () => {
+          if (!assets) return engine.startGame(startOptions);
+          if (typeof DecompressionStream !== 'function') {
+            throw new Error('Please update your browser to play');
           }
-          const mainPack = config.mainPack || config.executable + '.pck';
-          await engine.preloadFile(pack, mainPack);
-          pack = null;
-          await engine.start({ ...startOptions, args: ['--main-pack', mainPack, ...(config.args || [])] });
-        } else {
-          await engine.startGame(startOptions);
-        }
+          showProgress();
+          window.oravitsaLoadEngine = async () => {
+            const bytes = await download(assets.engine);
+            const body = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+            // Finish and validate decompression before Godot compiles the module.
+            // Otherwise a stream error can be swallowed by its WASM fallback.
+            const wasm = await new Response(body).arrayBuffer();
+            return new Response(wasm, {headers: {'Content-Type': 'application/wasm'}});
+          };
+          const loadPack = async () => {
+            let pack = new Uint8Array(assets.pack.reduce((sum, part) => sum + part.size, 0));
+            let offset = 0;
+            for (const part of assets.pack) {
+              const bytes = await download(part);
+              pack.set(bytes, offset);
+              offset += bytes.length;
+            }
+            const mainPack = config.mainPack || config.executable + '.pck';
+            await engine.preloadFile(pack, mainPack);
+            pack = null;
+            return mainPack;
+          };
+          // Artwork downloads while the engine downloads and compiles.
+          const [, mainPack] = await Promise.all([engine.init(config.executable), loadPack()]);
+          status.textContent = 'Opening the forest…';
+          lastActivity = Date.now();
+          await engine.start({...startOptions, args: ['--main-pack', mainPack, ...(config.args || [])]});
+        };
+        await Promise.race([startGame(), stalled]);
         document.getElementById('welcome').remove();
         window.oravitsaReady = true;
         canvas.focus();
         if (document.fullscreenEnabled) fullscreen.style.display = 'block';
       } catch (error) {
+        controller.abort();
         console.error(error);
-        status.textContent = 'The forest couldn’t load. ' + error.message;
+        status.textContent = 'The forest couldn’t load. Please check your connection and try again.';
         progress.style.display = 'none';
         play.textContent = 'Try again';
         play.disabled = false;
         play.onclick = () => location.reload();
+      } finally {
+        clearInterval(watchdog);
       }
-    }, { once: true });
+    }, {once: true});
     fullscreen.addEventListener('click', async () => {
       try {
         if (document.fullscreenElement) await document.exitFullscreen();

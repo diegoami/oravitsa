@@ -46,15 +46,20 @@ python3 tools/export.py web --godot godot
 python3 tools/export.py linux
 ```
 
-Host `build/site/` on an HTTPS static host that supports Cloudflare-style
-`_headers`. Keep that file: it tells the browser to decompress the WebAssembly.
-The pack is split into parts under 25 MiB for static hosting limits; the Godot
-preload API reassembles it before play. Art and gameplay are unchanged. The
-single-threaded Web export needs no cross-origin isolation headers. The ordinary
+Host `build/site/` on an HTTPS static host. The browser explicitly decompresses
+the engine, so startup does not depend on the host applying `_headers` or
+`Content-Encoding`. Content-hashed assets can be reused from browser cache.
+The Web copy includes only the active forest and compresses its imported
+textures at 85% quality, reducing the initial download from about 53 to 20 MiB.
+Source PNGs, native desktop imports, sprite dimensions, and gameplay stay intact.
+Downloads run alongside engine compilation, with byte progress and a retry
+message for failures or a stalled connection. The single-threaded Web export
+needs no cross-origin isolation headers. The ordinary
 uncompressed `build/web/` export can also be served by a standard HTTP server.
 Opening HTML directly with `file://` will not work.
 
-Recent Android Chrome and iPhone Safari with WebGL 2 are the mobile targets.
+Recent Android Chrome and iPhone Safari with WebGL 2 and browser gzip
+decompression support (Safari 16.4 or later) are the mobile targets.
 Real-device performance should be checked before a wider release. There is no
 cloud game server or multiplayer service: hosting delivers the Godot game to
 each browser. No game progress is persisted across reloads.
