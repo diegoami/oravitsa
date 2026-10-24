@@ -1,5 +1,144 @@
 # Oravitsa: one-credit-conscious Tripo trial
 
+## Current API trial — 24 October 2026
+
+The current provider is **fal.ai**, using prepaid fal credits and endpoint
+`tripo3d/h3.1/image-to-3d`. The first stage is one H3.1 reconstruction with
+standard texture, listed at $0.30. Rigging and animation are later decisions. Do not
+repeat the rejected procedural 3D model or the old H2.5 Studio attempt.
+
+The reference for this trial is **the current painted in-game character**,
+not the historical reference crop described below. Prepare a single unchanged
+southeast figure on a neutral background with:
+
+```powershell
+godot --headless --path . --script art/prepare_tripo_reference.gd
+python art/fal_tripo_trial.py
+```
+
+The default runner only writes an offline plan in `build/fal-tripo-trial/plan.json`.
+Configure the API key locally with `art/Set-FalApiKey.ps1`; input is masked and
+stored in the Windows user environment. The Python runner reads it without
+printing it or requiring a Codex restart. Never paste the key into chat.
+
+`--submit` sends the reference, submits one reconstruction, saves the fal request
+ID, then polls and downloads the GLB. It does not retry generation automatically.
+`--resume` only resumes polling and downloading the saved request. An ambiguous
+submission response blocks a new paid request until task history is reconciled.
+Inspect the likeness in static renders before rigging or replacing game assets.
+
+On Windows, CDN downloads use the native HTTPS client with certificate
+verification enabled. `art/review_3d_candidate.py` imports the downloaded GLB,
+normalizes its height, and renders eight static angles with the generated
+base-color textures. It does not modify the game model or rig the candidate.
+
+The separate `art/tripo_trial.py` runner targets Tripo's direct API and requires
+`TRIPO_API_KEY` and a separate Tripo API balance. It is not used for the fal trial.
+
+Pricing: <https://fal.ai/models/tripo3d/h3.1/image-to-3d>.
+
+### Animation trial
+
+The user approved the reconstruction and a Meshy rigging call through the same
+fal account. `art/prepare_rig_input.py` preserves the generated texture, reduces
+the mesh from 1,420,280 to 199,999 triangles, normalizes height to 1.5 m and aligns
+its front to glTF +Z. The original reconstruction remains unchanged.
+
+`art/fal_walk_job.py --submit` uses `fal-ai/meshy/rigging` with
+`enable_animation=false`: the documented $0.20 rigging operation includes a basic
+walking clip, so no extra animation preset is purchased. The result has 24 bones
+and a roughly 1.033-second walk. First/end joint positions match within about one
+micrometer after root travel; its motion is already essentially in place.
+
+`art/render_imported_walk.py` samples eight poses per direction at consistent
+phase, retaining the generated base-color texture and the provider's original
+skin weights. `art/package_imported_walk.gd` creates eight PNG atlases and checks
+all 64 frames for alpha, uniqueness within each direction and clipped borders.
+`art/preview_imported_walk.gd` checks Godot playback and phase-preserving turns.
+
+The result is a **review export**, not an approved replacement for the game art:
+automatic weights visibly deform the skirt and boots in some poses. Local
+garment/IK corrections were rejected and are not part of the active export.
+Do not confuse successful loop/export tests with visual approval. The review
+viewer is `art/imported_walk_review.html`; artifacts live in `build/fal-walk/`.
+
+Rigging source and pricing: <https://fal.ai/models/fal-ai/meshy/rigging/api> and
+<https://fal.ai/models/fal-ai/meshy/rigging>.
+
+### Footwear repair
+
+The user's Windows screenshot exposed a boot that flattened during animation,
+plus the 2x viewer layout could cut off the silhouette below its fixed origin.
+The current export uses `--foot-skinning matched` by default. It extracts the
+intact right boot with its original UVs, creates an anatomically mirrored pair,
+and bakes rigid transforms following the deformed sock collars. The face and
+upper costume are unchanged. Original Tripo/Meshy downloads remain untouched.
+
+The second exported pose exposed a separate orientation error: a toe-down
+ankle-to-toe vector crosses vertical, reversing its horizontal projection.
+Reading that projection as yaw turned the rear shoe backward after pitch was
+limited. The correction keeps yaw in the forward hemisphere, limits it to
+15 degrees, and fades yaw near vertical. Both half-cycles use this correction.
+
+`art/validate_matched_boots.py` checks both real shoe meshes through 65 poses:
+their shape stays constant, the mirrored shapes match and the loop closes.
+It also checks forward headings, successive heading changes and heading closure.
+
+`art/test_walk_layout.mjs` executes the actual review draw function against
+measured opaque bounds at both zoom sizes, checking all 64 new frames plus the
+painted reference frames. Layout reserves a margin around the full silhouette
+and grows the inspection canvas rather than clipping the feet.
+
+### Skirt coverage repair
+
+Poses 4 and 5 exposed the upper right thigh because the automatic garment
+weights lifted the skirt with the leg. A pelvis-weight-only test stretched
+seams and was rejected. `art/skirt_drape.py` instead adds a fitted continuous
+surface over the original skirt. It samples the original olive fabric texture,
+tucks its upper edge beneath the tunic, and expands cloth rings around the
+moving thighs. The source body, face, rig, walk, and repaired boots are retained.
+The original downloads and a copy of the accepted shoe-only export are kept.
+
+This is a local fitted garment correction, not a cloth simulation or a new AI
+generation. It is enabled by default; `--no-skirt-repair` exports the previous
+garment. The corrected Blender scene includes baked drape shape keys and
+transforms. `art/validate_skirt_drape.py` checks all 65 poses for side holes,
+height loss, abrupt vertex motion, stretched edges, and loop mismatch. The
+64-frame Godot export and preview framing checks still apply. No additional
+provider calls or credits are needed. The result remains a review export.
+
+### Left-hand clearance
+
+In southwest, west, and northwest views, poses 1 and 2 hid part of the left
+hand inside the skirt. `art/arm_clearance.py` adds 8 degrees of outward rotation
+at the left upper arm throughout the walk, preserving the source elbow and
+wrist motion. The corrected arm rotation is baked into a copied action; the
+source action remains available. `--no-arm-clearance` disables this adjustment.
+The previously accepted skirt export is saved under
+`build/fal-walk/accepted-skirt-before-arm`.
+
+`art/validate_arm_clearance.py` checks segment lengths and loop closure through
+65 poses, and casts rays against the actual baked skirt to check the weighted
+left-hand vertices for penetration in poses 1 and 2. The shoe, skirt, Godot
+export, and viewer layout checks are also run. This is a local rig correction
+with no provider calls, and remains a review export.
+
+### Game integration (25 October 2026)
+
+The accepted shoe, skirt, and arm revision is installed in the default forest
+scene as eight atlases and `scenes/forest_2d/art/oravitsa/walk.tres`. The reusable
+SpriteFrames resource contains all 64 frames plus the measured foot pivot,
+scale, and source cycle duration. Runtime gait follows actual travelled distance,
+preserves phase through direction changes and pauses, and uses a grounded idle
+pose when stopped, stunned, or blocked. Westward directions are distinct views.
+The previous painted strips remain for the earlier prototype and comparison.
+`art/install_approved_walk.py` installs a validated local render and records its
+hashes and repairs in the adjacent provenance file. The raw provider GLB is not
+the corrected game character; local Blender corrections remain in the baked
+scene used to render the approved sprites.
+
+## Historical trial
+
 > Historical 3D experiment. No Tripo-generated model is used by the current 2D game on main.
 
 

@@ -1,0 +1,6 @@
+import {spawnSync} from 'node:child_process';
+import {writeFileSync} from 'node:fs';
+const dir='C:/Users/diego/projects/oravitsa/docs/art-trials/2026-10-24-walk-pilot';
+const prompt='Audit these eight chronological right-facing walk poses, top row 1-4 then bottom row 5-8. Check clear opposite steps in poses 1 and 5, passing poses, natural arm-leg opposition, silhouette/head/basket consistency, planted-foot stability, edge artifacts, and whether pose 8 can flow to pose 1. Do not assume a minimum frame count or claim anatomy hidden by skirt. Separate observed defects from uncertainty. Recommend accept-as-pilot or reject and why, in under 350 words. The same child and painterly style must remain intact.';
+const result=spawnSync(process.execPath,['C:/Users/diego/AppData/Roaming/npm/node_modules/mmx-cli/dist/mmx.mjs','vision','describe','--image',`${dir}/contact-sheet.png`,'--prompt',prompt,'--output','json','--non-interactive'],{env:{...process.env,MMX_CONFIG_DIR:'\\\\wsl.localhost\\Ubuntu\\home\\diego\\projects\\mm_demos\\.secrets\\mmx'},encoding:'utf8',maxBuffer:1024*1024});
+writeFileSync(`${dir}/vision-review.json`,result.stdout);console.log(result.stdout);if(result.stderr)console.error(result.stderr);process.exitCode=result.status??1;

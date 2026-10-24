@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oravitsa — Tripo and Meshy walking review</title>
+<style>
+:root{font-family:system-ui,sans-serif;background:#172b24;color:#f3ecd8;color-scheme:dark}body{max-width:1040px;margin:32px auto;padding:0 24px}h1{font:34px Georgia,serif;margin:0 0 10px}p{color:#cbd4c1;line-height:1.6}.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}article{background:#253c30;border:1px solid #527052;border-radius:16px;padding:18px}h2{font-size:18px;margin:0 0 12px}canvas{width:100%;background:linear-gradient(#526c47,#76905b);border-radius:10px;display:block}.controls{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:18px 0}button,select{padding:9px 12px;border:1px solid #a4bc93;border-radius:8px;background:#304c37;color:#fff;cursor:pointer}button[aria-pressed=true]{background:#e1d9ac;color:#203124}label{display:flex;gap:7px;align-items:center}.note{border-left:3px solid #d8c683;padding:12px 16px;background:#253c30}a{color:#e2d89b}.links{display:flex;flex-wrap:wrap;gap:15px}small{color:#cbd4c1}@media(max-width:650px){.pair{grid-template-columns:1fr}h1{font-size:28px}}
+</style>
+<h1>Oravitsa: directional walking trial</h1>
+<p>The approved Tripo reconstruction, rigged and animated through Meshy on fal. Eight unique poses per direction, all sampled from the same walk cycle.</p>
+<div class="controls" id="directions"></div>
+<div class="pair">
+<article><h2>Current painted game sprites</h2><canvas id="old" width="440" height="300"></canvas><p id="old-label"></p></article>
+<article><h2>Tripo character + Meshy walk</h2><canvas id="new" width="440" height="300"></canvas><p id="new-label"></p></article>
+</div>
+<div class="controls">
+<button id="play">Pause</button><button id="previous">← Pose</button><button id="next">Pose →</button>
+<label>Speed <select id="speed"><option value=".5">Half</option><option value="1" selected>Normal</option><option value="1.5">1.5×</option></select></label>
+<label>Size <select id="zoom"><option value="1" selected>Game size</option><option value="2">2× inspection</option></select></label>
+<label><input type="checkbox" id="match" checked>Match cycle duration</label>
+</div>
+<p class="note">Review export, not applied to the game. The shoes are now a matched pair repaired locally from the intact boot, and the viewer fits the full silhouette at both sizes. A fitted skirt surface now maintains coverage around the moving thighs, with fabric sampled from the original costume. The left arm has a small outward adjustment so the hand clears the skirt. Inspect the passing poses and the final-to-first transition. Direction changes retain the gait phase.</p>
+<p id="status">Loading frames…</p>
+<div class="links"><a id="gif" href="se/walk.gif">Selected direction GIF</a><a id="sheet" href="se/contact-sheet.png">Selected pose sheet</a><a href="manifest.json">Export information</a><a href="shoe-validation.json">Shoe checks</a><a href="skirt-validation.json">Skirt checks</a><a href="arm-validation.json">Hand checks</a><a href="oravitsa-walk.blend">Corrected Blender scene</a><a href="walking.glb">Original provider GLB (before shoe repair)</a></div>
+<script>
+const $=id=>document.getElementById(id),load=src=>new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=src+'?v=arm-clearance-5';});
+const directions=[['se','Southeast'],['ne','Northeast'],['e','East'],['s','South'],['sw','Southwest'],['w','West'],['nw','Northwest'],['n','North']];
+const originals={s:'s',se:'se',e:'e',ne:'ne',n:'n',sw:'se',w:'e',nw:'ne'};
+let manifest,frames,oldImages,direction='se',phase=0,previousTime=0,playing=true;
+function choose(d){direction=d;for(const button of $('directions').children)button.setAttribute('aria-pressed',String(button.dataset.direction===d));$('gif').href=`${d}/walk.gif?v=arm-clearance-5`;$('sheet').href=`${d}/contact-sheet.png?v=arm-clearance-5`;paint()}
+for(const [d,name] of directions){const button=document.createElement('button');button.textContent=name;button.dataset.direction=d;button.setAttribute('aria-pressed',String(d===direction));button.onclick=()=>choose(d);$('directions').append(button)}
+function draw(canvas,image,source,pivot,scale,flip=false){const zoom=Number($('zoom').value),bounds=manifest.layout_bounds;const width=Math.max(440,Math.ceil((bounds[2]-bounds[0])*zoom+60)),height=Math.max(300,Math.ceil((bounds[3]-bounds[1])*zoom+60));if(canvas.width!==width)canvas.width=width;if(canvas.height!==height)canvas.height=height;const c=canvas.getContext('2d');c.clearRect(0,0,width,height);const k=scale*zoom,x=(width-(bounds[0]+bounds[2])*zoom)/2,y=(height-(bounds[1]+bounds[3])*zoom)/2;c.save();c.translate(x,y);if(flip)c.scale(-1,1);c.drawImage(image,...source,-pivot[0]*k,-pivot[1]*k,source[2]*k,source[3]*k);c.restore()}
+function paint(){if(!frames)return;const index=Math.floor(phase*8)%8,base=originals[direction],old=oldImages[base],w=old.width/4;const oldPhase=$('match').checked?phase:(phase*(11/4)*manifest.source_cycle_seconds)%1;const oldIndex=Math.floor(oldPhase*4)%4;const sequence=['se','ne'].includes(base)?[0,1,2,1]:[0,1,2,3];draw($('old'),old,[sequence[oldIndex]*w,0,w,old.height],[w/2,old.height/2+290],.2,['w','sw','nw'].includes(direction));const current=frames[direction][index];draw($('new'),current,[0,0,256,384],manifest.pivot,manifest.preview_scale);$('old-label').textContent=`Source pose ${sequence[oldIndex]+1} · ${['se','ne'].includes(base)?'1–2–3–2 sequence':'four-pose sequence'}`;$('new-label').textContent=`Pose ${index+1}/8 · ${direction.toUpperCase()}`}
+function tick(time){if(previousTime&&playing)phase=(phase+(time-previousTime)/1000/manifest.source_cycle_seconds*Number($('speed').value))%1;previousTime=time;paint();requestAnimationFrame(tick)}
+$('play').onclick=()=>{playing=!playing;$('play').textContent=playing?'Pause':'Play'};function step(delta){playing=false;$('play').textContent='Play';phase=((Math.floor(phase*8)+delta+8)%8)/8;paint()}
+$('previous').onclick=()=>step(-1);$('next').onclick=()=>step(1);$('zoom').onchange=paint;$('match').onchange=paint;
+Promise.all([fetch('manifest.json?v=arm-clearance-5',{cache:'no-store'}).then(r=>r.json()),Promise.all(directions.map(async([d])=>[d,await Promise.all(Array.from({length:8},(_,i)=>load(`${d}/walk-${String(i+1).padStart(2,'0')}.png`)))])),Promise.all(['s','se','e','ne','n'].map(async d=>[d,await load(`reference/${d}.png`)]))]).then(([m,f,o])=>{manifest=m;frames=Object.fromEntries(f);oldImages=Object.fromEntries(o);$('status').textContent='Left-hand clearance revision loaded in all eight directions. Both inspection sizes fit the full silhouette.';choose(direction);requestAnimationFrame(tick)}).catch(()=>{$('status').textContent='The review could not load its assets.'});
+</script></html>

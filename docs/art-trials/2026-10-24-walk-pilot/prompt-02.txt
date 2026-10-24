@@ -1,0 +1,12 @@
+Game animation sprite sheet: EIGHT poses in a precise 4-column, 2-row grid, read left to right then top to bottom. Same character as reference: Oravitsa, blonde braids, blue/gold floral kerchief with tails, oatmeal blouse, brown vest/belt, green skirt, grey socks, brown boots, wicker flower basket. Preserve her youthful face, proportions and painterly rendering. No weapons.
+Fixed EAST view matching reference, nose always RIGHT. Walk IN PLACE, no rotation. One complete full-body girl per cell, same scale and hip center, shared ground baseline, generous clear margins. Slight natural body bob; stable face/basket. No labels, borders or shadows.
+Full two-step cycle; NEAR means camera-side leg, FAR is behind it:
+1 NEAR heel contacts forward, FAR toes behind; near arm BACK.
+2 weight drops onto NEAR foot; FAR toes lift behind.
+3 NEAR leg supports under hip; FAR bent knee passes forward.
+4 body rises on NEAR toes; FAR boot reaches forward.
+5 FAR heel contacts forward, NEAR toes behind; near arm FORWARD. Clearly opposite legs to pose 1.
+6 weight drops onto FAR foot; NEAR toes lift.
+7 FAR leg supports; NEAR bent knee passes forward.
+8 rise on FAR toes; NEAR boot reaches into pose 1.
+Opposite arm/leg swing, subtle skirt/scarf lag. Eight distinct poses, seamless 8-to-1 loop. Flat pure magenta #FF00FF background, no floor, gradient, shadow or magenta spill. No clipping.

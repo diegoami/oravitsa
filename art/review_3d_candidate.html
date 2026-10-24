@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oravitsa — Tripo reconstruction review</title>
+<style>
+  :root{font-family:system-ui,sans-serif;background:#172b24;color:#f3ecd8;color-scheme:dark}
+  body{max-width:1040px;margin:32px auto;padding:0 24px}h1{font:36px Georgia,serif;margin:0 0 10px}
+  p{color:#cbd4c1;line-height:1.6}.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  article{background:#253c30;border:1px solid #527052;border-radius:16px;padding:18px}h2{font-size:18px;margin:0 0 12px}
+  .figure{background:#dedbce;border-radius:10px;min-height:390px;display:flex;align-items:center;justify-content:center}
+  .figure img{height:350px;max-width:100%;object-fit:contain}body.small .figure img{height:160px}
+  .controls{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:20px 0}button{padding:9px 13px;border:1px solid #a4bc93;border-radius:8px;background:#304c37;color:#fff;cursor:pointer}button[aria-pressed=true]{background:#e1d9ac;color:#203124}
+  a{color:#e2d89b}.note{border-left:3px solid #d8c683;padding:12px 16px;background:#253c30}
+  .views{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.views img{width:100%;background:#dedbce;border-radius:9px}.views figure{margin:0}.views figcaption{font-size:13px;margin:5px 0 12px;color:#cbd4c1}
+  @media(max-width:650px){.pair{grid-template-columns:1fr}.views{grid-template-columns:repeat(2,1fr)}h1{font-size:29px}}
+</style>
+<h1>Oravitsa: first Tripo reconstruction</h1>
+<p>One image-conditioned H3.1 candidate through fal.ai. This review is about likeness before rigging or animation.</p>
+<div class="pair">
+  <article><h2>Original painted reference</h2><div class="figure"><img src="reference.png" alt="Original painted Oravitsa southeast sprite"></div></article>
+  <article><h2 id="view-title">Reconstruction — Southeast</h2><div class="figure"><img id="candidate" src="views/angle-090.png" alt="Reconstructed Oravitsa from the southeast"></div></article>
+</div>
+<div class="controls" id="angles"></div>
+<div class="controls"><label><input id="size" type="checkbox"> Inspect at approximately game size</label></div>
+<p class="note">Static model in the reference walking pose; no skeleton or animation has been applied. Inspect the face, proportions, scarf tails, braids, basket and boots. Views use the generated base-color texture without extra highlights. The current game is unchanged.</p>
+<p><a href="provider-preview.png">Provider's shaded preview</a> · <a href="contact-sheet.png">All views</a> · <a href="candidate.glb">Download GLB</a> · <a href="candidate-review.blend">Blender review scene</a></p>
+<div class="views" id="gallery"></div>
+<script>
+  const views=[['Southeast',90],['South',135],['Southwest',180],['West',225],['Northwest',270],['North',315],['Northeast',0],['East',45]];
+  const src=a=>`views/angle-${String(a).padStart(3,'0')}.png`;
+  for(const [name,angle] of views){
+    const button=document.createElement('button');button.textContent=name;button.setAttribute('aria-pressed',String(angle===90));
+    button.onclick=()=>{document.getElementById('candidate').src=src(angle);document.getElementById('candidate').alt=`Reconstructed Oravitsa — ${name}`;document.getElementById('view-title').textContent=`Reconstruction — ${name}`;for(const other of document.querySelectorAll('#angles button'))other.setAttribute('aria-pressed',String(other===button))};
+    document.getElementById('angles').append(button);
+    const figure=document.createElement('figure'),image=document.createElement('img'),caption=document.createElement('figcaption');image.src=src(angle);image.alt=name;caption.textContent=name;figure.append(image,caption);document.getElementById('gallery').append(figure);
+  }
+  document.getElementById('size').onchange=e=>document.body.classList.toggle('small',e.target.checked);
+</script>
+</html>

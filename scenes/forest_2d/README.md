@@ -9,10 +9,8 @@ seed shapes the winding dirt routes and object positions. Only the nearby
 ground tiles, props, and animals are instantiated as the player explores;
 collision and minimap colors come from the full map arrays.
 
-The scene decodes its checked-in PNG files at runtime. A fresh checkout can
-therefore launch directly without waiting for Godot to build `.godot/imported`.
-An exported build would need to include those source PNGs in its export preset;
-export packaging has not been tested yet.
+Open the project in the editor once (or run `godot --headless --editor --import`)
+to import its textures. The desktop and Web exports use Godot's imported art.
 
 | Ground or object | Walkable | Interaction |
 | --- | --- | --- |
@@ -54,13 +52,18 @@ caps or guaranteed encounters; rare species can remain absent for many checks.
 The minimap shows colored markers for all living animals, with a species key
 beneath it; Oravitsa is the bright outlined marker.
 
-All five moving characters display eight compass directions. East, southeast,
-south, northeast, and north have distinct source strips; the three westward
-views mirror their eastward counterparts. The newest generated strips use a
-0-1-2-1 frame sequence because their fourth pose clipped the sheet edge.
-Oravitsa's new side and true back strips each play four distinct poses in a
-continuous cycle. South uses a straight-on front strip and southeast uses a
-three-quarter view. Diagonal input first tests the direct diagonal destination;
+Oravitsa uses the approved Tripo/Meshy walk with local shoe, skirt, and arm
+repairs: eight distinct poses in each of eight directions, including separate
+westward views. `art/oravitsa/walk.tres` stores the shared SpriteFrames, measured
+foot pivot, display scale, and cycle timing. Gait advances from distance actually
+travelled, retaining phase through turns and pauses. Blocking and stun stop the
+walk; idle displays the first grounded pose. Partial touch input slows the gait.
+`art/oravitsa/provenance.json` records the installed atlas hashes and repairs.
+To regenerate the approved assets, render, package, and validate the local
+`build/fal-walk` export, then run `python art/install_approved_walk.py`.
+
+Animals retain their existing source strips and mirror the three westward views.
+Diagonal input first tests the direct diagonal destination;
 if blocked, movement can still slide along a clear horizontal or vertical edge.
 
 ## Art source

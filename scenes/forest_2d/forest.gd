@@ -7,6 +7,7 @@ const TILE := 114
 const MAP_SIZE := 416
 const ART := "res://scenes/forest_2d/art/"
 const CHARACTER_ART := "res://prototypes/foraging_2d/art/"
+const PLAYER_WALK: SpriteFrames = preload("res://scenes/forest_2d/art/oravitsa/walk.tres")
 const SPEED := 210.0
 const PICKUP_RADIUS := 40.0
 const START := Vector2i(208, 208)
@@ -77,6 +78,7 @@ var _loaded_center := Vector2i(-999, -999)
 var _loaded_half := Vector2i.ZERO
 var _population_timer := POPULATION_INTERVAL
 var _population_tick := 0
+var _walk_phase := 0.0
 
 
 func _ready() -> void:
@@ -96,20 +98,13 @@ func _process(delta: float) -> void:
 	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
 	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	direction = (direction + _touch_controls.direction).limit_length()
+	var before_move := player_position
 	if direction.length_squared() > 0.0 and player_stun <= 0.0:
 		var step := direction * SPEED * delta
 		if not _try_move(step) and player_stun <= 0.0:
 			_try_move(Vector2(step.x, 0.0))
 			_try_move(Vector2(0.0, step.y))
-		var wanted := _direction_name(direction)
-		var base: String = {"w": "e", "sw": "se", "nw": "ne"}.get(wanted, wanted)
-		if _player.animation != base or not _player.is_playing():
-			_player.play(base)
-		_player.flip_h = wanted in ["w", "sw", "nw"]
-		_player.offset.y = -290.0
-	else:
-		_player.stop()
-		_player.offset.y = -290.0
+	_update_player_walk(player_position - before_move)
 	_player.modulate = Color(0.66, 0.78, 0.91) if player_stun > 0.0 else Color.WHITE
 	_player.position = player_position
 	_camera.position = player_position
@@ -125,6 +120,22 @@ func _process(delta: float) -> void:
 		_replenish_local_animals()
 	_update_hud()
 	_minimap.queue_redraw()
+
+
+func _update_player_walk(motion: Vector2) -> void:
+	if motion.length_squared() <= 0.000001:
+		_player.pause()
+		_player.set_frame_and_progress(0, 0.0)
+		return
+	# Advance from distance actually travelled, including collision sliding and
+	# partial thumb-stick input. One shared phase survives turns and pauses.
+	_walk_phase = fposmod(_walk_phase + motion.length() / (SPEED * float(PLAYER_WALK.get_meta("cycle_seconds"))), 1.0)
+	var wanted := _direction_name(motion)
+	# Frames are driven by distance here; disable the sprite's time-based advance.
+	_player.play(wanted, 0.0)
+	_player.flip_h = false
+	var frame_position := _walk_phase * 8.0
+	_player.set_frame_and_progress(floori(frame_position), fposmod(frame_position, 1.0))
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -265,10 +276,11 @@ func _build_world() -> void:
 	_player = AnimatedSprite2D.new()
 	_player.name = "Oravitsa"
 	_player.sprite_frames = _make_character_frames()
-	_player.scale = Vector2.ONE * 0.20
-	_player.offset = Vector2(0, -290)
+	_player.scale = Vector2.ONE * float(PLAYER_WALK.get_meta("display_scale"))
+	_player.offset = Vector2(128, 192) - Vector2(PLAYER_WALK.get_meta("pivot"))
+	_player.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_world.add_child(_player)
-	_player.play("s")
+	_player.animation = "s"
 	_camera = Camera2D.new()
 	_camera.name = "FollowCamera"
 	_camera.limit_left = 0
@@ -283,24 +295,7 @@ func _build_world() -> void:
 
 
 func _make_character_frames() -> SpriteFrames:
-	var frames := SpriteFrames.new()
-	for direction in ["e", "se", "s", "ne", "n"]:
-		frames.add_animation(direction)
-		frames.set_animation_speed(direction, 11.0)
-		var filename: String
-		if direction in ["e", "se", "ne"]:
-			filename = ART + ("oravitsa_walk_side_v2.png" if direction == "e" else "oravitsa_walk_" + direction + ".png")
-		else:
-			filename = ART + "oravitsa_walk_s_v2.png" if direction == "s" else ART + "oravitsa_walk_back_v2.png"
-		var texture: Texture2D = _load_png(filename)
-		var width := float(texture.get_width()) / 4.0
-		var sequence := [0, 1, 2, 1] if direction in ["se", "ne"] else [0, 1, 2, 3]
-		for i in sequence:
-			var frame := AtlasTexture.new()
-			frame.atlas = texture
-			frame.region = Rect2(width * i, 0, width, texture.get_height())
-			frames.add_frame(direction, frame)
-	return frames
+	return PLAYER_WALK
 
 
 ## Half-size, in cells, of the streamed area: the visible camera area plus margin.

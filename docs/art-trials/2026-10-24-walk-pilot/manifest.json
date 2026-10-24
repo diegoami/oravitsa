@@ -1,0 +1,80 @@
+{
+  "status": "Review pilot; not integrated into gameplay",
+  "direction": "east",
+  "generation": {
+    "cli": "mmx-cli 1.0.28 (native Windows)",
+    "model": "MiniMax-Hailuo-2.3",
+    "task_id": "455937166946680",
+    "file_id": "455940449784346",
+    "prompt": "prompt-video-01.txt",
+    "reference": "reference/oravitsa-east-magenta.png",
+    "reference_sha256": "5FF43753FE5AF22FA688EC7F6876A383A55690ABDA7477EDDAC6280894B53CBD",
+    "source": "raw/motion-pilot.mp4",
+    "source_fps": 24,
+    "source_duration_seconds": 5.875,
+    "source_frame_indices": [
+      39,
+      44,
+      49,
+      54,
+      59,
+      63,
+      68,
+      73
+    ],
+    "estimated_full_cycle_frames": 39
+  },
+  "pilot": {
+    "frame_count": 8,
+    "frame_size": [
+      256,
+      384
+    ],
+    "pivot": [
+      128,
+      360
+    ],
+    "preview_scale": 0.45,
+    "preview_fps": 12,
+    "phases": [
+      "Contact A",
+      "Transition A",
+      "Recovery A",
+      "Passing A",
+      "Contact B",
+      "Transition B",
+      "Recovery B",
+      "Passing B"
+    ]
+  },
+  "review_note": "Review pilot, not yet used in the game. Both steps are sampled from a repeating MiniMax motion cycle. Matched timing compares pose content; uncheck it to restore the current game cadence. Small boot/hand shape changes still need a human review.",
+  "validation": {
+    "pixel_checks": "pixel-checks.json",
+    "opaque_frame_edge_pixels": 0,
+    "true_alpha": true,
+    "shared_foot_baseline": 360,
+    "vision_review": "vision-review.json",
+    "vision_model_name": "Not exposed by mmx vision response",
+    "vision_recommendation": "Accept as pilot; minor boot edge artifacts identified before final despill",
+    "visual_limitations": [
+      "VLM limb identification is uncertain beneath the skirt.",
+      "Eight selected samples are not hand-authored anatomical key poses.",
+      "Subtle generated boot/hand shape variation remains.",
+      "Other directions and distance-driven gameplay playback are not implemented."
+    ]
+  },
+  "rejected_attempts": [
+    {
+      "image": "raw/east-8pose-01.jpg",
+      "reason": "Multiline prompt was not passed intact through Windows command shim."
+    },
+    {
+      "response": "generation-02.json",
+      "reason": "API rejected prompt longer than 1500 characters; no image generated."
+    },
+    {
+      "image": "raw/east-8pose-03.jpg",
+      "reason": "Wrong character design, left-facing, twelve mostly standing poses; rejected."
+    }
+  ]
+}

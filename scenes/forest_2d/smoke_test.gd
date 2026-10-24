@@ -48,9 +48,31 @@ func _run() -> void:
 	assert(forest._direction_name(Vector2.LEFT) == "w")
 	assert(forest._direction_name(Vector2(-1, -1)) == "nw")
 	assert(forest._direction_name(Vector2(1, 1)) == "se")
-	assert(forest._player.sprite_frames.get_frame_count("e") == 4)
-	assert(forest._player.sprite_frames.get_frame_count("s") == 4)
-	assert(forest._player.sprite_frames.get_frame_count("n") == 4)
+	for direction in ["e", "se", "s", "sw", "w", "nw", "n", "ne"]:
+		assert(forest._player.sprite_frames.get_frame_count(direction) == 8)
+		var texture: AtlasTexture = forest._player.sprite_frames.get_frame_texture(direction, 0)
+		assert(texture.atlas.resource_path.ends_with("/oravitsa/" + direction + ".png"))
+	# Turning must keep the gait phase and use the real westward view. Pausing
+	# returns to a grounded pose while retaining the phase for the next step.
+	forest._walk_phase = 0.35
+	forest._update_player_walk(Vector2.LEFT * 0.01)
+	assert(forest._player.animation == "w" and not forest._player.flip_h)
+	assert(forest._player.frame == 2 and forest._player.frame_progress > 0.79)
+	var saved_phase: float = forest._walk_phase
+	forest._update_player_walk(Vector2.ZERO)
+	assert(not forest._player.is_playing() and forest._player.frame == 0)
+	assert(forest._walk_phase == saved_phase)
+	forest._update_player_walk(Vector2(1, -1).normalized() * 0.01)
+	assert(forest._player.animation == "ne" and forest._player.frame == 2)
+	# Splitting the same travelled distance into shorter steps gives the same
+	# gait, so touch speeds and fluctuating frame times cannot change cadence.
+	forest._walk_phase = 0.0
+	forest._update_player_walk(Vector2.RIGHT * 40.0)
+	var full_phase: float = forest._walk_phase
+	forest._walk_phase = 0.0
+	for i in 4:
+		forest._update_player_walk(Vector2.RIGHT * 10.0)
+	assert(is_equal_approx(forest._walk_phase, full_phase))
 	assert(forest._ground.tile_set.get_source(forest.GRASS).texture != null)
 	for sprite in forest._active_animals.values():
 		assert(sprite != null and is_instance_valid(sprite))
@@ -105,7 +127,7 @@ func _run() -> void:
 	Input.action_release("move_left")
 	Input.action_release("move_back")
 	assert(forest.player_position.x < start.x and forest.player_position.y > start.y)
-	assert(forest._player.animation == "se" and forest._player.flip_h)
+	assert(forest._player.animation == "sw" and not forest._player.flip_h)
 	forest.player_position = forest._animals[0]["position"] + Vector2(-100.0, 0.0)
 	forest._shoo()
 	assert(forest.shoo_cooldown > 0.0)
