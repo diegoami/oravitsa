@@ -9,18 +9,27 @@ animals makes a pleasant, replayable loop.
 
 ## The hard constraint
 
-Oravitsa has no attacks. Her interactions with creatures are non-harmful
-influences such as shooing, attracting, confusing, or slowing. **Nothing in
-this game may ever damage or kill a creature.** This applies to the player,
-animals, and anything added later.
+**Oravitsa cannot kill any creature in this iteration, including hares.**
+Her interactions with creatures are non-lethal influences such as shooing,
+attracting, confusing, or slowing. No sling or lethal player skill is included.
 
-- No health, damage, hit points, or death on creatures.
+- Hares are the exception for animal predation: lynxes may catch and kill
+  hares. Hares replenish frequently and return away from the player.
+- Deer and the other species cannot be killed. Deer still flee lynxes.
+- No player damage, health, or hit-point combat system.
 - Competition for resources is the conflict. An animal reaching a mushroom
   first wins that exchange.
 - Influence abilities change movement or attention, never a creature's
   physical condition.
 
-## Current playtest loop
+## Wildlife abundance
+
+Hares are frequent, deer and foxes are less common, boars are less common
+again, and lynxes are rare. Both initial world generation and replenishment
+must respect this order; do not guarantee every species near the player.
+The current tuning is documented in `scenes/forest_2d/README.md`.
+
+## Earlier single-clearing playtest loop
 
 One fixed painted clearing contains 17 mushroom patches. Oravitsa must gather
 9 within 90 seconds. A boar seeks the nearest available patch, with a pause
@@ -35,7 +44,7 @@ the single-screen forest has no terrain obstacles or wider world.
 
 ## To decide after playtesting
 
-The hunger clock, boar pace, and basket goal are tunable. Animal behaviour,
-additional non-harmful abilities, biomes, progression, save format, audio,
-and a larger world are not yet designed. Add them only if the basic loop is
-worth continuing.
+The hunger clock, boar pace, and basket goal in the earlier prototype remain
+tunable. The current forest adds a larger world and species-specific animal
+behaviour. Additional player abilities, biomes, progression, save format,
+and audio remain undecided.

@@ -8,6 +8,29 @@ func _run() -> void:
 	var forest := scene.instantiate()
 	root.add_child(forest)
 	current_scene = forest
+	# Check the actual generated world before installing close-range AI fixtures.
+	var populations := {}
+	for kind in forest.SPAWN_WEIGHTS:
+		populations[kind] = 0
+	for animal in forest._animals:
+		populations[animal["kind"]] += 1
+	assert(populations[forest.HARE] > populations[forest.DEER])
+	assert(populations[forest.HARE] > populations[forest.FOX])
+	assert(populations[forest.DEER] > populations[forest.BOAR])
+	assert(populations[forest.FOX] > populations[forest.BOAR])
+	assert(populations[forest.BOAR] > populations[forest.LYNX])
+	assert(forest._local_population(forest.LYNX) == 0)
+	for sprite in forest._active_animals.values():
+		sprite.queue_free()
+	forest._active_animals.clear()
+	forest._animals.clear()
+	for entry in [
+		[forest.BOAR, Vector2i(-3, -2)], [forest.DEER, Vector2i(3, -2)],
+		[forest.FOX, Vector2i(-3, 2)], [forest.LYNX, Vector2i(3, 2)],
+		[forest.HARE, Vector2i(-4, 0)], [forest.HARE, Vector2i(4, 0)]
+	]:
+		forest._add_animal(entry[0], forest.START + entry[1])
+	forest._refresh_animals(forest.START)
 	assert(forest.MAP_SIZE * forest.MAP_SIZE >= 10 * 128 * 128)
 	assert(forest.terrain.size() == forest.MAP_SIZE * forest.MAP_SIZE)
 	assert(forest.objects.size() == forest.MAP_SIZE * forest.MAP_SIZE)
@@ -86,6 +109,20 @@ func _run() -> void:
 	forest._shoo()
 	assert(forest.shoo_cooldown > 0.0)
 	assert(forest._animals[0]["shoo"] > 0.0)
+	# Shooing and touching a hare must never kill it.
+	forest.shoo_cooldown = 0.0
+	var hare_position: Vector2 = forest._animals[4]["position"]
+	forest.player_position = hare_position + Vector2(-100.0, 0.0)
+	forest._shoo()
+	assert(forest._animals[4]["shoo"] > 0.0)
+	assert(forest._animals[4]["alive"])
+	forest.player_position = hare_position + Vector2(-forest.PLAYER_RADIUS - forest.ANIMAL_RADIUS[forest.HARE] - 1.0, 0.0)
+	forest._try_move(Vector2(3.0, 0.0))
+	assert(forest._animals[4]["stun"] > 0.0)
+	assert(forest._animals[4]["alive"])
+	forest.player_stun = 0.0
+	forest._animals[4]["stun"] = 0.0
+	forest._animals[4]["shoo"] = 0.0
 	forest.shoo_cooldown = 0.0
 	var boar_position: Vector2 = forest._animals[0]["position"]
 	forest.player_position = boar_position + Vector2(-forest.PLAYER_RADIUS - forest.ANIMAL_RADIUS[forest.BOAR] - 1.0, 0.0)
@@ -101,6 +138,7 @@ func _run() -> void:
 	forest.objects[forest._index(boar_food)] = forest.EMPTY
 	forest._animals[0]["shoo"] = 0.0
 	forest._animals[1]["position"] = forest._animals[3]["position"] + Vector2(0.0, -200.0)
+	forest._animals[4]["position"] = forest._animals[3]["position"] + Vector2(-200.0, 0.0)
 	forest._animals[2]["position"] = forest._animals[0]["position"] + Vector2(0.0, 120.0)
 	forest._move_animals(1.0 / 60.0)
 	assert(forest._animals[1]["state"] == "flee")
@@ -108,11 +146,10 @@ func _run() -> void:
 	assert(forest._animals[3]["state"] == "hunt")
 	assert(forest._animals[3]["burst"] > 0.0)
 	forest._animals[1]["position"] = forest._animals[3]["position"] + Vector2(-54.0, 0.0)
-	forest._move_animals(1.0 / 60.0)
-	assert(not forest._animals[1]["alive"])
-	assert(forest.deer_caught == 1)
-	assert(forest._animals[3]["feeding"] > 0.0)
-	assert(not forest._active_animals.has(1))
+	forest._catch_prey(3, 1)
+	assert(forest._animals[1]["alive"])
+	assert(forest._animals[3]["feeding"] == 0.0)
+	assert(forest._active_animals.has(1))
 	forest._animals[4]["position"] = forest._animals[3]["position"] + Vector2(-200.0, 0.0)
 	forest._animals[3]["feeding"] = 0.0
 	forest._move_animals(1.0 / 60.0)
@@ -121,12 +158,14 @@ func _run() -> void:
 	forest._move_animals(1.0 / 60.0)
 	assert(not forest._animals[4]["alive"])
 	assert(forest.hares_caught == 1)
+	assert(forest._animals[3]["feeding"] > 0.0)
+	assert(not forest._active_animals.has(4))
 	forest._animals[3]["feeding"] = 0.001
 	forest._move_animals(0.01)
 	assert(forest._animals[3]["state"] != "feed")
 	forest.player_position = forest._cell_center(forest.START + Vector2i(20, 20))
 	forest._update_respawns(forest.PREY_RESPAWN_TIME + 0.1)
-	assert(forest._animals[1]["alive"])
+	assert(forest._animals[4]["alive"])
 	forest.player_position = start
 	forest._animals[2]["position"] = forest._cell_center(forest.START + Vector2i(-3, 2))
 	forest._animals[1]["position"] = forest._cell_center(forest.START + Vector2i(3, -2))
@@ -188,9 +227,26 @@ func _run() -> void:
 	forest._refresh_animals(forest._loaded_center)
 	assert(forest._local_population(forest.HARE) == 0)
 	forest._replenish_local_animals()
-	assert(forest._local_population(forest.HARE) >= 2)
+	assert(forest._local_population(forest.HARE) >= 4)
 	for animal in forest._animals:
 		if animal["kind"] == forest.HARE and animal["position"].distance_to(start) < forest.POPULATION_RADIUS:
 			assert(animal["position"].distance_to(start) >= 730.0)
+	# Repeated shortages must preserve rarity, rather than guaranteeing a lynx
+	# each time Oravitsa reaches a new area. Reuse offscreen animals as in play.
+	var arrivals := {}
+	for kind in forest.SPAWN_WEIGHTS:
+		arrivals[kind] = 0
+	for tick in 128:
+		for animal in forest._animals:
+			animal["position"] = Vector2.ZERO
+		forest._refresh_animals(forest.START)
+		forest._replenish_local_animals()
+		for kind in arrivals:
+			arrivals[kind] += forest._local_population(kind)
+	assert(arrivals[forest.HARE] > arrivals[forest.DEER])
+	assert(arrivals[forest.HARE] > arrivals[forest.FOX])
+	assert(arrivals[forest.DEER] > arrivals[forest.BOAR])
+	assert(arrivals[forest.FOX] > arrivals[forest.BOAR])
+	assert(arrivals[forest.BOAR] > arrivals[forest.LYNX])
 	print("Forest smoke test passed: movement, hare flight, local replenishment, lynx catch/respawn, minimap, streaming and pickups")
 	quit()

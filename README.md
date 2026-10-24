@@ -17,6 +17,10 @@ nearby wildlife. Animals avoid each other
 and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
 stuns both of them.
 
+Hares are frequent, deer and foxes are less common, boars are uncommon, and
+lynxes are rare. World generation and nearby wildlife replenishment both use
+species-specific rates; the starting clearing introduces four hares.
+
 The forest is **416 × 416 tiles**, 10.56 times the previous map area. It uses a
 fixed seed, so paths and objects are the same on every run. Ground tiles and
 nearby sprites stream around Oravitsa as she explores. The
@@ -44,7 +48,9 @@ animation. The new forest art was generated as bitmap assets and checked in
 Godot at play size; no Tripo, Fal, or OpenRouter credits were used.
 
 Diagonal movement uses the open diagonal cell when possible. Lynxes sprint in
-short bursts and can catch deer; deer return later away from the player. The
+short bursts and can catch hares; hares return later away from the player.
+Deer flee lynxes but cannot be killed. Oravitsa cannot kill any animal,
+including hares, in this iteration. The
 new side and straight-back Oravitsa walk strips run four-pose loops.
 Her south view is now straight-on, distinct from the southeast three-quarter
 view.

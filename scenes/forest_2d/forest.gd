@@ -35,7 +35,9 @@ const LYNX_BURST_SPEED := 220.0
 const LYNX_BURST_TIME := 1.5
 const LYNX_BURST_RECOVERY := 3.4
 const PREY_RESPAWN_TIME := 25.0
-const LOCAL_POPULATION := {BOAR: 1, DEER: 1, FOX: 1, LYNX: 1, HARE: 2}
+const SPAWN_WEIGHTS := {HARE: 60, DEER: 17, FOX: 17, BOAR: 5, LYNX: 1}
+const LOCAL_POPULATION := {HARE: 4, DEER: 2, FOX: 2, BOAR: 1, LYNX: 1}
+const REPLENISH_CHANCE := {HARE: 1.0, DEER: 0.35, FOX: 0.35, BOAR: 0.12, LYNX: 0.02}
 const POPULATION_RADIUS := 1150.0
 const POPULATION_INTERVAL := 7.0
 const PLAYER_RADIUS := 24.0
@@ -47,7 +49,6 @@ var objects := PackedByteArray()
 var player_position := Vector2.ZERO
 var basket := 0
 var berries_basket := 0
-var deer_caught := 0
 var hares_caught := 0
 var player_stun := 0.0
 var shoo_cooldown := 0.0
@@ -373,14 +374,9 @@ func _make_prop(cell: Vector2i, kind: int) -> Sprite2D:
 
 
 func _seed_animals() -> void:
-	# The first animals are deliberately near the starting clearing so each species
-	# can be evaluated immediately. Other animals are stable across runs.
-	for entry in [
-		[BOAR, Vector2i(-3, -2)], [DEER, Vector2i(3, -2)],
-		[FOX, Vector2i(-3, 2)], [LYNX, Vector2i(3, 2)],
-		[HARE, Vector2i(-4, 0)], [HARE, Vector2i(4, 0)]
-	]:
-		_add_animal(entry[0], START + entry[1])
+	# Hares introduce wildlife immediately; rarer species are found by exploring.
+	for offset in [Vector2i(-4, 0), Vector2i(4, 0), Vector2i(-3, 2), Vector2i(3, -2)]:
+		_add_animal(HARE, START + offset)
 	for sector_y in range(1, MAP_SIZE / 24 - 1):
 		for sector_x in range(1, MAP_SIZE / 24 - 1):
 			if _hash(sector_x, sector_y, 101) > 0.65:
@@ -390,7 +386,16 @@ func _seed_animals() -> void:
 				sector_y * 24 + 4 + int(_hash(sector_x, sector_y, 103) * 16.0)
 			)
 			if _can_stand(_cell_center(cell)) and cell.distance_to(START) > 8.0:
-				_add_animal(mini(HARE, int(_hash(sector_x, sector_y, 104) * 5.0)), cell)
+				_add_animal(_spawn_kind(_hash(sector_x, sector_y, 104)), cell)
+
+
+func _spawn_kind(sample: float) -> int:
+	var weight := sample * 100.0
+	for kind in SPAWN_WEIGHTS:
+		weight -= SPAWN_WEIGHTS[kind]
+		if weight < 0.0:
+			return kind
+	return LYNX
 
 
 func _add_animal(kind: int, cell: Vector2i) -> void:
@@ -556,7 +561,7 @@ func _shoo() -> void:
 func _catch_prey(lynx_id: int, prey_id: int) -> void:
 	var lynx := _animals[lynx_id]
 	var prey := _animals[prey_id]
-	if not prey["alive"] or lynx["kind"] != LYNX or prey["kind"] not in [DEER, HARE]:
+	if not prey["alive"] or lynx["kind"] != LYNX or prey["kind"] != HARE:
 		return
 	prey["alive"] = false
 	prey["respawn"] = PREY_RESPAWN_TIME
@@ -565,10 +570,7 @@ func _catch_prey(lynx_id: int, prey_id: int) -> void:
 	lynx["burst"] = 0.0
 	lynx["velocity"] = Vector2.ZERO
 	lynx["state"] = "feed"
-	if prey["kind"] == DEER:
-		deer_caught += 1
-	else:
-		hares_caught += 1
+	hares_caught += 1
 	if _active_animals.has(prey_id):
 		_active_animals[prey_id].queue_free()
 		_active_animals.erase(prey_id)
@@ -629,9 +631,12 @@ func _find_local_spawn(kind: int) -> Vector2i:
 
 func _replenish_local_animals() -> void:
 	var changed := false
-	for kind in [BOAR, DEER, FOX, LYNX, HARE]:
+	_population_tick += 1
+	for kind in LOCAL_POPULATION:
+		# A shortage permits a spawn, but does not guarantee a rare encounter.
+		if _hash(_population_tick, kind, 803) >= REPLENISH_CHANCE[kind]:
+			continue
 		for missing in maxi(0, int(LOCAL_POPULATION[kind]) - _local_population(kind)):
-			_population_tick += 1
 			var cell := _find_local_spawn(kind)
 			if cell.x < 0:
 				break
@@ -714,7 +719,7 @@ func _move_animals(delta: float) -> void:
 			target = data["home"]
 			data["state"] = "return"
 		elif kind == LYNX:
-			var prey := _nearest_animal(position, [DEER, HARE], id, 650.0)
+			var prey := _nearest_animal(position, [HARE], id, 650.0)
 			if prey >= 0:
 				var prey_position: Vector2 = _animals[prey]["position"]
 				if position.distance_to(prey_position) <= ANIMAL_RADIUS[LYNX] + ANIMAL_RADIUS[_animals[prey]["kind"]] + 8.0:

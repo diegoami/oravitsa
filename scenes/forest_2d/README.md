@@ -30,17 +30,25 @@ footprints. A bump
 stuns both for 0.85 seconds. Space shoos animals within 200 px for 3 seconds,
 with a 7-second cooldown. Boars move slowly, forage for mushrooms and berries,
 and sometimes hold their ground near Oravitsa. Deer seek berries and flee
-lynxes; lynxes pursue nearby deer in 1.5-second bursts at 220 px/s, then
-recover before sprinting again. A lynx that catches a deer pauses to feed;
-the deer returns at its home area after 25 seconds, once that area is clear
-and away from Oravitsa. Hares seek berries and flee lynxes; lynxes can also
-catch hares. Foxes flee every nearby animal. All species avoid Oravitsa only
+lynxes; lynxes pursue nearby hares in 1.5-second bursts at 220 px/s, then
+recover before sprinting again. A lynx that catches a hare pauses to feed;
+the hare returns at its home area after 25 seconds, once that area is clear
+and away from Oravitsa. Hares seek berries and flee lynxes. Only hares can
+be killed by predators; deer and other animals remain alive. Oravitsa cannot
+kill any animal, including hares. Foxes flee every nearby animal. All species avoid Oravitsa only
 when she comes close, except for some boars that hold their ground. Their
 roaming targets persist for several seconds and stay near their home area.
+World generation chooses species with relative weights of **60% hare, 17% deer,
+17% fox, 5% boar, and 1% lynx**. These are selection probabilities; actual
+counts vary with the fixed seed and available clear ground. Four hares start
+near the clearing; rare animals are not placed there as guaranteed encounters.
 Every seven seconds, the forest checks for wildlife within about 1,150 px of
-Oravitsa. When a species is scarce, it moves an offscreen animal of that
-species into a clear location 730–1,150 px away, or adds one if needed. This
-keeps at least one boar, deer, fox, and lynx and two hares in the local area.
+Oravitsa. When a species is scarce, it may move an offscreen animal of that
+species into a clear location 730–1,150 px away, or add one if needed.
+The chance per check is 100% for hares, 35% each for deer and foxes, 12% for
+boars, and 2% for lynxes. Local refill targets are four hares, two deer, two
+foxes, one boar, and one lynx. These are refill targets, not hard population
+caps or guaranteed encounters; rare species can remain absent for many checks.
 The minimap shows colored markers for all living animals, with a species key
 beneath it; Oravitsa is the bright outlined marker.
 
