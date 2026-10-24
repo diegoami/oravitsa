@@ -7,9 +7,9 @@ var forest: Node2D
 func _draw() -> void:
 	if forest == null:
 		return
-	var center: Vector2i = forest._loaded_center
-	for y in range(maxi(0, center.y - 7), mini(forest.MAP_SIZE, center.y + 8)):
-		for x in range(maxi(0, center.x - 10), mini(forest.MAP_SIZE, center.x + 11)):
+	var rect: Rect2i = forest._stream_rect(forest._loaded_center, forest._loaded_half)
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
 			var cell := Vector2i(x, y)
 			var kind: int = forest.objects[forest._index(cell)]
 			if kind != forest.TREE and kind != forest.BUSH:

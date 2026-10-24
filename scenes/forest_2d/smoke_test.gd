@@ -34,8 +34,9 @@ func _run() -> void:
 	assert(forest.MAP_SIZE * forest.MAP_SIZE >= 10 * 128 * 128)
 	assert(forest.terrain.size() == forest.MAP_SIZE * forest.MAP_SIZE)
 	assert(forest.objects.size() == forest.MAP_SIZE * forest.MAP_SIZE)
-	assert(forest._ground.get_used_rect().size == Vector2i(21, 15))
-	assert(forest._dirt.get_used_rect().size == Vector2i(21, 15))
+	var half: Vector2i = forest._stream_half()
+	assert(forest._ground.get_used_rect() == forest._stream_rect(forest._loaded_center, half))
+	assert(forest._dirt.get_used_rect() == forest._ground.get_used_rect())
 	assert(forest._blocked_ground != null)
 	assert(forest._camera.limit_right == forest.MAP_SIZE * forest.TILE)
 	assert(forest._minimap != null)
@@ -234,9 +235,9 @@ func _run() -> void:
 	assert(not forest._in_bounds(Vector2i(forest.MAP_SIZE, forest.MAP_SIZE - 1)))
 	forest.player_position = forest._cell_center(Vector2i(48, 48))
 	forest._refresh_visible()
-	assert(forest._ground.get_used_rect().position == Vector2i(38, 41))
-	assert(forest._ground.get_used_rect().size == Vector2i(21, 15))
-	assert(forest._dirt.get_used_rect().position == Vector2i(38, 41))
+	half = forest._stream_half()
+	assert(forest._ground.get_used_rect() == Rect2i(Vector2i(48, 48) - half, half * 2 + Vector2i.ONE))
+	assert(forest._dirt.get_used_rect() == forest._ground.get_used_rect())
 	forest.player_position = start
 	forest._refresh_visible()
 	for id in forest._animals.size():
@@ -266,5 +267,71 @@ func _run() -> void:
 	assert(arrivals[forest.DEER] > arrivals[forest.BOAR])
 	assert(arrivals[forest.FOX] > arrivals[forest.BOAR])
 	assert(arrivals[forest.BOAR] > arrivals[forest.LYNX])
-	print("Forest smoke test passed: movement, hare flight, local replenishment, lynx catch/respawn, minimap, streaming and pickups")
+	await _check_viewport_coverage(forest)
+	print("Forest smoke test passed: movement, hare flight, local replenishment, lynx catch/respawn, minimap, streaming, viewport coverage and pickups")
 	quit()
+
+
+## Cells (clamped to the map) that the camera can show when centred on `center`.
+func _visible_cells(forest: Node, center: Vector2) -> Rect2i:
+	var size: Vector2 = forest.get_viewport_rect().size / forest._camera.zoom
+	var first: Vector2i = forest._world_cell(center - size * 0.5)
+	var last: Vector2i = forest._world_cell(center + size * 0.5)
+	first = first.clamp(Vector2i.ZERO, Vector2i.ONE * (forest.MAP_SIZE - 1))
+	last = last.clamp(Vector2i.ZERO, Vector2i.ONE * (forest.MAP_SIZE - 1))
+	return Rect2i(first, last - first + Vector2i.ONE)
+
+
+func _assert_covered(forest: Node, center: Vector2) -> void:
+	var need := _visible_cells(forest, center)
+	assert(forest._ground.get_used_rect().encloses(need))
+	assert(forest._dirt.get_used_rect().encloses(need))
+	for x in [need.position.x, need.end.x - 1]:
+		for y in [need.position.y, need.end.y - 1]:
+			var cell := Vector2i(x, y)
+			if forest.objects[forest._index(cell)] != forest.EMPTY:
+				assert(forest._active_props.has(cell))
+
+
+func _check_viewport_coverage(forest: Node) -> void:
+	forest.set_process(false)
+	var start: Vector2 = forest._cell_center(Vector2i(180, 200))
+	for window_size in [Vector2i(1152, 648), Vector2i(2560, 720), Vector2i(720, 2560), Vector2i(1920, 1080)]:
+		# Resizing alone, with the player still, must refresh the stream.
+		forest.player_position = start
+		forest._player.position = start
+		forest._camera.position = start
+		forest._refresh_visible()
+		var cell_before: Vector2i = forest._loaded_center
+		root.size = window_size
+		await process_frame
+		await process_frame
+		assert(forest.get_viewport_rect().size.x / forest.get_viewport_rect().size.y > 0.0)
+		assert(forest._loaded_center == cell_before)
+		assert(forest._loaded_half == forest._stream_half())
+		_assert_covered(forest, start)
+		# Walk across several cells, with the camera lagging behind by more than
+		# smoothing produces at walking speed.
+		var lag := Vector2(64.0, 0.0)
+		for step in 240:
+			var before: Vector2i = forest._loaded_center
+			forest.player_position += Vector2(3.5, 1.2)
+			forest._player.position = forest.player_position
+			forest._camera.position = forest.player_position
+			var cell: Vector2i = forest._world_cell(forest.player_position)
+			if cell != forest._loaded_center or forest._stream_half() != forest._loaded_half:
+				forest._refresh_visible()
+			_assert_covered(forest, forest.player_position - lag)
+			_assert_covered(forest, forest.player_position)
+		# The smoothed camera, however far it still trails, never shows ungrounded area
+		# once it is within the margin of the player.
+		for frame in 90:
+			await process_frame
+			var trail: float = forest._camera.get_screen_center_position().distance_to(forest.player_position)
+			if trail <= 64.0:
+				_assert_covered(forest, forest._camera.get_screen_center_position())
+		# Streaming stays proportional to what is visible.
+		var area: int = forest._ground.get_used_rect().get_area()
+		var visible_area := _visible_cells(forest, forest.player_position).get_area()
+		assert(area <= (visible_area + 4 * (forest._stream_half().x + forest._stream_half().y) + 16) * 2)
+	assert(forest._stream_half().x > 0)

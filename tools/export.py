@@ -16,6 +16,20 @@ def run(godot: str, *arguments: str, project: Path = ROOT) -> None:
     subprocess.run([godot, "--headless", "--path", str(project), *arguments], check=True)
 
 
+def require_web_capable_engine(godot: str) -> None:
+    """Web export needs the standard (non-.NET) editor; fail before importing."""
+    try:
+        version = subprocess.run([godot, "--version"], check=True, capture_output=True, text=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError) as error:
+        raise SystemExit(f"Cannot run Godot executable '{godot}': {error}. Pass the standard Godot 4.7.2 executable with --godot.")
+    if "mono" in version.lower():
+        raise SystemExit(
+            f"Web export is unsupported by the .NET edition of Godot ({version}). "
+            "Install the standard (non-.NET) Godot 4.7.2 and its matching export templates "
+            "(version 4.7.2.stable, not 4.7.2.stable.mono), then run: "
+            "python3 tools/export.py web --godot /path/to/standard/godot")
+
+
 def web_project(build: Path) -> Path:
     """Compress only the Web copy; native imports and source PNGs stay intact."""
     target = build / "web-project"
@@ -48,6 +62,7 @@ def main() -> None:
     build.mkdir(exist_ok=True)
     (build / ".gdignore").touch()
     if args.target in ("web", "all"):
+        require_web_capable_engine(args.godot)
         project = web_project(build)
         run(args.godot, "--editor", "--import", project=project)
         web = build / "web"

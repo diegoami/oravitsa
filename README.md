@@ -39,14 +39,20 @@ and Space. Touch devices show a thumb stick and Shoo button, with a HUD that
 adapts to portrait and landscape. Keyboard and touch input can coexist.
 The Compatibility renderer supports native desktop builds and WebGL 2 browsers.
 
-Install the matching Godot **4.7.2 export templates** through the editor, then:
+Web export requires the **standard (non-.NET) Godot 4.7.2** editor together with
+its matching **4.7.2.stable export templates** (install them in the editor via
+*Editor > Manage Export Templates*). The .NET/Mono edition rejects Web export
+even though this project uses only GDScript, and its templates
+(`4.7.2.stable.mono`) are a different set. Select the standard executable with
+`--godot` (or `GODOT_BIN`); `tools/export.py` stops early with an explanation
+if the chosen engine is the .NET edition. Then:
 
 ```sh
 # Website (build/site/) and native Linux executable (build/linux/)
 python3 tools/export.py all
 
 # Or export only one target; --godot selects a specific engine executable
-python3 tools/export.py web --godot godot
+python3 tools/export.py web --godot /path/to/standard/godot
 python3 tools/export.py linux
 ```
 

@@ -39,6 +39,9 @@ const DEER_CATCH_TIME := 3.0
 const SPAWN_WEIGHTS := {HARE: 60, DEER: 17, FOX: 17, BOAR: 5, LYNX: 1}
 const LOCAL_POPULATION := {HARE: 4, DEER: 2, FOX: 2, BOAR: 1, LYNX: 1}
 const REPLENISH_CHANCE := {HARE: 1.0, DEER: 0.35, FOX: 0.35, BOAR: 0.12, LYNX: 0.02}
+# One cell covers the player moving within a cell before streaming refreshes;
+# the second covers camera smoothing lag.
+const STREAM_MARGIN := 2
 const POPULATION_RADIUS := 1150.0
 const POPULATION_INTERVAL := 7.0
 const PLAYER_RADIUS := 24.0
@@ -71,6 +74,7 @@ var _active_animals: Dictionary = {}
 var _textures: Dictionary = {}
 var _png_cache: Dictionary = {}
 var _loaded_center := Vector2i(-999, -999)
+var _loaded_half := Vector2i.ZERO
 var _population_timer := POPULATION_INTERVAL
 var _population_tick := 0
 
@@ -111,7 +115,7 @@ func _process(delta: float) -> void:
 	_camera.position = player_position
 	_collect_nearby()
 	var cell := _world_cell(player_position)
-	if cell != _loaded_center:
+	if cell != _loaded_center or _stream_half() != _loaded_half:
 		_refresh_visible()
 	_update_respawns(delta)
 	_move_animals(delta)
@@ -299,11 +303,23 @@ func _make_character_frames() -> SpriteFrames:
 	return frames
 
 
-func _refresh_ground(center: Vector2i) -> void:
+## Half-size, in cells, of the streamed area: the visible camera area plus margin.
+func _stream_half() -> Vector2i:
+	var visible := get_viewport_rect().size / _camera.zoom
+	return Vector2i(ceili(visible.x * 0.5 / TILE), ceili(visible.y * 0.5 / TILE)) + Vector2i.ONE * STREAM_MARGIN
+
+
+func _stream_rect(center: Vector2i, half: Vector2i) -> Rect2i:
+	var top_left := Vector2i(maxi(0, center.x - half.x), maxi(0, center.y - half.y))
+	var bottom_right := Vector2i(mini(MAP_SIZE, center.x + half.x + 1), mini(MAP_SIZE, center.y + half.y + 1))
+	return Rect2i(top_left, bottom_right - top_left)
+
+
+func _refresh_ground(rect: Rect2i) -> void:
 	_ground.clear()
 	_dirt.clear()
-	for y in range(maxi(0, center.y - 7), mini(MAP_SIZE, center.y + 8)):
-		for x in range(maxi(0, center.x - 10), mini(MAP_SIZE, center.x + 11)):
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
 			var sx := posmod(x, 22)
 			var sy := posmod(y, 22)
 			var flip := 0
@@ -354,7 +370,13 @@ func _build_hud() -> void:
 	_touch_controls.touch_mode_changed.connect(_layout_hud)
 	canvas.add_child(_touch_controls)
 	get_viewport().size_changed.connect(_layout_hud)
+	get_viewport().size_changed.connect(_on_viewport_resized)
 	_layout_hud()
+
+
+func _on_viewport_resized() -> void:
+	if _stream_half() != _loaded_half:
+		_refresh_visible()
 
 
 func _layout_hud() -> void:
@@ -382,11 +404,13 @@ func _layout_hud() -> void:
 func _refresh_visible() -> void:
 	var center := _world_cell(player_position)
 	_loaded_center = center
-	_refresh_ground(center)
+	_loaded_half = _stream_half()
+	var rect := _stream_rect(center, _loaded_half)
+	_refresh_ground(rect)
 	_blocked_ground.queue_redraw()
 	var wanted := {}
-	for y in range(maxi(0, center.y - 7), mini(MAP_SIZE, center.y + 8)):
-		for x in range(maxi(0, center.x - 10), mini(MAP_SIZE, center.x + 11)):
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
 			var cell := Vector2i(x, y)
 			var kind := objects[_index(cell)]
 			if kind == EMPTY:
@@ -470,7 +494,7 @@ func _refresh_animals(center: Vector2i) -> void:
 		if not _animals[id]["alive"]:
 			continue
 		var cell := _world_cell(_animals[id]["position"])
-		if abs(cell.x - center.x) <= 12 and abs(cell.y - center.y) <= 9:
+		if abs(cell.x - center.x) <= _loaded_half.x + 2 and abs(cell.y - center.y) <= _loaded_half.y + 2:
 			wanted[id] = true
 			if not _active_animals.has(id):
 				var sprite := _make_animal_sprite(id)
