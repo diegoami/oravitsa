@@ -30,11 +30,13 @@ footprints. A bump
 stuns both for 0.85 seconds. Space shoos animals within 200 px for 3 seconds,
 with a 7-second cooldown. Boars move slowly, forage for mushrooms and berries,
 and sometimes hold their ground near Oravitsa. Deer seek berries and flee
-lynxes; lynxes pursue nearby hares in 1.5-second bursts at 220 px/s, then
-recover before sprinting again. A lynx that catches a hare pauses to feed;
-the hare returns at its home area after 25 seconds, once that area is clear
-and away from Oravitsa. Hares seek berries and flee lynxes. Only hares can
-be killed by predators; deer and other animals remain alive. Oravitsa cannot
+lynxes; lynxes pursue nearby deer and hares in 1.5-second bursts at 220 px/s,
+then recover before sprinting again. Hares are caught immediately on contact;
+deer require three seconds of continuous close pursuit. The lynx keeps pace
+while attempting a deer catch; losing contact, switching prey, being shooed,
+or being stunned resets the attempt. A lynx that catches prey pauses to feed;
+the prey returns at its home area after 25 seconds, once that area is clear
+and away from Oravitsa. Hares seek berries and flee lynxes. Oravitsa cannot
 kill any animal, including hares. Foxes flee every nearby animal. All species avoid Oravitsa only
 when she comes close, except for some boars that hold their ground. Their
 roaming targets persist for several seconds and stay near their home area.

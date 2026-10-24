@@ -146,10 +146,27 @@ func _run() -> void:
 	assert(forest._animals[3]["state"] == "hunt")
 	assert(forest._animals[3]["burst"] > 0.0)
 	forest._animals[1]["position"] = forest._animals[3]["position"] + Vector2(-54.0, 0.0)
-	forest._catch_prey(3, 1)
+	forest._catch_prey(3, 1, forest.DEER_CATCH_TIME - 0.1)
 	assert(forest._animals[1]["alive"])
 	assert(forest._animals[3]["feeding"] == 0.0)
 	assert(forest._active_animals.has(1))
+	# Losing contact discards progress; a later attempt starts from zero.
+	forest._animals[1]["position"] = forest._animals[3]["position"] + Vector2(-200.0, 0.0)
+	forest._move_animals(1.0 / 60.0)
+	assert(forest._animals[3]["catch_time"] == 0.0)
+	for step in 29:
+		forest._animals[1]["position"] = forest._animals[3]["position"] + Vector2(-54.0, 0.0)
+		forest._animals[1]["stun"] = 0.2
+		forest._move_animals(0.1)
+	assert(forest._animals[3]["catch_time"] > 2.8)
+	assert(forest._animals[1]["alive"])
+	forest._animals[1]["position"] = forest._animals[3]["position"] + Vector2(-54.0, 0.0)
+	forest._animals[1]["stun"] = 0.2
+	forest._move_animals(0.11)
+	assert(not forest._animals[1]["alive"])
+	assert(forest.deer_caught == 1)
+	assert(forest._animals[3]["feeding"] > 0.0)
+	assert(not forest._active_animals.has(1))
 	forest._animals[4]["position"] = forest._animals[3]["position"] + Vector2(-200.0, 0.0)
 	forest._animals[3]["feeding"] = 0.0
 	forest._move_animals(1.0 / 60.0)
@@ -166,6 +183,7 @@ func _run() -> void:
 	forest.player_position = forest._cell_center(forest.START + Vector2i(20, 20))
 	forest._update_respawns(forest.PREY_RESPAWN_TIME + 0.1)
 	assert(forest._animals[4]["alive"])
+	assert(forest._animals[1]["alive"])
 	forest.player_position = start
 	forest._animals[2]["position"] = forest._cell_center(forest.START + Vector2i(-3, 2))
 	forest._animals[1]["position"] = forest._cell_center(forest.START + Vector2i(3, -2))

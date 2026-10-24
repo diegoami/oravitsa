@@ -13,9 +13,10 @@ animals makes a pleasant, replayable loop.
 Her interactions with creatures are non-lethal influences such as shooing,
 attracting, confusing, or slowing. No sling or lethal player skill is included.
 
-- Hares are the exception for animal predation: lynxes may catch and kill
-  hares. Hares replenish frequently and return away from the player.
-- Deer and the other species cannot be killed. Deer still flee lynxes.
+- Animal predation is separate from player abilities: lynxes can kill hares
+  and deer. Hares are caught quickly; deer require three seconds of continuous
+  close pursuit. Losing contact or interrupting the lynx resets that progress.
+  Both prey species return away from the player; hares replenish frequently.
 - No player damage, health, or hit-point combat system.
 - Competition for resources is the conflict. An animal reaching a mushroom
   first wins that exchange.

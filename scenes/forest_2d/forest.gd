@@ -35,6 +35,7 @@ const LYNX_BURST_SPEED := 220.0
 const LYNX_BURST_TIME := 1.5
 const LYNX_BURST_RECOVERY := 3.4
 const PREY_RESPAWN_TIME := 25.0
+const DEER_CATCH_TIME := 3.0
 const SPAWN_WEIGHTS := {HARE: 60, DEER: 17, FOX: 17, BOAR: 5, LYNX: 1}
 const LOCAL_POPULATION := {HARE: 4, DEER: 2, FOX: 2, BOAR: 1, LYNX: 1}
 const REPLENISH_CHANCE := {HARE: 1.0, DEER: 0.35, FOX: 0.35, BOAR: 0.12, LYNX: 0.02}
@@ -49,6 +50,7 @@ var objects := PackedByteArray()
 var player_position := Vector2.ZERO
 var basket := 0
 var berries_basket := 0
+var deer_caught := 0
 var hares_caught := 0
 var player_stun := 0.0
 var shoo_cooldown := 0.0
@@ -418,7 +420,9 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 		"respawn": 0.0,
 		"feeding": 0.0,
 		"burst": 0.0,
-		"burst_cooldown": 0.0
+		"burst_cooldown": 0.0,
+		"catch_target": -1,
+		"catch_time": 0.0
 	})
 
 
@@ -558,11 +562,20 @@ func _shoo() -> void:
 			_animals[id]["timeout"] = 0.0
 
 
-func _catch_prey(lynx_id: int, prey_id: int) -> void:
+func _catch_prey(lynx_id: int, prey_id: int, delta: float = 0.0) -> bool:
 	var lynx := _animals[lynx_id]
 	var prey := _animals[prey_id]
-	if not prey["alive"] or lynx["kind"] != LYNX or prey["kind"] != HARE:
-		return
+	if not prey["alive"] or lynx["kind"] != LYNX or prey["kind"] not in [DEER, HARE]:
+		return false
+	if prey["kind"] == DEER:
+		if lynx["catch_target"] != prey_id:
+			lynx["catch_time"] = 0.0
+		lynx["catch_target"] = prey_id
+		lynx["catch_time"] += delta
+		if lynx["catch_time"] < DEER_CATCH_TIME:
+			return false
+	lynx["catch_target"] = -1
+	lynx["catch_time"] = 0.0
 	prey["alive"] = false
 	prey["respawn"] = PREY_RESPAWN_TIME
 	prey["velocity"] = Vector2.ZERO
@@ -570,10 +583,14 @@ func _catch_prey(lynx_id: int, prey_id: int) -> void:
 	lynx["burst"] = 0.0
 	lynx["velocity"] = Vector2.ZERO
 	lynx["state"] = "feed"
-	hares_caught += 1
+	if prey["kind"] == DEER:
+		deer_caught += 1
+	else:
+		hares_caught += 1
 	if _active_animals.has(prey_id):
 		_active_animals[prey_id].queue_free()
 		_active_animals.erase(prey_id)
+	return true
 
 
 func _update_respawns(delta: float) -> void:
@@ -663,6 +680,8 @@ func _replenish_local_animals() -> void:
 				data["respawn"] = 0.0
 				data["alive"] = true
 				data["state"] = "idle"
+				data["catch_target"] = -1
+				data["catch_time"] = 0.0
 			changed = true
 	if changed:
 		_refresh_animals(_loaded_center)
@@ -673,6 +692,11 @@ func _move_animals(delta: float) -> void:
 		if not _active_animals.has(id) or not _animals[id]["alive"]:
 			continue
 		var data := _animals[id]
+		# Only consecutive frames holding the same prey retain catch progress.
+		var previous_catch_target: int = data["catch_target"]
+		var previous_catch_time: float = data["catch_time"]
+		data["catch_target"] = -1
+		data["catch_time"] = 0.0
 		var position: Vector2 = data["position"]
 		var kind: int = data["kind"]
 		var sprite: AnimatedSprite2D = _active_animals[id]
@@ -719,19 +743,22 @@ func _move_animals(delta: float) -> void:
 			target = data["home"]
 			data["state"] = "return"
 		elif kind == LYNX:
-			var prey := _nearest_animal(position, [HARE], id, 650.0)
+			var prey := _nearest_animal(position, [DEER, HARE], id, 650.0)
 			if prey >= 0:
 				var prey_position: Vector2 = _animals[prey]["position"]
 				if position.distance_to(prey_position) <= ANIMAL_RADIUS[LYNX] + ANIMAL_RADIUS[_animals[prey]["kind"]] + 8.0:
-					_catch_prey(id, prey)
-					sprite.stop()
-					continue
+					if previous_catch_target == prey:
+						data["catch_target"] = previous_catch_target
+						data["catch_time"] = previous_catch_time
+					if _catch_prey(id, prey, delta):
+						sprite.stop()
+						continue
 				target = prey_position
 				data["state"] = "hunt"
 				if data["burst_cooldown"] <= 0.0 and position.distance_to(prey_position) < 410.0:
 					data["burst"] = LYNX_BURST_TIME
 					data["burst_cooldown"] = LYNX_BURST_RECOVERY
-				speed = LYNX_BURST_SPEED if data["burst"] > 0.0 else ANIMAL_SPEEDS[LYNX]
+				speed = LYNX_BURST_SPEED if data["burst"] > 0.0 or data["catch_target"] == prey else ANIMAL_SPEEDS[LYNX]
 		elif kind in [BOAR, DEER, HARE]:
 			var food_cell: Vector2i = data["food_cell"]
 			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in [BERRIES, MUSHROOM] or (kind in [DEER, HARE] and objects[_index(food_cell)] != BERRIES):

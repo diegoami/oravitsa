@@ -48,8 +48,9 @@ animation. The new forest art was generated as bitmap assets and checked in
 Godot at play size; no Tripo, Fal, or OpenRouter credits were used.
 
 Diagonal movement uses the open diagonal cell when possible. Lynxes sprint in
-short bursts and can catch hares; hares return later away from the player.
-Deer flee lynxes but cannot be killed. Oravitsa cannot kill any animal,
+short bursts and can catch hares quickly. Deer take three seconds of continuous
+close pursuit to catch; both prey species return later away from the player.
+Oravitsa cannot kill any animal,
 including hares, in this iteration. The
 new side and straight-back Oravitsa walk strips run four-pose loops.
 Her south view is now straight-on, distinct from the southeast three-quarter
