@@ -32,6 +32,59 @@ play it. It includes the boar and deer and is documented in its
 [playtest guide](prototypes/foraging_2d/README.md). The
 [creation workflow](docs/2d-demo-workflow.md) records the original demo.
 
+## Desktop and mobile Web builds
+
+The project stays in **Godot 4.7.2 / GDScript**. Desktop keeps WASD, arrows,
+and Space. Touch devices show a thumb stick and Shoo button, with a HUD that
+adapts to portrait and landscape. Keyboard and touch input can coexist.
+The Compatibility renderer supports native desktop builds and WebGL 2 browsers.
+
+Web export requires the **standard (non-.NET) Godot 4.7.2** editor together with
+its matching **4.7.2.stable export templates** (install them in the editor via
+*Editor > Manage Export Templates*). The .NET/Mono edition rejects Web export
+even though this project uses only GDScript, and its templates
+(`4.7.2.stable.mono`) are a different set. Select the standard executable with
+`--godot` (or `GODOT_BIN`); `tools/export.py` stops early with an explanation
+if the chosen engine is the .NET edition. Then:
+
+```sh
+# Website (build/site/) and native Linux executable (build/linux/)
+python3 tools/export.py all
+
+# Or export only one target; --godot selects a specific engine executable
+python3 tools/export.py web --godot /path/to/standard/godot
+python3 tools/export.py linux
+```
+
+Host `build/site/` on an HTTPS static host. The browser explicitly decompresses
+the engine, so startup does not depend on the host applying `_headers` or
+`Content-Encoding`. Content-hashed assets can be reused from browser cache.
+The Web copy includes only the active forest and compresses its imported
+textures at 85% quality, reducing the initial download from about 53 to 20 MiB.
+Source PNGs, native desktop imports, sprite dimensions, and gameplay stay intact.
+Downloads run alongside engine compilation, with byte progress and a retry
+message for failures or a stalled connection. The single-threaded Web export
+needs no cross-origin isolation headers. The ordinary
+uncompressed `build/web/` export can also be served by a standard HTTP server.
+Opening HTML directly with `file://` will not work.
+
+Recent Android Chrome and iPhone Safari with WebGL 2 and browser gzip
+decompression support (Safari 16.4 or later) are the mobile targets.
+Real-device performance should be checked before a wider release. There is no
+cloud game server or multiplayer service: hosting delivers the Godot game to
+each browser. No game progress is persisted across reloads.
+
+The GitHub **Build desktop and Web** workflow runs gameplay/touch smoke checks
+and exports both targets. Its artifacts contain the ready-to-host website and
+the native Linux executable. Other desktop targets remain available through
+Godot's normal export dialog.
+
+```sh
+godot --headless --editor --import
+godot --headless --script scenes/forest_2d/smoke_test.gd
+godot --headless --script scenes/forest_2d/mobile_smoke_test.gd
+```
+
 ## Project layout
 
 - `scenes/forest_2d/` — current scrolling forest scene, map script, minimap,

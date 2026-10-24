@@ -1,0 +1,39 @@
+name: Build desktop and Web
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+      - name: Import and check gameplay
+        run: |
+          mkdir -p build
+          touch build/.gdignore
+          godot --headless --editor --import
+          godot --headless --script scenes/forest_2d/smoke_test.gd
+          godot --headless --script scenes/forest_2d/mobile_smoke_test.gd
+      - name: Export both platforms
+        run: python3 tools/export.py all
+      - name: Check native export starts
+        run: |
+          chmod +x build/linux/oravitsa.x86_64
+          build/linux/oravitsa.x86_64 --headless --quit-after 10
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oravitsa-web
+          path: build/site/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oravitsa-linux
+          path: build/linux/

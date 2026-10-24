@@ -5,7 +5,6 @@
 # Godot 3 leftovers, in case an old editor ever touches this folder.
 .import/
 export.cfg
-export_presets.cfg
 
 # Mono / .NET (this machine runs the mono build of 4.7.2; no C# in the project
 # yet, but the editor can still drop these).
@@ -20,6 +19,7 @@ mono_crash.*.json
 # Builds
 /build/
 /export/
+/dist/
 
 # OS noise
 .DS_Store
@@ -32,3 +32,6 @@ Thumbs.db
 # Blender rolling backups
 *.blend1
 *.blend2
+
+# Python build helpers
+__pycache__/

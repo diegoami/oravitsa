@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#172f25">
+  <meta name="description" content="Wander Oravitsa’s painted forest, gather mushrooms and berries, and meet its wildlife. Play with a keyboard or touch controls.">
+  <title>$GODOT_PROJECT_NAME</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width:100%; height:100%; margin:0; overflow:hidden; background:#172f25; color:#f8eed5; }
+    body { font-family:system-ui,sans-serif; touch-action:none; overscroll-behavior:none; }
+    #canvas { display:block; width:100%; height:100%; outline:none; }
+    #welcome { position:fixed; inset:0; display:grid; place-items:center; padding:24px; background:radial-gradient(ellipse at 50% 25%,#375c3b,#172f25 75%); z-index:2; }
+    .card { width:min(100%,440px); text-align:center; }
+    .eyebrow { color:#c7d5ac; font-size:.78rem; letter-spacing:.22em; text-transform:uppercase; }
+    h1 { margin:.4em 0; font-family:Georgia,serif; font-size:clamp(2.8rem,10vw,4.5rem); font-weight:normal; }
+    p { color:#e2ddc4; line-height:1.65; }
+    button { border:1px solid #d6d4a7; border-radius:999px; padding:14px 30px; background:#ece4bf; color:#203a29; font:600 1rem system-ui,sans-serif; cursor:pointer; min-height:48px; }
+    button:focus-visible { outline:3px solid #fff; outline-offset:5px; }
+    button:disabled { opacity:.65; cursor:wait; }
+    #status { min-height:1.6em; margin-top:18px; font-size:.9rem; }
+    #progress { display:none; width:100%; height:8px; accent-color:#d9d99f; }
+    .touch { display:none; }
+    @media (pointer:coarse) { .touch { display:block; } .keyboard { display:none; } }
+    #fullscreen { display:none; position:fixed; bottom:max(12px,env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); padding:8px 16px; font-size:.75rem; min-height:40px; background:#172f25cc; color:#f8eed5; border-color:#f8eed580; }
+  </style>
+  $GODOT_HEAD_INCLUDE
+</head>
+<body>
+  <canvas id="canvas" tabindex="0" aria-label="Oravitsa forest game"></canvas>
+  <div id="welcome">
+    <main class="card">
+      <div class="eyebrow">A little time in the forest</div>
+      <h1>Oravitsa</h1>
+      <p>Follow the winding paths. Gather mushrooms and berries.<br>See who’s wandering among the trees.</p>
+      <p class="keyboard">WASD or arrow keys to walk · Space to shoo</p>
+      <p class="touch">Use the thumb stick to walk and tap Shoo.<br>Play upright or turn your phone sideways.</p>
+      <button id="play" type="button">Enter the forest</button>
+      <p id="status" role="status" aria-live="polite">Your forest will load when you’re ready.</p>
+      <progress id="progress" aria-label="Loading the forest"></progress>
+      <noscript>Enable JavaScript to play this Godot game.</noscript>
+    </main>
+  </div>
+  <button id="fullscreen" type="button" aria-label="Enter full screen">Full screen</button>
+  <script src="$GODOT_URL"></script>
+  <script>
+    const config = $GODOT_CONFIG;
+    const assets = /* ORAVITSA_ASSETS */ null;
+    const play = document.getElementById('play');
+    const status = document.getElementById('status');
+    const progress = document.getElementById('progress');
+    const canvas = document.getElementById('canvas');
+    const fullscreen = document.getElementById('fullscreen');
+    let downloaded = 0;
+    let lastActivity = Date.now();
+    const total = assets ? assets.engine.size + assets.pack.reduce((sum, part) => sum + part.size, 0) : 0;
+    const controller = new AbortController();
+
+    function showProgress() {
+      lastActivity = Date.now();
+      progress.max = total || 1;
+      progress.value = downloaded;
+      status.textContent = 'Loading the forest… ' +
+        (downloaded / 1048576).toFixed(1) + ' / ' + (total / 1048576).toFixed(1) + ' MB';
+    }
+
+    async function download(asset) {
+      // Names contain content hashes, so cached bytes are safe across updates.
+      const response = await fetch(asset.name, {cache: 'force-cache', signal: controller.signal});
+      if (!response.ok) throw new Error('Download failed: ' + response.status);
+      const bytes = new Uint8Array(asset.size);
+      const reader = response.body.getReader();
+      let offset = 0;
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        if (offset + result.value.length > bytes.length) throw new Error('Unexpected download size');
+        bytes.set(result.value, offset);
+        offset += result.value.length;
+        downloaded += result.value.length;
+        showProgress();
+      }
+      if (offset !== bytes.length) throw new Error('Incomplete download');
+      return bytes;
+    }
+
+    play.addEventListener('click', async () => {
+      play.disabled = true;
+      progress.style.display = 'block';
+      lastActivity = Date.now();
+      let watchdog;
+      try {
+        if (typeof Engine !== 'function') throw new Error('Engine script unavailable');
+        const missing = Engine.getMissingFeatures({threads: $GODOT_THREADS_ENABLED});
+        if (missing.length) throw new Error('Browser features unavailable: ' + missing.join(', '));
+        const engine = new Engine(config);
+        const startOptions = {
+          canvas,
+          onProgress(current, size) {
+            lastActivity = Date.now();
+            if (size > 0) {
+              progress.max = size;
+              progress.value = current;
+              status.textContent = 'Loading the forest… ' + Math.round(current / size * 100) + '%';
+            }
+          }
+        };
+        const stalled = new Promise((_, reject) => {
+          watchdog = setInterval(() => {
+            if (Date.now() - lastActivity > 90000) {
+              controller.abort();
+              reject(new Error('Loading stopped responding'));
+            }
+          }, 1000);
+        });
+        const startGame = async () => {
+          if (!assets) return engine.startGame(startOptions);
+          if (typeof DecompressionStream !== 'function') {
+            throw new Error('Please update your browser to play');
+          }
+          showProgress();
+          window.oravitsaLoadEngine = async () => {
+            const bytes = await download(assets.engine);
+            const body = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+            // Finish and validate decompression before Godot compiles the module.
+            // Otherwise a stream error can be swallowed by its WASM fallback.
+            const wasm = await new Response(body).arrayBuffer();
+            return new Response(wasm, {headers: {'Content-Type': 'application/wasm'}});
+          };
+          const loadPack = async () => {
+            let pack = new Uint8Array(assets.pack.reduce((sum, part) => sum + part.size, 0));
+            let offset = 0;
+            for (const part of assets.pack) {
+              const bytes = await download(part);
+              pack.set(bytes, offset);
+              offset += bytes.length;
+            }
+            const mainPack = config.mainPack || config.executable + '.pck';
+            await engine.preloadFile(pack, mainPack);
+            pack = null;
+            return mainPack;
+          };
+          // Artwork downloads while the engine downloads and compiles.
+          const [, mainPack] = await Promise.all([engine.init(config.executable), loadPack()]);
+          status.textContent = 'Opening the forest…';
+          lastActivity = Date.now();
+          await engine.start({...startOptions, args: ['--main-pack', mainPack, ...(config.args || [])]});
+        };
+        await Promise.race([startGame(), stalled]);
+        document.getElementById('welcome').remove();
+        window.oravitsaReady = true;
+        canvas.focus();
+        if (document.fullscreenEnabled) fullscreen.style.display = 'block';
+      } catch (error) {
+        controller.abort();
+        console.error(error);
+        status.textContent = 'The forest couldn’t load. Please check your connection and try again.';
+        progress.style.display = 'none';
+        play.textContent = 'Try again';
+        play.disabled = false;
+        play.onclick = () => location.reload();
+      } finally {
+        clearInterval(watchdog);
+      }
+    }, {once: true});
+    fullscreen.addEventListener('click', async () => {
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await document.documentElement.requestFullscreen();
+      } catch (_) { /* Browser UI can still be used when fullscreen is unavailable. */ }
+      canvas.focus();
+    });
+    document.addEventListener('fullscreenchange', () => {
+      fullscreen.textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen';
+      fullscreen.setAttribute('aria-label', fullscreen.textContent);
+    });
+  </script>
+</body>
+</html>
