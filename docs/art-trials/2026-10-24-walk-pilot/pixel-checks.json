@@ -1,0 +1,98 @@
+[
+  {
+    "frame": 1,
+    "offset": "(0, 35)",
+    "opaque_edge_pixels": 0,
+    "source_body_bounds": [
+      62,
+      28,
+      709,
+      973
+    ],
+    "source_size": "(768, 1024)"
+  },
+  {
+    "frame": 2,
+    "offset": "(0, 31)",
+    "opaque_edge_pixels": 0,
+    "source_body_bounds": [
+      70,
+      34,
+      667,
+      987
+    ],
+    "source_size": "(768, 1024)"
+  },
+  {
+    "frame": 3,
+    "offset": "(0, 33)",
+    "opaque_edge_pixels": 0,
+    "source_body_bounds": [
+      74,
+      19,
+      629,
+      981
+    ],
+    "source_size": "(768, 1024)"
+  },
+  {
+    "frame": 4,
+    "offset": "(0, 33)",
+    "opaque_edge_pixels": 0,
+    "source_body_bounds": [
+      74,
+      16,
+      629,
+      981
+    ],
+    "source_size": "(768, 1024)"
+  },
+  {
+    "frame": 5,
+    "offset": "(0, 32)",
+    "opaque_edge_pixels": 0,
+    "source_body_bounds": [
+      75,
+      36,
+      695,
+      983
+    ],
+    "source_size": "(768, 1024)"
+  },
+  {
+    "frame": 6,
+    "offset": "(0, 29)",
+    "opaque_edge_pixels": 0,
+    "source_body_bounds": [
+      74,
+      34,
+      647,
+      991
+    ],
+    "source_size": "(768, 1024)"
+  },
+  {
+    "frame": 7,
+    "offset": "(0, 30)",
+    "opaque_edge_pixels": 0,
+    "source_body_bounds": [
+      69,
+      16,
+      617,
+      988
+    ],
+    "source_size": "(768, 1024)"
+  },
+  {
+    "frame": 8,
+    "offset": "(0, 32)",
+    "opaque_edge_pixels": 0,
+    "source_body_bounds": [
+      62,
+      12,
+      617,
+      983
+    ],
+    "source_size": "(768, 1024)"
+  }
+]

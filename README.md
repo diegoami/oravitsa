@@ -27,6 +27,10 @@ the selection. Movement and Shoo remain available while using the sling.
 Animals avoid each other and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
 stuns both of them.
 
+Oravitsa now uses the approved eight-pose walk in all eight directions, with
+separate westward views. Her gait follows actual movement and keeps its phase
+through turns; blocked movement and stun return her to a grounded idle pose.
+
 Hares are frequent, deer and foxes are less common, boars are uncommon, and
 lynxes are rare. World generation and nearby wildlife replenishment both use
 species-specific rates; the starting clearing introduces four hares.

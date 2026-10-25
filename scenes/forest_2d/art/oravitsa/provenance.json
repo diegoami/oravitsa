@@ -1,0 +1,41 @@
+{
+  "source": "Meshy walking clip on the approved Tripo character",
+  "cycle_seconds": 1.03333326677481,
+  "pivot": [
+    127.999961853027,
+    301.752141952515
+  ],
+  "display_scale": 0.547717842323652,
+  "atlas_sha256": {
+    "s.png": "d8da273eb2393283cc857fdd9c44ffe7b79eb6c38ee54579d7d37d2f5f877697",
+    "se.png": "38673a0ef90aef122df930d626b5a1e0b4f7afecf4e635ab79e73e338ab59392",
+    "e.png": "0db6c1c0baab308853a0f2d2f49eb4de868cbb36c1b005c60e3507d0e66533df",
+    "ne.png": "1d02ce04b2e170606e5b8d8007a66827df5b9514f0431e3a9e932c97d9908273",
+    "n.png": "6ffad815ed28eedd5f9c8544ecf2bc5540dbda4c4f4031531cf645938d07f3cc",
+    "nw.png": "c32c07b2869f9182594b57f295f0171e2d8e6f1db0ecef5702daa01d2996c692",
+    "w.png": "d989ce2eab55abfc38a8871e5c3282ab25ec93eff633f76e61002d1eeb348e5b",
+    "sw.png": "13c789329f19ba259a3ace9ffd4d37483f1e5d91e8979158cc2eb0e41f77e482"
+  },
+  "repairs": {
+    "foot_repair": {
+      "boot_triangles": 9153.0,
+      "collar_overlap_m": 0.04,
+      "face_and_costume_unchanged": true,
+      "heading": "Forward hemisphere, limited to 15 degrees; yaw fades near vertical toe-down poses to avoid projection flips",
+      "method": "Matched intact boot geometry, mirrored anatomically, following actual sock collars; baked rigid transforms",
+      "original_source_files_unchanged": true,
+      "textures": "Original boot UVs/material, shared by both shoes"
+    },
+    "skirt_repair": {
+      "method": "Separate fitted skirt surface, sampled original painted texture, pelvis support and thigh clearance",
+      "source_faces": 14727.0,
+      "vertices": 2016.0
+    },
+    "arm_clearance": {
+      "baked_poses": 65.0,
+      "method": "Left upper arm rotated outward 8 degrees through the existing walk; elbow and wrist animation preserved",
+      "source_action_retained": "Armature|walking_man|baselayer"
+    }
+  },
+  "note": "Approved walking export; original provider downloads retained locally. Rebuild with art/render_imported_walk.py, package and validate before installing."
+}

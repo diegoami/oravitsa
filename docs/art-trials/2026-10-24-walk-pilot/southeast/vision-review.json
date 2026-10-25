@@ -1,0 +1,7 @@
+{
+  "content": "This southeast 8-pose walking prototype shows clear structural instability and fails gait continuity checks. \n\n**Concrete Flaws:**\n* **Ankle/Knee Breaks:** Frame 1 exhibits a severe right ankle shear where the foot abruptly detaches from the lower shin. Frame 8 suffers from a dislocated, dangling left foot angle.\n* **Boot Overlaps & Orientation:** Frame 4 shows the rear boot geometry clipping unnaturally through the foreground ankle. In frames 7 and 8, the left foot’s toe direction incorrectly flattens against the movement vector rather than tracking the southeast perspective.\n* **Torso/Skirt Damage:** The dark green pleated skirt distorts erratically between frames (notably collapsing inward on frame 5), failing to properly wrap around the hip shifts. \n* **Cycle Continuity:** The right arm swings out of phase with the stride momentum, jerking rigidly between frames 3 and 5 without smooth interpolation.\n\n**Uncertainties:**\n* Leg ownership in frames 3 and 7 is ambiguous due to dense overlapping skirts and boots.\n\n**Verdict:**\nReject. While the painted asset quality is high, the severe joint tears, unstable skirt geometry, and broken foot rotations render it unusable as a functional motion prototype without a complete rigging rebuild.",
+  "base_resp": {
+    "status_code": 0,
+    "status_msg": "success"
+  }
+}

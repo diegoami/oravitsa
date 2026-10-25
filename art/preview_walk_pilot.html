@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oravitsa — Blender southeast pilot</title>
+<style>
+  :root{font-family:system-ui,sans-serif;color:#f4eedb;background:#172b24;color-scheme:dark}
+  body{max-width:1000px;margin:36px auto;padding:0 24px}h1{font:36px Georgia,serif;margin-bottom:8px}
+  p{color:#cbd4c1;line-height:1.6}.comparisons{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  article{background:#243c30;border:1px solid #527052;border-radius:16px;padding:18px}h2{font-size:18px;margin:0 0 8px}
+  canvas{width:100%;background:linear-gradient(#526c47,#76905b);border-radius:10px;display:block}
+  .controls{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin:22px 0}button,select{padding:9px 15px;border:1px solid #adc69a;border-radius:8px;background:#314f3a;color:#fff}
+  label{display:flex;align-items:center;gap:8px}output{font-variant-numeric:tabular-nums}a{color:#e4da9c}
+  .note{padding:12px 16px;border-left:3px solid #d8c683;background:#253c30}small{color:#cbd4c1}
+  @media(max-width:650px){.comparisons{grid-template-columns:1fr}body{margin:20px auto}}
+</style>
+<h1>Scripted Blender southeast walk</h1>
+<p>One direction, before extending the treatment to the full movement set. Review the feet, the basket, and the last-to-first transition.</p>
+<div class="comparisons">
+  <article><h2>Current game</h2><canvas id="old" width="440" height="260"></canvas><p>Four frames. <output id="old-phase"></output></p></article>
+  <article><h2>Fully scripted 3D pilot</h2><canvas id="pilot" width="440" height="260"></canvas><p>Eight frames. <output id="new-phase"></output></p></article>
+</div>
+<div class="controls">
+  <button id="play">Pause</button><button id="previous">← Frame</button><button id="next">Frame →</button>
+  <label>Playback <select id="speed"><option value="0.5">Half speed</option><option value="1" selected>Normal</option><option value="2">Double speed</option></select></label>
+  <label><input id="match" type="checkbox" checked> Match cycle duration</label>
+  <label>View <select id="size"><option value="1" selected>Game size</option><option value="2">2× inspection</option></select></label>
+</div>
+<p id="status" class="note">Loading sprite frames…</p>
+<p><a href="pilot.gif">Animated pilot</a> · <a href="oravitsa-walk-pilot.blend">Blender source</a> · <a href="contact-sheet.png">Eight selected poses</a> · <a href="validation.json">Motion checks</a></p>
+<script>
+  const loadImage=src=>new Promise((resolve,reject)=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=reject;image.src=src});
+  const el=id=>document.getElementById(id);
+  let playing=true,phase=0,last=0,manifest,original,frames;
+  function paint(canvas,image,source,pivot,scale){
+    const ctx=canvas.getContext('2d');ctx.clearRect(0,0,canvas.width,canvas.height);
+    const zoom=Number(el('size').value),factor=scale*zoom;
+    const ground=zoom===1?218:250;
+    ctx.strokeStyle='#233e2b88';ctx.beginPath();ctx.moveTo(0,ground);ctx.lineTo(canvas.width,ground);ctx.stroke();
+    ctx.drawImage(image,...source,canvas.width/2-pivot[0]*factor,ground-pivot[1]*factor,source[2]*factor,source[3]*factor);
+  }
+  function render(){
+    if(!frames)return;
+    const current=Math.floor(phase*8)%8;
+    const oldPhase=el('match').checked?phase:(phase*(11/4)/(10/8))%1;
+    const previous=Math.floor(oldPhase*4)%4; const originalPose=[0,1,2,1][previous];
+    const w=original.width/4;
+    paint(el('old'),original,[originalPose*w,0,w,original.height],[w/2,original.height/2+290],0.2);
+    const sprite=frames[current];
+    paint(el('pilot'),sprite,[0,0,sprite.width,sprite.height],manifest.pilot.pivot,manifest.pilot.preview_scale);
+    el('old-phase').textContent=`Step ${previous+1}/4 (source pose ${originalPose+1})`;
+    el('new-phase').textContent=`Pose ${current+1}/8 — ${manifest.pilot.phases[current]}`;
+  }
+  function animate(time){
+    if(last&&playing)phase=(phase+Math.min((time-last)/1000,0.1)*1.25*Number(el('speed').value))%1;
+    last=time;render();requestAnimationFrame(animate);
+  }
+  el('play').onclick=()=>{playing=!playing;el('play').textContent=playing?'Pause':'Play'};
+  function step(offset){playing=false;el('play').textContent='Play';phase=((Math.floor(phase*8)+offset+8)%8)/8;render()}
+  el('previous').onclick=()=>step(-1);el('next').onclick=()=>step(1);
+  Promise.all([fetch('manifest.json').then(r=>r.json()),loadImage('reference.png'),Promise.all(Array.from({length:8},(_,i)=>loadImage(`frames/se-${String(i+1).padStart(2,'0')}.png`)))]).then(([m,o,f])=>{
+    manifest=m;original=o;frames=f;
+    el('status').textContent=manifest.review_note;
+    requestAnimationFrame(animate);
+  }).catch(()=>{el('status').textContent='The pilot could not load. Serve this folder over HTTP and open index.html.'});
+</script>
+</html>
+
+

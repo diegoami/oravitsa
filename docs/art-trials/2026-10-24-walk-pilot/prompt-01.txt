@@ -1,0 +1,19 @@
+Use case: stylized-concept. Asset type: game sprite walk-cycle pilot, exact 4-column by 2-row grid, EIGHT equal 512 by 768 cells on a 2048 by 1536 canvas. Read frames left-to-right on top row, then left-to-right on bottom row. NO labels, numbers, borders or dividers.
+
+The supplied image is the CHARACTER IDENTITY AND PAINTERLY STYLE REFERENCE, not an instruction to repeat its pose. Depict precisely this same young Nordic girl Oravitsa: same youthful face, blonde braids with amber beads, dark blue kerchief with gold flowers and two trailing tails, oatmeal linen blouse, brown vest and belt, moss-green gathered skirt, grey socks, brown ankle boots, wicker basket with greens and small white flowers on her back. Preserve the reference body proportions and friendly expression. No weapons or additional props.
+
+Camera: fixed right-facing EAST side view matching the reference, her nose always points RIGHT. Walk IN PLACE, no camera motion, no rotation and no travel across cells. Every cell contains ONE entire character at identical scale with torso horizontally centered. Keep at least 30 pixels clear on all cell edges. Character height approximately 640 pixels in every cell. Shared ground baseline in every cell; a small intentional rise and fall of the body over the cycle is allowed. Basket volume and character face remain consistent. No detached limbs, extra limbs, merged boots or sliding body scale.
+
+This is ONE COMPLETE TWO-STEP WALK, not a repeated half-step. Make the near leg (the leg facing the camera) distinguishable from the far leg by overlap and natural shading. EXACT ordered gait:
+Frame 1: NEAR foot forward heel contact; FAR leg fully behind toe contact. Near arm BACK, far arm FORWARD.
+Frame 2: weight drops onto NEAR planted foot with slightly bent knee; FAR foot lifts from behind. Near arm begins its return.
+Frame 3: NEAR foot supports below the hip; FAR knee passes forward underneath the body, far boot visibly lifted.
+Frame 4: body rises over NEAR supporting toes; FAR lower leg reaches forward preparing its heel contact.
+Frame 5: FAR foot forward heel contact; NEAR leg fully behind toe contact. Near arm FORWARD, far arm BACK. This must be the OPPOSITE contact pose to frame 1.
+Frame 6: weight drops onto FAR planted foot; NEAR foot lifts from behind.
+Frame 7: FAR foot supports below hip; NEAR knee passes forward, near boot visibly lifted.
+Frame 8: body rises over FAR supporting toes; NEAR leg reaches forward preparing frame 1. Frame 8 must transition naturally back into frame 1 without duplicating it.
+
+Subtle secondary movement only: skirt follows hip weight transfer, scarf tails and basket follow with a small delay. Preserve crisp, softly painted outlines at game scale. All eight poses must have distinct useful locomotion silhouettes.
+
+Background: perfectly flat solid chroma magenta #FF00FF everywhere outside the figures, for deterministic transparent sprite extraction. No floor, contact shadow, cast shadow, gradient, texture, glow or magenta rim lighting. Do not paint any magenta on the girl. NO checkerboard.
