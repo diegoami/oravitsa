@@ -32,5 +32,9 @@ func _draw() -> void:
 			var at := center + Vector2(cos(angle) * 16.0, sin(angle) * 5.0)
 			var points := PackedVector2Array()
 			for point in 10:
-				points.append(at + Vector2.from_angle(point * PI / 5.0 - PI * 0.5) * (5.0 if point % 2 == 0 else 2.3))
+				points.append(Vector2.from_angle(point * PI / 5.0 - PI * 0.5) * (5.0 if point % 2 == 0 else 2.3))
+			# Triangulate near the origin: tiny polygons at large forest coordinates
+			# lose precision and can fail Godot's polygon triangulation.
+			draw_set_transform(at)
 			draw_colored_polygon(points, Color("fff0ac"))
+			draw_set_transform(Vector2.ZERO)

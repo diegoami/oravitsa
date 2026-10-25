@@ -52,6 +52,13 @@ func _run() -> void:
 	assert(target["alive"])
 	assert(target["stun"] == forest.SLING_STUN_TIME)
 	assert(target["velocity"] == Vector2.ZERO)
+	# A collision must not replace a longer sling stun with the short bump stun.
+	var original_player: Vector2 = forest.player_position
+	forest.player_position = target["position"] - Vector2(50, 0)
+	assert(not forest._try_move(Vector2(10, 0)))
+	assert(target["stun"] == forest.SLING_STUN_TIME)
+	forest.player_position = original_player
+	forest.player_stun = 0.0
 	var before: Vector2 = target["position"]
 	forest._move_animals(0.1)
 	assert(target["position"] == before)
@@ -59,6 +66,14 @@ func _run() -> void:
 	forest._move_animals(forest.SLING_STUN_TIME)
 	assert(target["stun"] == 0.0)
 	assert(sprite.modulate == Color.WHITE)
+	# Recovery clears the tint even if a feeding animal remains stationary.
+	target["feeding"] = 5.0
+	target["stun"] = 0.1
+	sprite.modulate = Color(0.66, 0.78, 0.91)
+	forest._move_animals(0.2)
+	assert(target["feeding"] > 0.0 and target["stun"] == 0.0)
+	assert(sprite.modulate == Color.WHITE)
+	target["feeding"] = 0.0
 	forest._update_sling(forest.SLING_COOLDOWN)
 	target["position"] = forest.player_position + Vector2(forest.SLING_RANGE + 1.0, 0)
 	forest._fire_sling()

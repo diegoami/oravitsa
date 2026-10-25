@@ -877,10 +877,10 @@ func _move_animals(delta: float) -> void:
 			sprite.stop()
 			sprite.modulate = Color(0.66, 0.78, 0.91)
 			continue
+		sprite.modulate = Color.WHITE
 		if data["feeding"] > 0.0:
 			sprite.stop()
 			continue
-		sprite.modulate = Color.WHITE
 		data["timeout"] = float(data["timeout"]) - delta
 		var target: Vector2 = data["target"]
 		var speed: float = ANIMAL_SPEEDS[kind]
@@ -993,7 +993,7 @@ func _try_move(step: Vector2) -> bool:
 			continue
 		if candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
 			player_stun = 0.85
-			animal["stun"] = 0.85
+			animal["stun"] = maxf(animal["stun"], 0.85)
 			animal["velocity"] = Vector2.ZERO
 			return false
 	player_position = candidate
