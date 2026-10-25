@@ -67,6 +67,7 @@ var selected_target := -1
 var _stones: Array[Dictionary] = []
 var _sling_effects: Node2D
 var _sling_label: Label
+var _skill_hint_label: Label
 var _sling_button: Button
 var _shoo_button: Button
 var _skill_bar: Control
@@ -79,7 +80,6 @@ var _input_mode := "keyboard"
 var active_skill := 0 # Shoo, Sling.
 var _right_stick := Vector2.ZERO
 var _target_stick_latched := false
-var _trigger_latched := {JOY_AXIS_TRIGGER_LEFT: false, JOY_AXIS_TRIGGER_RIGHT: false}
 var _inventory: Control
 var _ground: TileMapLayer
 var _dirt: TileMapLayer
@@ -181,6 +181,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_map()
 		elif event.button_index == JOY_BUTTON_START:
 			_toggle_instructions()
+		elif event.is_action_pressed("skill_next"):
+			active_skill = wrapi(active_skill + 1, 0, 2)
+			_update_hud()
+		elif event.is_action_pressed("skill_previous"):
+			active_skill = wrapi(active_skill - 1, 0, 2)
+			_update_hud()
 		elif event.is_action_pressed("cast_skill"):
 			_use_skill(active_skill)
 		elif event.is_action_pressed("pick_up") and player_stun <= 0.0:
@@ -205,13 +211,6 @@ func _controller_axis(event: InputEventJoypadMotion) -> void:
 			var value := _right_stick.x if absf(_right_stick.x) >= absf(_right_stick.y) else _right_stick.y
 			_cycle_sling_target(1 if value > 0.0 else -1)
 			_target_stick_latched = true
-	elif _trigger_latched.has(event.axis):
-		if event.axis_value < 0.25:
-			_trigger_latched[event.axis] = false
-		elif event.axis_value > 0.6 and not _trigger_latched[event.axis]:
-			active_skill = wrapi(active_skill + (-1 if event.axis == JOY_AXIS_TRIGGER_LEFT else 1), 0, 2)
-			_trigger_latched[event.axis] = true
-			_update_hud()
 
 
 func _use_skill(skill: int) -> void:
@@ -227,8 +226,6 @@ func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_WINDOW_FOCUS_OUT]:
 		_right_stick = Vector2.ZERO
 		_target_stick_latched = false
-		for axis in _trigger_latched:
-			_trigger_latched[axis] = false
 
 
 func _input(event: InputEvent) -> void:
@@ -572,6 +569,15 @@ func _build_hud() -> void:
 	_sling_label.add_theme_constant_override("shadow_offset_y", 2)
 	_sling_label.position = Vector2(0, -25)
 	_skill_bar.add_child(_sling_label)
+	_skill_hint_label = Label.new()
+	_skill_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_skill_hint_label.add_theme_font_size_override("font_size", 13)
+	_skill_hint_label.add_theme_color_override("font_color", Color("f4d58a"))
+	_skill_hint_label.add_theme_color_override("font_shadow_color", Color("101820"))
+	_skill_hint_label.add_theme_constant_override("shadow_offset_x", 1)
+	_skill_hint_label.add_theme_constant_override("shadow_offset_y", 2)
+	_skill_hint_label.position = Vector2(0, -47)
+	_skill_bar.add_child(_skill_hint_label)
 	_minimap = Control.new()
 	_minimap.set_script(load("res://scenes/forest_2d/minimap.gd"))
 	_minimap.name = "Minimap"
@@ -1189,10 +1195,12 @@ func _update_hud() -> void:
 	_hint_label.visible = _instructions_visible
 	var controller := _input_mode == "controller"
 	var touch := _input_mode == "touch"
+	_skill_hint_label.visible = controller
+	_skill_hint_label.text = "LB / RB: select skill · Y: cast"
 	_map_toggle.text = ("− Map" if _map_visible else "+ Map") + (" [Select]" if controller else ("" if touch else " [M]"))
 	_instructions_toggle.text = ("− Help" if _instructions_visible else "+ Help") + (" [Start]" if controller else ("" if touch else " [H]"))
 	if controller:
-		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLT / RT: switch active skill\nY / Triangle: cast · A / Cross: pick up\nSelect: map · Start: help"
+		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLB / RB: switch active skill\nY / Triangle: cast · A / Cross: pick up\nSelect: map · Start: help"
 	elif touch:
 		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap a skill to use it\nWalk over mushrooms & berries\nUse the top buttons to hide panels"
 	else:
@@ -1208,8 +1216,8 @@ func _update_hud() -> void:
 	_shoo_button.set("cooldown", shoo_cooldown)
 	_sling_button.set("cooldown", sling_cooldown)
 	_sling_button.set("cooldown_duration", SLING_COOLDOWN)
-	_shoo_button.set("prompt", ("Y / Triangle" if active_skill == 0 else "LT / RT") if controller else ("TAP" if touch else "SPACE"))
-	_sling_button.set("prompt", ("Y / Triangle" if active_skill == 1 else "LT / RT") if controller else ("TAP" if touch else "RMB / F"))
+	_shoo_button.set("prompt", ("Y / Triangle" if active_skill == 0 else "") if controller else ("TAP" if touch else "SPACE"))
+	_sling_button.set("prompt", ("Y / Triangle" if active_skill == 1 else "") if controller else ("TAP" if touch else "RMB / F"))
 	_shoo_button.set("active", active_skill == 0)
 	_sling_button.set("active", active_skill == 1)
 	_shoo_button.queue_redraw()

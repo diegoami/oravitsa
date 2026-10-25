@@ -55,9 +55,9 @@ adapts to portrait and landscape. Keyboard and touch input can coexist.
 The Compatibility renderer supports native desktop builds and WebGL 2 browsers.
 
 Controllers use the **left stick or D-pad** to move and **right-stick flicks**
-to cycle nearby living animal targets. **LT/RT (L2/R2)** switch the active skill,
+to cycle nearby living animal targets. **LB/RB (L1/R1)** switch the active skill,
 **Y/Triangle** casts it, and **A/Cross** picks up food within reach. Return the
-stick to center between targets and release each trigger between skill changes.
+stick to center between targets; press either shoulder button to change skills.
 The active skill has a gold outline; its slot shows the cast button and cooldown.
 Stick movement is analog with a deadzone, so gentle input walks more slowly.
 On Web, enter the forest and press a controller button to let the browser detect it.

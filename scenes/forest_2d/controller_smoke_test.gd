@@ -77,11 +77,16 @@ func _run() -> void:
 	assert(forest.active_skill == 0)
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.9)
 	await process_frame
-	assert(forest.active_skill == 1 and forest._sling_button.get("active"))
-	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.95)
-	await process_frame
-	assert(forest.active_skill == 1) # One switch per squeeze.
+	assert(forest.active_skill == 0) # Triggers do not select or cast skills.
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.0)
+	_button(JOY_BUTTON_RIGHT_SHOULDER)
+	await process_frame
+	assert(forest.active_skill == 1 and forest._sling_button.get("active"))
+	# Holding a shoulder button generates no repeated presses.
+	await process_frame
+	assert(forest.active_skill == 1) # One switch per press.
+	assert(forest._stones.is_empty() and forest.shoo_cooldown == 0.0)
+	_button(JOY_BUTTON_RIGHT_SHOULDER, false)
 	_button(JOY_BUTTON_Y)
 	await process_frame
 	assert(forest._stones.size() == 1 and forest.sling_cooldown > 0.0)
@@ -91,11 +96,14 @@ func _run() -> void:
 	assert(forest._stones.size() == 1)
 	_button(JOY_BUTTON_Y, false)
 	assert(forest._sling_button.get("prompt") == "Y / Triangle")
-	assert(forest._shoo_button.get("prompt") == "LT / RT")
-	_axis(JOY_AXIS_TRIGGER_LEFT, 0.9)
+	assert(forest._shoo_button.get("prompt") == "")
+	assert(forest._skill_hint_label.visible)
+	_button(JOY_BUTTON_LEFT_SHOULDER)
 	await process_frame
 	assert(forest.active_skill == 0 and forest._shoo_button.get("active"))
-	_axis(JOY_AXIS_TRIGGER_LEFT, 0.0)
+	assert(forest._shoo_button.get("prompt") == "Y / Triangle")
+	assert(forest._sling_button.get("prompt") == "")
+	_button(JOY_BUTTON_LEFT_SHOULDER, false)
 	_button(JOY_BUTTON_Y)
 	await process_frame
 	assert(forest.shoo_cooldown > 0.0)
@@ -165,5 +173,5 @@ func _run() -> void:
 	assert(not forest._help_panel.visible and not forest._hint_label.visible)
 	key.pressed = false
 	Input.parse_input_event(key)
-	print("Controller smoke test passed: analog movement/deadzone, D-pad, right-stick targeting, trigger skill selection, Y cast, A pickup, inventory and panel toggles")
+	print("Controller smoke test passed: analog movement/deadzone, D-pad, right-stick targeting, shoulder skill selection, Y cast, A pickup, inventory and panel toggles")
 	quit()

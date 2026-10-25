@@ -58,10 +58,10 @@ without injury or removal. Bumping a stunned animal preserves the longer stun.
 The selection ring, flying stone, and circling stun stars are drawn effects;
 Oravitsa currently keeps her walking or idle pose rather than a sling animation.
 Controllers use the left stick or D-pad to walk and right-stick flicks to cycle
-in-range living targets, nearest first. LT/RT (L2/R2) switch the highlighted active
+in-range living targets, nearest first. LB/RB (L1/R1) switch the highlighted active
 skill, Y/Triangle casts it, and A/Cross picks up food within 40 px; controller
 walking does not collect automatically. Keyboard and touch retain walk-over pickup.
-Stick targeting and trigger selection require returning to neutral before repeating.
+Stick targeting requires returning to center between targets; shoulder buttons switch once per press.
 The bottom-left skill slots show icons, cooldowns, and the active input prompts.
 Berries and mushrooms have icons and counts in the bottom-right inventory; the
 touch movement stick sits above it. Map and Help start hidden and toggle
