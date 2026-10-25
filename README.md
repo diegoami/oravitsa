@@ -1,3 +1,10 @@
+> **2.5D prototype branch:** F5 opens the streamed 192 × 192 m Mossbank woods,
+> with three lakes, four bridges, five abandoned sites and 127 initial animals.
+> The approved Oravitsa sprite, controller controls and HUD are retained.
+> See [the world guide](scenes/forest_25d/README.md).
+> The original 2D forest is still available as `scenes/forest_2d/forest.tscn`;
+> the instructions below describe that original forest.
+
 # Oravitsa
 
 Oravitsa is a cosy 2D forest game prototype. The current default scene explores a
