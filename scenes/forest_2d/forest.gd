@@ -158,12 +158,43 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventJoypadMotion and absf(event.axis_value) > 0.2:
+		_show_controller_hint()
+	elif event is InputEventJoypadButton and event.pressed:
+		_show_controller_hint()
+		if event.is_action_pressed("target_next"):
+			_cycle_sling_target(1)
+		elif event.is_action_pressed("target_previous"):
+			_cycle_sling_target(-1)
+		elif event.is_action_pressed("sling_fire"):
+			_fire_sling()
+		elif event.is_action_pressed("shoo"):
+			_shoo()
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_select_sling_target(event.position)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		_fire_sling()
 	elif event is InputEventScreenTouch and event.pressed:
 		_select_sling_target(event.position)
+
+
+func _show_controller_hint() -> void:
+	_hint_label.text = "Stick / D-pad: walk   •   LB / RB: target   •   A / Cross: sling   •   B / Circle: shoo"
+
+
+func _cycle_sling_target(step: int) -> void:
+	var candidates: Array[int] = []
+	for id in _active_animals:
+		if _valid_sling_target(id) and player_position.distance_to(_animals[id]["position"]) <= SLING_RANGE:
+			candidates.append(id)
+	# Stable nearest-first order; both shoulders select the nearest on first use.
+	candidates.sort_custom(func(a: int, b: int) -> bool:
+		var da := player_position.distance_squared_to(_animals[a]["position"])
+		var db := player_position.distance_squared_to(_animals[b]["position"])
+		return a < b if is_equal_approx(da, db) else da < db)
+	var current := candidates.find(selected_target)
+	selected_target = -1 if candidates.is_empty() else candidates[0 if current < 0 else wrapi(current + step, 0, candidates.size())]
+	_update_hud()
 
 
 func _valid_sling_target(id: int) -> bool:

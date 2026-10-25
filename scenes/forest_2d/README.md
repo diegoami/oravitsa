@@ -57,6 +57,9 @@ is 600 px, the cooldown is four seconds, and a hit stuns for three seconds
 without injury or removal. Bumping a stunned animal preserves the longer stun.
 The selection ring, flying stone, and circling stun stars are drawn effects;
 Oravitsa currently keeps her walking or idle pose rather than a sling animation.
+Controllers use the left stick or D-pad to walk, LB/RB (L1/R1) to cycle in-range
+living targets, A/Cross to sling and B/Circle to shoo. The first target is the
+nearest eligible animal; subsequent shoulder presses wrap through the list.
 
 Oravitsa uses the approved Tripo/Meshy walk with local shoe, skirt, and arm
 repairs: eight distinct poses in each of eight directions, including separate

@@ -54,6 +54,12 @@ and Sling buttons, with a HUD that
 adapts to portrait and landscape. Keyboard and touch input can coexist.
 The Compatibility renderer supports native desktop builds and WebGL 2 browsers.
 
+Controllers use the **left stick or D-pad** to move, **LB/RB (L1/R1)** to cycle
+nearby living animal targets, **A/Cross** to fire the sling, and **B/Circle**
+to shoo. The first shoulder press selects the nearest animal within sling range.
+Stick movement is analog with a deadzone, so gentle input walks more slowly.
+On Web, enter the forest and press a controller button to let the browser detect it.
+
 Web export requires the **standard (non-.NET) Godot 4.7.2** editor together with
 its matching **4.7.2.stable export templates** (install them in the editor via
 *Editor > Manage Export Templates*). The .NET/Mono edition rejects Web export
@@ -99,6 +105,7 @@ godot --headless --editor --import
 godot --headless --script scenes/forest_2d/smoke_test.gd
 godot --headless --script scenes/forest_2d/mobile_smoke_test.gd
 godot --headless --script scenes/forest_2d/sling_smoke_test.gd
+godot --headless --script scenes/forest_2d/controller_smoke_test.gd
 ```
 
 ## Project layout
