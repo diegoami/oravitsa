@@ -20,7 +20,7 @@ func _run() -> void:
 	var point := Vector2(3.25, -6.75)
 	assert(clearing.to_ground(clearing.from_ground(point)).distance_to(point) < 0.001)
 	assert(not clearing._can_stand(clearing.from_ground(Vector2(-9, -5))))
-	assert(not clearing._can_stand(clearing.from_ground(Vector2(25, 0))))
+	assert(not clearing._can_stand(clearing.from_ground(Vector2(clearing.landscape.EXTENT + 1, 0))))
 	var bridge_x: float = clearing.landscape.river_x(5)
 	for dx in [-1.5, 0.0, 1.5]:
 		var crossing := Vector2(bridge_x + dx, 5)
@@ -44,9 +44,19 @@ func _run() -> void:
 	for roof in clearing.landscape.roofs:
 		assert(roof.visible)
 	# The deer is genuinely rigged and uses its source animation clips.
-	assert(clearing._deer_models.size() == 2)
-	var animator: AnimationPlayer = clearing._deer_players[0]
+	assert(clearing._animal_models.size() == clearing._active_animals.size())
+	var animator: AnimationPlayer = clearing._animal_players[0]
 	assert(animator.has_animation("Walk") and animator.has_animation("Idle"))
+	clearing._animals[0]["eat_time"] = 0.0
+	clearing._animals[0]["velocity"] = Vector2(50, 0)
+	clearing._sync_presentation(0.1)
+	assert(animator.current_animation == "Walk")
+	clearing._animals[0]["state"] = "forage"
+	clearing._animals[0]["eat_time"] = 0.2
+	clearing._animals[0]["velocity"] = Vector2.ZERO
+	clearing._sync_presentation(0.1)
+	assert(animator.current_animation == "Eating")
+	clearing._animals[0]["state"] = "flee"
 	clearing._animals[0]["velocity"] = Vector2(50, 0)
 	clearing._sync_presentation(0.1)
 	assert(animator.current_animation == "Walk")
@@ -59,7 +69,7 @@ func _run() -> void:
 	clearing._update_sling(1.0)
 	clearing._sync_presentation(0.1)
 	assert(clearing._animals[0]["alive"] and clearing._animals[0]["stun"] > 0)
-	assert(clearing._deer_stars[0].visible and animator.speed_scale == 0.0)
+	assert(clearing._animal_stars[0].visible and animator.speed_scale == 0.0)
 	# Pickups remove the visible 3D object as well as updating the shared bag.
 	var cell: Vector2i = clearing.START + Vector2i(1, 1)
 	assert(clearing._forage_visuals.has(cell))

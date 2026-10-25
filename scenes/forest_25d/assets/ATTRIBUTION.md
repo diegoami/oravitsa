@@ -3,7 +3,7 @@
 Creator: **Quaternius**. These models are used under **CC0 1.0** as stated on
 the individual pack pages, verified 25 October 2026.
 
-- Animated deer: [Ultimate Animated Animal Pack](https://quaternius.com/packs/ultimateanimatedanimals.html),
+- Animated deer and fox: [Ultimate Animated Animal Pack](https://quaternius.com/packs/ultimateanimatedanimals.html),
   [creator release](https://www.patreon.com/quaternius/posts/ultimate-animals-53427821).
   The creator-linked Drive download returned a quota-exceeded HTML page, which
   was not imported. The model was obtained from the public PixelTriks mirror.
@@ -20,3 +20,8 @@ tint; deer size is normalized in code. No death/attack clips are invoked.
 | deer.gltf | [Mirror](https://www.pixeltriks.com/characters/animals/quaternius_Deer.gltf) | `ebb963aaa505eb43f5a0ec757ff9fb382f8a7e2227e16005a3ffbc0f275e9eb3` |
 | birch.glb | [Mirror](https://www.pixeltriks.com/nature/trees/quaternius_Birch_1.glb) | `210ab42173b8eac3efbfa6190f30a8b621a00a62e5eaa2294ca37b131053eb18` |
 | pine.glb | [Mirror](https://www.pixeltriks.com/nature/trees/quaternius_Pine_1.glb) | `d6d7f9361be44fae601586d4c3f489d44baecd50f8a0501c0fa65e974c0c46ad` |
+| fox.gltf | [Mirror](https://www.pixeltriks.com/characters/animals/quaternius_Fox.gltf) | `d2d47932034537338d81d8afa5d3cdb025c6fe9c5d3b3b85475d9eb74e861656` |
+
+Hare, boar, and lynx visuals reuse the existing painted animation strips from
+`scenes/forest_2d/art/` and `prototypes/foraging_2d/art/`; no substitute species
+models are used. Their original provenance remains in those scene guides.

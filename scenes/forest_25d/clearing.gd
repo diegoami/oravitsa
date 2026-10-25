@@ -1,6 +1,6 @@
 extends "res://scenes/forest_2d/forest.gd"
 
-## Presentation prototype: the tested forest rules/HUD drive a real 3D scene.
+## Streamed 2.5D forest: the tested wildlife rules and HUD drive a 3D world.
 ## Legacy simulation coordinates are converted to metres at one boundary.
 const METRE := 64.0
 const CAMERA_OFFSET := Vector3(0, 18, 25.4558)
@@ -9,14 +9,20 @@ var stage: Node3D
 var view: Camera3D
 var heroine: AnimatedSprite3D
 var _shadow: MeshInstance3D
-var _deer_models: Dictionary = {}
-var _deer_players: Dictionary = {}
-var _deer_stars: Dictionary = {}
+var _animal_models: Dictionary = {}
+var _animal_players: Dictionary = {}
+var _animal_stars: Dictionary = {}
 var _forage_visuals: Dictionary = {}
 var _projectile_visuals: Array[MeshInstance3D] = []
 var _target_ring: MeshInstance3D
 var _landmark_label: Label
 var _stats_label: Label
+var _animal_shadows: Dictionary = {}
+var _animal_frames: Dictionary = {}
+var _animal_heights := {DEER: 1.45, FOX: 0.65, BOAR: 0.95, LYNX: 0.85, HARE: 0.45}
+var _food_by_chunk: Dictionary = {}
+var _food_chunks: Dictionary = {}
+var _food_meshes: Dictionary = {}
 
 
 func to_ground(point: Vector2) -> Vector2:
@@ -37,10 +43,19 @@ func _generate_map() -> void:
 	objects.resize(MAP_SIZE * MAP_SIZE)
 	terrain.fill(GRASS)
 	objects.fill(EMPTY)
-	# Small deliberate foraging routes, rather than the large forest generator.
+	var rules = load("res://scenes/forest_25d/landscape.gd").new()
+	var radius := floori(rules.EXTENT * METRE / TILE) - 1
+	for dz in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			var cell := START + Vector2i(dx, dz)
+			var p := to_ground(_cell_center(cell))
+			if _hash(dx, dz, 910) < 0.065 and not rules.is_water(p, 0.5):
+				objects[_index(cell)] = MUSHROOM if _hash(dx, dz, 911) < 0.55 else BERRIES
+	# Familiar gathering spots remain around the original clearing.
 	for data in [Vector3(1, 1, MUSHROOM), Vector3(2, -2, BERRIES), Vector3(4, 1, MUSHROOM), Vector3(5, -3, BERRIES), Vector3(-1, 3, MUSHROOM), Vector3(-6, 4, BERRIES), Vector3(-8, 2, MUSHROOM), Vector3(7, -6, MUSHROOM), Vector3(9, -3, BERRIES)]:
 		var cell := START + Vector2i(int(data.x), int(data.y))
 		objects[_index(cell)] = int(data.z)
+	rules.free()
 
 
 func _build_world() -> void:
@@ -175,43 +190,155 @@ func _contact_shadow(radius: float) -> MeshInstance3D:
 
 
 func _seed_animals() -> void:
-	_add_animal(DEER, START + Vector2i(3, -2))
+	_add_animal(DEER, START + Vector2i(2, -2))
 	_add_animal(DEER, START + Vector2i(5, 2))
+	for off in [Vector2i(1, 3), Vector2i(4, 0), Vector2i(2, -3), Vector2i(-1, 5)]:
+		_add_animal(HARE, START + off)
+	var radius := floori(landscape.EXTENT * METRE / TILE) - 3
+	for i in 120:
+		var roll := _hash(i, 0, 950) * 100
+		var kind := HARE if roll < 60 else (DEER if roll < 77 else (FOX if roll < 94 else (BOAR if roll < 99 else LYNX)))
+		for attempt in 96:
+			var cell := START + Vector2i(floori(lerpf(-radius, radius, _hash(i, attempt, 951))), floori(lerpf(-radius, radius, _hash(i, attempt, 952))))
+			var position := _cell_center(cell)
+			if not _can_stand(position, ANIMAL_RADIUS[kind]) or position.distance_to(_cell_center(START)) < (1800 if kind == LYNX else 600):
+				continue
+			var clear := true
+			for animal in _animals:
+				if animal["position"].distance_to(position) < 110:
+					clear = false
+					break
+			if clear:
+				_add_animal(kind, cell)
+				break
+	# Keep one rare predator territory in the remote woods, never in the
+	# starting clearing. All other placements retain the species weights.
+	var has_lynx := false
+	for animal in _animals:
+		has_lynx = has_lynx or animal["kind"] == LYNX
+	if not has_lynx:
+		for attempt in 64:
+			var cell := START + Vector2i(-39 + attempt % 8, -34 + floori(attempt / 8.0))
+			var clear := true
+			for animal in _animals:
+				if animal["position"].distance_to(_cell_center(cell)) < 110:
+					clear = false
+			if clear and _can_stand(_cell_center(cell), ANIMAL_RADIUS[LYNX]):
+				_add_animal(LYNX, cell)
+				break
+
+
+func _visible_half() -> Vector2:
+	var aspect := get_viewport_rect().size.x / maxf(1.0, get_viewport_rect().size.y)
+	return Vector2(view.size * 0.5 * aspect, view.size * 0.5 / 0.57735)
 
 
 func _refresh_visible() -> void:
 	_loaded_center = _world_cell(player_position)
-	_loaded_half = Vector2i(30, 30)
+	_loaded_half = _stream_half()
 	_refresh_animals(_loaded_center)
-	for id in _active_animals:
-		if not _deer_models.has(id):
-			_add_deer_visual(id)
+	_sync_animal_lifecycle()
+	var camera_center := Vector2(view.position.x - CAMERA_OFFSET.x, view.position.z - CAMERA_OFFSET.z)
+	landscape.stream(camera_center, _visible_half())
+	_refresh_food()
 
 
 func _stream_half() -> Vector2i:
-	return Vector2i(30, 30)
+	var half := _visible_half()
+	return Vector2i(ceili(half.x * METRE / TILE), ceili(half.y * METRE / TILE)) + Vector2i(6, 6)
 
 
 func _replenish_local_animals() -> void:
-	pass # This bounded art slice has two deer, not the large forest's population.
+	super._replenish_local_animals()
+	_sync_animal_lifecycle()
 
 
-func _add_deer_visual(id: int) -> void:
-	var deer: Node3D = load("res://scenes/forest_25d/assets/deer.gltf").instantiate()
-	deer.name = "AnimatedDeer%d" % id
-	stage.add_child(deer)
-	# The source is authored in metres; normalize once from its static bounds.
-	var bounds := _model_bounds(deer)
-	var scale_factor := 1.45 / maxf(bounds.size.y, 0.01)
-	deer.scale = Vector3.ONE * scale_factor
-	deer.rotation.y = -PI * 0.3 if id == 0 else PI * 0.25
-	_deer_models[id] = deer
-	var animator := _find_animator(deer)
-	if animator != null:
-		for animation in animator.get_animation_list():
-			animator.get_animation(animation).loop_mode = Animation.LOOP_LINEAR
-		animator.play("Idle")
-		_deer_players[id] = animator
+func _refresh_animals(center: Vector2i) -> void:
+	var previous := _active_animals.keys()
+	super._refresh_animals(center)
+	for id in previous:
+		if not _active_animals.has(id):
+			_animals[id]["catch_target"] = -1
+			_animals[id]["catch_time"] = 0.0
+
+
+func _move_animals(delta: float) -> void:
+	super._move_animals(delta)
+	for id in _animals.size():
+		if not _active_animals.has(id):
+			var was_feeding: bool = _animals[id]["feeding"] > 0.0
+			for timer in ["stun", "shoo", "feeding", "burst", "burst_cooldown"]:
+				_animals[id][timer] = maxf(0, _animals[id][timer] - delta)
+			if was_feeding and _animals[id]["feeding"] <= 0.0:
+				_animals[id]["state"] = "idle"
+				_animals[id]["timeout"] = 0.0
+
+
+func _make_animal_sprite(id: int) -> AnimatedSprite2D:
+	var kind: int = _animals[id]["kind"]
+	if not _animal_frames.has(kind):
+		var first := super._make_animal_sprite(id)
+		_animal_frames[kind] = first.sprite_frames
+		return first
+	var sprite := AnimatedSprite2D.new()
+	sprite.sprite_frames = _animal_frames[kind]
+	sprite.scale = Vector2.ONE * [0.16, 0.17, 0.14, 0.15, 0.115][kind]
+	var texture := sprite.sprite_frames.get_frame_texture("s", 0)
+	sprite.offset = Vector2(0, -texture.get_height() * 0.35)
+	sprite.position = _animals[id]["position"]
+	_world.add_child(sprite)
+	sprite.play("s")
+	return sprite
+
+
+func _sync_animal_lifecycle() -> void:
+	for id in _animal_models.keys():
+		if not _active_animals.has(id) or not _animals[id]["alive"]:
+			_animal_models[id].queue_free()
+			_animal_models.erase(id)
+			_animal_players.erase(id)
+			_animal_stars[id].queue_free()
+			_animal_stars.erase(id)
+			_animal_shadows[id].queue_free()
+			_animal_shadows.erase(id)
+	for id in _active_animals:
+		if not _animal_models.has(id):
+			_add_animal_visual(id)
+
+
+func _add_animal_visual(id: int) -> void:
+	var kind: int = _animals[id]["kind"]
+	var height: float = _animal_heights[kind]
+	var model: Node3D
+	if kind in [DEER, FOX]:
+		var filename := "deer" if kind == DEER else "fox"
+		model = load("res://scenes/forest_25d/assets/" + filename + ".gltf").instantiate()
+		stage.add_child(model)
+		var bounds := _model_bounds(model)
+		model.scale = Vector3.ONE * height / maxf(bounds.size.y, 0.01)
+		model.rotation.y = -PI * 0.3 if id % 2 == 0 else PI * 0.25
+		var animator := _find_animator(model)
+		if animator != null:
+			for animation in animator.get_animation_list():
+				animator.get_animation(animation).loop_mode = Animation.LOOP_LINEAR
+			animator.play("Idle")
+			_animal_players[id] = animator
+	else:
+		var sprite := AnimatedSprite3D.new()
+		var driver: AnimatedSprite2D = _active_animals[id]
+		sprite.sprite_frames = driver.sprite_frames
+		sprite.animation = "s"
+		var texture := driver.sprite_frames.get_frame_texture("s", 0)
+		sprite.pixel_size = height / (texture.get_height() * 0.7)
+		sprite.offset = Vector2(0, texture.get_height() * 0.35)
+		sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		sprite.alpha_scissor_threshold = 0.25
+		sprite.shaded = false
+		stage.add_child(sprite)
+		model = sprite
+	model.name = ANIMAL_NAMES[kind] + "_%d" % id
+	_animal_models[id] = model
 	var stars := Label3D.new()
 	stars.text = "✦  ✦  ✦"
 	stars.font_size = 32
@@ -221,10 +348,10 @@ func _add_deer_visual(id: int) -> void:
 	stars.no_depth_test = false
 	stars.visible = false
 	stage.add_child(stars)
-	_deer_stars[id] = stars
-	var shadow := _contact_shadow(0.65)
-	shadow.name = "ContactShadow"
-	deer.add_child(shadow)
+	_animal_stars[id] = stars
+	var shadow := _contact_shadow(height * 0.45)
+	stage.add_child(shadow)
+	_animal_shadows[id] = shadow
 
 
 func _model_bounds(node: Node3D) -> AABB:
@@ -244,46 +371,94 @@ func _find_animator(node: Node) -> AnimationPlayer:
 
 
 func _build_food() -> void:
-	for z in range(START.y - 12, START.y + 12):
-		for x in range(START.x - 12, START.x + 12):
+	var radius := floori(landscape.EXTENT * METRE / TILE)
+	for z in range(START.y - radius, START.y + radius + 1):
+		for x in range(START.x - radius, START.x + radius + 1):
 			var cell := Vector2i(x, z)
-			var kind: int = objects[_index(cell)]
-			if kind not in [MUSHROOM, BERRIES]:
+			if objects[_index(cell)] not in [MUSHROOM, BERRIES]:
 				continue
-			var at := to_world(_cell_center(cell))
-			var root := Node3D.new()
-			stage.add_child(root)
-			root.position = at
-			for i in 3:
-				var off := Vector3((i - 1) * 0.13, 0, (i % 2) * 0.14)
-				if kind == MUSHROOM:
-					var stem := CylinderMesh.new()
-					stem.top_radius = 0.04
-					stem.bottom_radius = 0.055
-					stem.height = 0.2
-					_food_mesh(root, stem, "ddd1a7", off + Vector3(0, 0.1, 0))
-					var cap := SphereMesh.new()
-					cap.radius = 0.14
-					cap.height = 0.16
-					cap.radial_segments = 10
-					cap.rings = 4
-					_food_mesh(root, cap, "b48150", off + Vector3(0, 0.23, 0))
-				else:
-					var berry := SphereMesh.new()
-					berry.radius = 0.095
-					berry.height = 0.19
-					berry.radial_segments = 8
-					berry.rings = 4
-					_food_mesh(root, berry, "af4f59", off + Vector3(0, 0.09, 0))
-			_forage_visuals[cell] = root
+			var p := to_ground(_cell_center(cell))
+			if not landscape.can_walk(p, 0.12) or landscape.is_bridge(p):
+				objects[_index(cell)] = EMPTY
+				continue
+			var key := Vector2i(floori(p.x / landscape.CHUNK), floori(p.y / landscape.CHUNK))
+			if not _food_by_chunk.has(key):
+				_food_by_chunk[key] = []
+			_food_by_chunk[key].append(cell)
 
 
-func _food_mesh(root: Node3D, mesh: Mesh, color: String, at: Vector3) -> void:
+func _refresh_food() -> void:
+	for cell in _forage_visuals.keys():
+		var p := to_ground(_cell_center(cell))
+		var key := Vector2i(floori(p.x / landscape.CHUNK), floori(p.y / landscape.CHUNK))
+		if not landscape.chunks.has(key):
+			_forage_visuals[cell].queue_free()
+			_forage_visuals.erase(cell)
+	for key in _food_chunks.keys():
+		if not landscape.chunks.has(key):
+			_food_chunks.erase(key)
+	for key in landscape.chunks:
+		if _food_chunks.has(key):
+			continue
+		_food_chunks[key] = true
+		for cell in _food_by_chunk.get(key, []):
+			if objects[_index(cell)] in [MUSHROOM, BERRIES]:
+				_add_food_visual(cell)
+
+
+func _add_food_visual(cell: Vector2i) -> void:
+	var kind: int = objects[_index(cell)]
+	if not _food_meshes.has(kind):
+		_food_meshes[kind] = _food_cluster_mesh(kind)
 	var node := MeshInstance3D.new()
-	node.mesh = mesh
-	node.material_override = landscape.material(color)
-	node.position = at
-	root.add_child(node)
+	node.mesh = _food_meshes[kind]
+	node.position = to_world(_cell_center(cell))
+	stage.add_child(node)
+	_forage_visuals[cell] = node
+
+
+func _food_cluster_mesh(kind: int) -> ArrayMesh:
+	var parts: Array[Dictionary] = []
+	for i in 3:
+		var off := Vector3((i - 1) * 0.13, 0, (i % 2) * 0.14)
+		if kind == MUSHROOM:
+			var stem := CylinderMesh.new()
+			stem.top_radius = 0.04
+			stem.bottom_radius = 0.055
+			stem.height = 0.2
+			stem.radial_segments = 8
+			parts.append({"mesh": stem, "at": off + Vector3(0, 0.1, 0), "color": "ddd1a7"})
+			var cap := SphereMesh.new()
+			cap.radius = 0.14
+			cap.height = 0.16
+			cap.radial_segments = 10
+			cap.rings = 4
+			parts.append({"mesh": cap, "at": off + Vector3(0, 0.23, 0), "color": "b48150"})
+		else:
+			var berry := SphereMesh.new()
+			berry.radius = 0.095
+			berry.height = 0.19
+			berry.radial_segments = 8
+			berry.rings = 4
+			parts.append({"mesh": berry, "at": off + Vector3(0, 0.09, 0), "color": "af4f59"})
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for part in parts:
+		var arrays: Array = part["mesh"].surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var color: Color = landscape.material(part["color"]).albedo_color
+		for index in indices:
+			st.set_color(color)
+			st.set_normal(normals[index])
+			st.add_vertex(vertices[index] + part["at"])
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.vertex_color_is_srgb = true
+	mat.roughness = 1.0
+	st.set_material(mat)
+	return st.commit()
 
 
 func _consume_food(cell: Vector2i) -> void:
@@ -302,10 +477,10 @@ func _select_sling_target(screen_position: Vector2) -> void:
 		return
 	selected_target = -1
 	var nearest := 70.0
-	for id in _deer_models:
+	for id in _animal_models:
 		if not _valid_sling_target(id):
 			continue
-		var position := to_world(_animals[id]["position"]) + Vector3.UP * 0.8
+		var position: Vector3 = to_world(_animals[id]["position"]) + Vector3.UP * (_animal_heights[_animals[id]["kind"]] * 0.55)
 		var distance := screen_position.distance_to(view.unproject_position(position))
 		if distance < nearest:
 			selected_target = id
@@ -320,6 +495,7 @@ func _process(delta: float) -> void:
 
 func _sync_presentation(delta: float) -> void:
 	var feet := to_world(player_position)
+	landscape.reveal_player(feet)
 	heroine.position = feet + Vector3.UP * 0.02
 	heroine.animation = _player.animation
 	heroine.frame = _player.frame
@@ -327,23 +503,38 @@ func _sync_presentation(delta: float) -> void:
 	_shadow.position = feet + Vector3.UP * 0.015
 	var camera_target := feet + CAMERA_OFFSET
 	view.position = view.position.lerp(camera_target, 1 - exp(-5.0 * delta))
+	var camera_center := Vector2(view.position.x - CAMERA_OFFSET.x, view.position.z - CAMERA_OFFSET.z)
+	if landscape.stream(camera_center, _visible_half()):
+		_refresh_food()
+	_sync_animal_lifecycle()
 	# Camera orientation stays fixed; facing remains aligned with screen controls.
-	for id in _deer_models:
+	for id in _animal_models:
 		var data: Dictionary = _animals[id]
-		var deer: Node3D = _deer_models[id]
-		deer.position = to_world(data["position"])
+		var model: Node3D = _animal_models[id]
+		model.position = to_world(data["position"])
 		var velocity: Vector2 = data["velocity"]
-		if velocity.length_squared() > 1:
-			deer.rotation.y = atan2(velocity.x, velocity.y)
-		if _deer_players.has(id):
-			var animator: AnimationPlayer = _deer_players[id]
+		var kind: int = data["kind"]
+		if model is AnimatedSprite3D:
+			var driver: AnimatedSprite2D = _active_animals[id]
+			model.animation = driver.animation
+			model.frame = driver.frame
+			model.flip_h = driver.flip_h
+			model.modulate = driver.modulate
+		elif velocity.length_squared() > 1:
+			model.rotation.y = atan2(velocity.x, velocity.y)
+		if _animal_players.has(id):
+			var animator: AnimationPlayer = _animal_players[id]
 			var wanted := "Idle" if data["stun"] > 0.0 or velocity.length_squared() < 1 else "Walk"
+			if data["stun"] <= 0.0 and data["state"] == "forage" and data["eat_time"] > 0.0 and animator.has_animation("Eating"):
+				wanted = "Eating"
 			if animator.current_animation != wanted:
 				animator.play(wanted, 0.2)
 			animator.speed_scale = 0.0 if data["stun"] > 0 else 1.0
-		var stars: Label3D = _deer_stars[id]
-		stars.position = deer.position + Vector3.UP * (1.7 + sin(Time.get_ticks_msec() * 0.005) * 0.05)
+		_animal_shadows[id].position = model.position + Vector3.UP * 0.015
+		var stars: Label3D = _animal_stars[id]
+		stars.position = model.position + Vector3.UP * (_animal_heights[kind] + 0.25 + sin(Time.get_ticks_msec() * 0.005) * 0.05)
 		stars.visible = data["stun"] > 0.0
+
 	_target_ring.visible = _valid_sling_target(selected_target)
 	if _target_ring.visible:
 		_target_ring.position = to_world(_animals[selected_target]["position"]) + Vector3.UP * 0.04
@@ -366,6 +557,13 @@ func _sync_presentation(delta: float) -> void:
 	for roof in landscape.roofs:
 		roof.visible = not inside
 	_landmark_label.visible = not _instructions_visible
-	_landmark_label.text = "Mossbank · the old forester’s cottage" if p.distance_to(Vector2(7, -4)) < 5 else "Mossbank clearing"
+	_landmark_label.text = "Mossbank woods"
+	for i in landscape.SITES.size():
+		if p.distance_to(landscape.SITES[i]) < 8:
+			_landmark_label.text = landscape.SITE_NAMES[i]
+	if p.distance_to(Vector2(-48, 42)) < 15:
+		_landmark_label.text = "Alderwater lake"
+	elif p.distance_to(Vector2(38, -44)) < 16:
+		_landmark_label.text = "Pinewater lake"
 	if _stats_label.visible:
 		_stats_label.text = "%d FPS · %d draws · %dk triangles" % [Engine.get_frames_per_second(), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME) / 1000]
