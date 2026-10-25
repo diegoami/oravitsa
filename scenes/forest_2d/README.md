@@ -52,6 +52,12 @@ caps or guaranteed encounters; rare species can remain absent for many checks.
 The minimap shows colored markers for all living animals, with a species key
 beneath it; Oravitsa is the bright outlined marker.
 
+Click or tap an animal to select it, then press F or Sling to fire. The range
+is 600 px, the cooldown is four seconds, and a hit stuns for three seconds
+without injury or removal. Bumping a stunned animal preserves the longer stun.
+The selection ring, flying stone, and circling stun stars are drawn effects;
+Oravitsa currently keeps her walking or idle pose rather than a sling animation.
+
 Oravitsa uses the approved Tripo/Meshy walk with local shoe, skirt, and arm
 repairs: eight distinct poses in each of eight directions, including separate
 westward views. `art/oravitsa/walk.tres` stores the shared SpriteFrames, measured

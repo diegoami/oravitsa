@@ -48,6 +48,10 @@ const POPULATION_INTERVAL := 7.0
 const PLAYER_RADIUS := 24.0
 const SHOO_RANGE := 200.0
 const SHOO_COOLDOWN := 7.0
+const SLING_RANGE := 600.0
+const SLING_COOLDOWN := 4.0
+const SLING_STUN_TIME := 3.0
+const STONE_SPEED := 1050.0
 
 var terrain := PackedByteArray()
 var objects := PackedByteArray()
@@ -58,6 +62,12 @@ var deer_caught := 0
 var hares_caught := 0
 var player_stun := 0.0
 var shoo_cooldown := 0.0
+var sling_cooldown := 0.0
+var selected_target := -1
+var _stones: Array[Dictionary] = []
+var _sling_effects: Node2D
+var _sling_label: Label
+var _sling_button: Button
 var _ground: TileMapLayer
 var _dirt: TileMapLayer
 var _blocked_ground: Node2D
@@ -114,6 +124,7 @@ func _process(delta: float) -> void:
 		_refresh_visible()
 	_update_respawns(delta)
 	_move_animals(delta)
+	_update_sling(delta)
 	_population_timer -= delta
 	if _population_timer <= 0.0:
 		_population_timer = POPULATION_INTERVAL
@@ -139,8 +150,83 @@ func _update_player_walk(motion: Vector2) -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE:
-		_shoo()
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_SPACE:
+			_shoo()
+		elif event.physical_keycode == KEY_F or event.keycode == KEY_F:
+			_fire_sling()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_select_sling_target(event.position)
+	elif event is InputEventScreenTouch and event.pressed:
+		_select_sling_target(event.position)
+
+
+func _valid_sling_target(id: int) -> bool:
+	return id >= 0 and id < _animals.size() and _active_animals.has(id) and _animals[id]["alive"]
+
+
+func _select_sling_target(screen_position: Vector2) -> void:
+	if _hud_panel.get_global_rect().has_point(screen_position) or _minimap.get_global_rect().has_point(screen_position):
+		return
+	selected_target = -1
+	var nearest := INF
+	for id in _active_animals:
+		if not _valid_sling_target(id):
+			continue
+		var sprite: AnimatedSprite2D = _active_animals[id]
+		var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
+		var local_point := sprite.get_global_transform_with_canvas().affine_inverse() * screen_position
+		var bounds := Rect2(sprite.offset - texture.get_size() * 0.5, texture.get_size()).grow(12.0)
+		var distance := local_point.distance_squared_to(sprite.offset)
+		if bounds.has_point(local_point) and distance < nearest:
+			nearest = distance
+			selected_target = id
+	_update_hud()
+
+
+func _sling_ready() -> bool:
+	return _valid_sling_target(selected_target) and sling_cooldown <= 0.0 and player_stun <= 0.0 and player_position.distance_to(_animals[selected_target]["position"]) <= SLING_RANGE
+
+
+func _fire_sling() -> void:
+	if not _sling_ready():
+		return
+	var start := player_position + Vector2(10, -48)
+	var destination: Vector2 = _animals[selected_target]["position"] + Vector2(0, -25)
+	_stones.append({"target": selected_target, "position": start, "heading": start.direction_to(destination), "age": 0.0, "flight": maxf(0.1, start.distance_to(destination) / STONE_SPEED)})
+	sling_cooldown = SLING_COOLDOWN
+	_update_hud()
+
+
+func _update_sling(delta: float) -> void:
+	sling_cooldown = maxf(0.0, sling_cooldown - delta)
+	if not _valid_sling_target(selected_target):
+		selected_target = -1
+	for index in range(_stones.size() - 1, -1, -1):
+		var stone := _stones[index]
+		var id: int = stone["target"]
+		stone["age"] = float(stone["age"]) + delta
+		if not _valid_sling_target(id) or stone["age"] > 1.5:
+			_stones.remove_at(index)
+			continue
+		var destination: Vector2 = _animals[id]["position"] + Vector2(0, -25)
+		var position: Vector2 = stone["position"]
+		var step := STONE_SPEED * delta
+		if position.distance_to(destination) <= step + ANIMAL_RADIUS[_animals[id]["kind"]]:
+			_animals[id]["stun"] = maxf(_animals[id]["stun"], SLING_STUN_TIME)
+			_animals[id]["velocity"] = Vector2.ZERO
+			_animals[id]["burst"] = 0.0
+			_animals[id]["timeout"] = 0.0
+			_active_animals[id].stop()
+			_active_animals[id].modulate = Color(0.66, 0.78, 0.91)
+			_stones.remove_at(index)
+		else:
+			stone["heading"] = position.direction_to(destination)
+			stone["position"] = position.move_toward(destination, step)
+	_sling_effects.queue_redraw()
 
 
 func _direction_name(direction: Vector2) -> String:
@@ -270,6 +356,12 @@ func _build_world() -> void:
 	_world.name = "YSortedWorld"
 	_world.y_sort_enabled = true
 	add_child(_world)
+	_sling_effects = Node2D.new()
+	_sling_effects.name = "SlingEffects"
+	_sling_effects.set_script(load("res://scenes/forest_2d/sling_effects.gd"))
+	_sling_effects.set("forest", self)
+	_sling_effects.z_index = 20
+	add_child(_sling_effects)
 	for kind in PROP_NAMES:
 		var file: String = CHARACTER_ART + "mushrooms.png" if kind == MUSHROOM else ART + PROP_NAMES[kind] + ".png"
 		_textures[kind] = _load_png(file)
@@ -345,10 +437,21 @@ func _build_hud() -> void:
 	_count_label.add_theme_color_override("font_color", Color("f8eed5"))
 	canvas.add_child(_count_label)
 	_hint_label = Label.new()
-	_hint_label.text = "WASD / arrows: explore   •   Space: shoo   •   Collect mushrooms & berries"
+	_hint_label.text = "WASD / arrows: walk   •   Space: shoo   •   Click animal: select   •   F: sling"
 	_hint_label.add_theme_font_size_override("font_size", 14)
 	_hint_label.add_theme_color_override("font_color", Color("e9dfbb"))
 	canvas.add_child(_hint_label)
+	_sling_label = Label.new()
+	_sling_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_sling_label.add_theme_font_size_override("font_size", 17)
+	_sling_label.add_theme_color_override("font_color", Color("f4d58a"))
+	canvas.add_child(_sling_label)
+	_sling_button = Button.new()
+	_sling_button.focus_mode = Control.FOCUS_NONE
+	_sling_button.custom_minimum_size = Vector2(170, 54)
+	_sling_button.add_theme_font_size_override("font_size", 20)
+	_sling_button.pressed.connect(_fire_sling)
+	canvas.add_child(_sling_button)
 	_minimap = Control.new()
 	_minimap.set_script(load("res://scenes/forest_2d/minimap.gd"))
 	_minimap.name = "Minimap"
@@ -362,6 +465,7 @@ func _build_hud() -> void:
 	_touch_controls.set_script(load("res://scenes/forest_2d/touch_controls.gd"))
 	_touch_controls.name = "TouchControls"
 	_touch_controls.shoo_requested.connect(_shoo)
+	_touch_controls.sling_requested.connect(_fire_sling)
 	_touch_controls.touch_mode_changed.connect(_layout_hud)
 	canvas.add_child(_touch_controls)
 	get_viewport().size_changed.connect(_layout_hud)
@@ -388,11 +492,14 @@ func _layout_hud() -> void:
 	_minimap.scale = Vector2.ONE * map_scale
 	_minimap.position = Vector2(viewport_size.x - 20.0 - 244.0 * map_scale, 16.0)
 	_hud_panel.position = Vector2(18, 16)
-	_hud_panel.size = Vector2(minf(750.0, _minimap.position.x - 36.0), 82.0 if touch else 76.0)
+	_hud_panel.size = Vector2(minf(750.0, _minimap.position.x - 36.0), 108.0)
 	_count_label.position = Vector2(34, 24)
 	_count_label.add_theme_font_size_override("font_size", 20 if touch else 22)
-	_hint_label.position = Vector2(34, 56)
+	_sling_label.position = Vector2(34, 78 if touch else 54)
+	_hint_label.position = Vector2(34, 82)
 	_hint_label.visible = not touch
+	_sling_button.visible = not touch
+	_sling_button.position = Vector2(viewport_size.x - 190, viewport_size.y - 76)
 	_update_hud()
 
 
@@ -770,10 +877,10 @@ func _move_animals(delta: float) -> void:
 			sprite.stop()
 			sprite.modulate = Color(0.66, 0.78, 0.91)
 			continue
+		sprite.modulate = Color.WHITE
 		if data["feeding"] > 0.0:
 			sprite.stop()
 			continue
-		sprite.modulate = Color.WHITE
 		data["timeout"] = float(data["timeout"]) - delta
 		var target: Vector2 = data["target"]
 		var speed: float = ANIMAL_SPEEDS[kind]
@@ -886,7 +993,7 @@ func _try_move(step: Vector2) -> bool:
 			continue
 		if candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
 			player_stun = 0.85
-			animal["stun"] = 0.85
+			animal["stun"] = maxf(animal["stun"], 0.85)
 			animal["velocity"] = Vector2.ZERO
 			return false
 	player_position = candidate
@@ -927,10 +1034,23 @@ func _collect_nearby() -> void:
 func _update_hud() -> void:
 	var status := "Stunned" if player_stun > 0.0 else ("Shoo %.1fs" % shoo_cooldown if shoo_cooldown > 0.0 else "Shoo ready")
 	_count_label.text = "Oravitsa’s forest    Mushrooms: %d   Berries: %d   %s" % [basket, berries_basket, status]
+	var target_name: String = ANIMAL_NAMES[_animals[selected_target]["kind"]] if _valid_sling_target(selected_target) else ""
+	var sling_status := "Tap an animal to select" if _touch_controls.touch_enabled else "Click an animal to select"
+	if not target_name.is_empty():
+		sling_status = target_name + (" · Too far" if player_position.distance_to(_animals[selected_target]["position"]) > SLING_RANGE else " · Ready")
+	if sling_cooldown > 0.0:
+		sling_status = "%.1fs" % sling_cooldown + (" · " + target_name if not target_name.is_empty() else "")
+	elif player_stun > 0.0:
+		sling_status = "Recovering"
+	_sling_label.text = "Sling: " + sling_status
+	_sling_button.text = "Sling %.1fs" % sling_cooldown if sling_cooldown > 0.0 else "Sling [F]"
+	_sling_button.disabled = not _sling_ready()
 	if _touch_controls.touch_enabled:
 		_count_label.text = "Mushrooms: %d   Berries: %d\n%s" % [basket, berries_basket, status]
 		_touch_controls.cooldown = shoo_cooldown
 		_touch_controls.stunned = player_stun > 0.0
+		_touch_controls.sling_cooldown = sling_cooldown
+		_touch_controls.sling_available = _sling_ready()
 		_touch_controls.queue_redraw()
 
 

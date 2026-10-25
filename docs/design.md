@@ -11,7 +11,8 @@ animals makes a pleasant, replayable loop.
 
 **Oravitsa cannot kill any creature in this iteration, including hares.**
 Her interactions with creatures are non-lethal influences such as shooing,
-attracting, confusing, or slowing. No sling or lethal player skill is included.
+attracting, confusing, or slowing. The sling temporarily stuns a selected animal;
+it does not injure or kill it.
 
 - Animal predation is separate from player abilities: lynxes can kill hares
   and deer. Hares are caught quickly; deer require three seconds of continuous
@@ -20,8 +21,7 @@ attracting, confusing, or slowing. No sling or lethal player skill is included.
 - No player damage, health, or hit-point combat system.
 - Competition for resources is the conflict. An animal reaching a mushroom
   first wins that exchange.
-- Influence abilities change movement or attention, never a creature's
-  physical condition.
+- Influence abilities change movement or attention without lasting injury.
 
 ## Wildlife abundance
 
