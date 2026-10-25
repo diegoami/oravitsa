@@ -73,9 +73,14 @@ var _skill_bar: Control
 var _map_toggle: Button
 var _instructions_toggle: Button
 var _help_panel: Panel
-var _map_visible := true
-var _instructions_visible := true
+var _map_visible := false
+var _instructions_visible := false
 var _input_mode := "keyboard"
+var active_skill := 0 # Shoo, Sling.
+var _right_stick := Vector2.ZERO
+var _target_stick_latched := false
+var _trigger_latched := {JOY_AXIS_TRIGGER_LEFT: false, JOY_AXIS_TRIGGER_RIGHT: false}
+var _inventory: Control
 var _ground: TileMapLayer
 var _dirt: TileMapLayer
 var _blocked_ground: Node2D
@@ -83,8 +88,6 @@ var _world: Node2D
 var _player: AnimatedSprite2D
 var _camera: Camera2D
 var _minimap: Control
-var _count_label: Label
-var _hud_panel: PanelContainer
 var _hint_label: Label
 var _touch_controls: Control
 var _active_props: Dictionary = {}
@@ -126,7 +129,8 @@ func _process(delta: float) -> void:
 	_player.modulate = Color(0.66, 0.78, 0.91) if player_stun > 0.0 else Color.WHITE
 	_player.position = player_position
 	_camera.position = player_position
-	_collect_nearby()
+	if _input_mode != "controller":
+		_collect_nearby()
 	var cell := _world_cell(player_position)
 	if cell != _loaded_center or _stream_half() != _loaded_half:
 		_refresh_visible()
@@ -164,34 +168,67 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_H:
 			_toggle_instructions()
 		elif event.keycode == KEY_SPACE:
-			_shoo()
+			_use_skill(0)
 		elif event.physical_keycode == KEY_F or event.keycode == KEY_F:
-			_fire_sling()
+			_use_skill(1)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventJoypadMotion and absf(event.axis_value) > 0.2:
-		_show_controller_hint()
+	if event is InputEventJoypadMotion:
+		_controller_axis(event)
 	elif event is InputEventJoypadButton and event.pressed:
-		_show_controller_hint()
 		if event.button_index == JOY_BUTTON_BACK:
 			_toggle_map()
 		elif event.button_index == JOY_BUTTON_START:
 			_toggle_instructions()
-		elif event.is_action_pressed("target_next"):
-			_cycle_sling_target(1)
-		elif event.is_action_pressed("target_previous"):
-			_cycle_sling_target(-1)
-		elif event.is_action_pressed("sling_fire"):
-			_fire_sling()
-		elif event.is_action_pressed("shoo"):
-			_shoo()
+		elif event.is_action_pressed("cast_skill"):
+			_use_skill(active_skill)
+		elif event.is_action_pressed("pick_up") and player_stun <= 0.0:
+			_collect_nearby()
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_select_sling_target(event.position)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
-		_fire_sling()
+		_use_skill(1)
 	elif event is InputEventScreenTouch and event.pressed:
 		_select_sling_target(event.position)
+
+
+func _controller_axis(event: InputEventJoypadMotion) -> void:
+	if event.axis in [JOY_AXIS_RIGHT_X, JOY_AXIS_RIGHT_Y]:
+		if event.axis == JOY_AXIS_RIGHT_X:
+			_right_stick.x = event.axis_value
+		else:
+			_right_stick.y = event.axis_value
+		if _right_stick.length() < 0.3:
+			_target_stick_latched = false
+		elif not _target_stick_latched and maxf(absf(_right_stick.x), absf(_right_stick.y)) > 0.65:
+			var value := _right_stick.x if absf(_right_stick.x) >= absf(_right_stick.y) else _right_stick.y
+			_cycle_sling_target(1 if value > 0.0 else -1)
+			_target_stick_latched = true
+	elif _trigger_latched.has(event.axis):
+		if event.axis_value < 0.25:
+			_trigger_latched[event.axis] = false
+		elif event.axis_value > 0.6 and not _trigger_latched[event.axis]:
+			active_skill = wrapi(active_skill + (-1 if event.axis == JOY_AXIS_TRIGGER_LEFT else 1), 0, 2)
+			_trigger_latched[event.axis] = true
+			_update_hud()
+
+
+func _use_skill(skill: int) -> void:
+	active_skill = skill
+	if skill == 0:
+		_shoo()
+	else:
+		_fire_sling()
+	_update_hud()
+
+
+func _notification(what: int) -> void:
+	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_WINDOW_FOCUS_OUT]:
+		_right_stick = Vector2.ZERO
+		_target_stick_latched = false
+		for axis in _trigger_latched:
+			_trigger_latched[axis] = false
 
 
 func _input(event: InputEvent) -> void:
@@ -229,7 +266,7 @@ func _cycle_sling_target(step: int) -> void:
 	for id in _active_animals:
 		if _valid_sling_target(id) and player_position.distance_to(_animals[id]["position"]) <= SLING_RANGE:
 			candidates.append(id)
-	# Stable nearest-first order; both shoulders select the nearest on first use.
+	# Stable nearest-first order; the first stick flick selects the nearest.
 	candidates.sort_custom(func(a: int, b: int) -> bool:
 		var da := player_position.distance_squared_to(_animals[a]["position"])
 		var db := player_position.distance_squared_to(_animals[b]["position"])
@@ -244,7 +281,7 @@ func _valid_sling_target(id: int) -> bool:
 
 
 func _select_sling_target(screen_position: Vector2) -> void:
-	if _hud_panel.get_global_rect().has_point(screen_position) or (_minimap.visible and _minimap.get_global_rect().has_point(screen_position)):
+	if _inventory.get_global_rect().has_point(screen_position) or (_minimap.visible and _minimap.get_global_rect().has_point(screen_position)):
 		return
 	selected_target = -1
 	var nearest := INF
@@ -504,14 +541,10 @@ func _build_hud() -> void:
 	style.border_color = Color("95876b")
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(5)
-	_hud_panel = PanelContainer.new()
-	_hud_panel.add_theme_stylebox_override("panel", style)
-	_hud_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	canvas.add_child(_hud_panel)
-	_count_label = Label.new()
-	_count_label.add_theme_font_size_override("font_size", 17)
-	_count_label.add_theme_color_override("font_color", Color("f8eed5"))
-	canvas.add_child(_count_label)
+	_inventory = Control.new()
+	_inventory.set_script(load("res://scenes/forest_2d/inventory_bar.gd"))
+	_inventory.name = "Inventory"
+	canvas.add_child(_inventory)
 	_help_panel = Panel.new()
 	_help_panel.add_theme_stylebox_override("panel", style)
 	_help_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -526,9 +559,9 @@ func _build_hud() -> void:
 	_skill_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_skill_bar.size = Vector2(212, 108)
 	canvas.add_child(_skill_bar)
-	_shoo_button = _skill_button("Shoo", _shoo)
+	_shoo_button = _skill_button("Shoo", func(): _use_skill(0))
 	_shoo_button.position = Vector2.ZERO
-	_sling_button = _skill_button("Sling", _fire_sling)
+	_sling_button = _skill_button("Sling", func(): _use_skill(1))
 	_sling_button.position = Vector2(112, 0)
 	_sling_label = Label.new()
 	_sling_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -550,8 +583,8 @@ func _build_hud() -> void:
 	_touch_controls = Control.new()
 	_touch_controls.set_script(load("res://scenes/forest_2d/touch_controls.gd"))
 	_touch_controls.name = "TouchControls"
-	_touch_controls.shoo_requested.connect(_shoo)
-	_touch_controls.sling_requested.connect(_fire_sling)
+	_touch_controls.shoo_requested.connect(func(): _use_skill(0))
+	_touch_controls.sling_requested.connect(func(): _use_skill(1))
 	_touch_controls.touch_mode_changed.connect(func():
 		_input_mode = "touch"
 		_layout_hud())
@@ -606,13 +639,10 @@ func _layout_hud() -> void:
 	_minimap.position = Vector2(viewport_size.x - 20.0 - 244.0 * map_scale, 60.0)
 	_map_toggle.position = Vector2(_minimap.position.x, 16)
 	_map_toggle.size = Vector2(244.0 * map_scale, 32)
-	_hud_panel.position = Vector2(18, 16)
-	_hud_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 40)
-	_count_label.position = Vector2(30, 25)
-	_count_label.add_theme_font_size_override("font_size", 15 if touch else 17)
-	_instructions_toggle.position = Vector2(18, 66)
+	_inventory.position = Vector2(viewport_size.x - 178, viewport_size.y - 104)
+	_instructions_toggle.position = Vector2(18, 16)
 	_instructions_toggle.size = Vector2(180, 32)
-	_help_panel.position = Vector2(18, 106)
+	_help_panel.position = Vector2(18, 60)
 	_help_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 144)
 	_hint_label.position = _help_panel.position + Vector2(12, 9)
 	_hint_label.size = _help_panel.size - Vector2(24, 18)
@@ -1150,22 +1180,25 @@ func _collect_nearby() -> void:
 
 
 func _update_hud() -> void:
-	_count_label.text = "Mushrooms: %d   Berries: %d" % [basket, berries_basket]
+	_inventory.set("mushrooms", basket)
+	_inventory.set("berries", berries_basket)
+	_inventory.set("pickup_prompt", "A / Cross: pick up" if _input_mode == "controller" else "Foraging bag")
+	_inventory.queue_redraw()
 	_minimap.visible = _map_visible
 	_help_panel.visible = _instructions_visible
 	_hint_label.visible = _instructions_visible
 	var controller := _input_mode == "controller"
 	var touch := _input_mode == "touch"
 	_map_toggle.text = ("− Map" if _map_visible else "+ Map") + (" [Select]" if controller else ("" if touch else " [M]"))
-	_instructions_toggle.text = ("− Instructions" if _instructions_visible else "+ Instructions") + (" [Start]" if controller else ("" if touch else " [H]"))
+	_instructions_toggle.text = ("− Help" if _instructions_visible else "+ Help") + (" [Start]" if controller else ("" if touch else " [H]"))
 	if controller:
-		_hint_label.text = "Left stick / D-pad: walk\nLB / RB: cycle nearby targets\nA / Cross: sling\nB / Circle: shoo\nSelect: map · Start: instructions"
+		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLT / RT: switch active skill\nY / Triangle: cast · A / Cross: pick up\nSelect: map · Start: help"
 	elif touch:
 		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap a skill to use it\nWalk over mushrooms & berries\nUse the top buttons to hide panels"
 	else:
 		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling\nSpace: shoo nearby animals\nM: map · H: instructions"
 	var target_name: String = ANIMAL_NAMES[_animals[selected_target]["kind"]] if _valid_sling_target(selected_target) else ""
-	_sling_label.text = "LB / RB: select target" if controller else ("Tap animal to target" if touch else "Click animal to target")
+	_sling_label.text = "Right stick: select target" if controller else ("Tap animal to target" if touch else "Click animal to target")
 	if not target_name.is_empty():
 		_sling_label.text = target_name + (" · Out of range" if player_position.distance_to(_animals[selected_target]["position"]) > SLING_RANGE else " · Selected")
 	if player_stun > 0:
@@ -1175,8 +1208,10 @@ func _update_hud() -> void:
 	_shoo_button.set("cooldown", shoo_cooldown)
 	_sling_button.set("cooldown", sling_cooldown)
 	_sling_button.set("cooldown_duration", SLING_COOLDOWN)
-	_shoo_button.set("prompt", "B / Circle" if controller else ("TAP" if touch else "SPACE"))
-	_sling_button.set("prompt", "A / Cross" if controller else ("TAP" if touch else "RMB / F"))
+	_shoo_button.set("prompt", ("Y / Triangle" if active_skill == 0 else "LT / RT") if controller else ("TAP" if touch else "SPACE"))
+	_sling_button.set("prompt", ("Y / Triangle" if active_skill == 1 else "LT / RT") if controller else ("TAP" if touch else "RMB / F"))
+	_shoo_button.set("active", active_skill == 0)
+	_sling_button.set("active", active_skill == 1)
 	_shoo_button.queue_redraw()
 	_sling_button.queue_redraw()
 	if _touch_controls.touch_enabled:

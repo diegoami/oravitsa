@@ -33,7 +33,7 @@ func _run() -> void:
 	await process_frame
 	assert(forest.selected_target == 0)
 	assert(forest._sling_ready())
-	forest._select_sling_target(forest._hud_panel.position + Vector2(5, 5))
+	forest._select_sling_target(forest._inventory.position + Vector2(5, 5))
 	assert(forest.selected_target == 0)
 	var key := InputEventKey.new()
 	key.keycode = KEY_F

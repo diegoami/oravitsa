@@ -5,6 +5,7 @@ var skill := "Shoo"
 var prompt := "SPACE"
 var cooldown := 0.0
 var cooldown_duration := 7.0
+var active := false
 
 
 func _ready() -> void:
@@ -29,6 +30,8 @@ func _text(value: String, y: float, font_size: int, color: Color) -> void:
 
 func _draw() -> void:
 	var gold := Color("ead9a9")
+	if active:
+		draw_rect(Rect2(Vector2(3, 3), size - Vector2(6, 6)), Color("f3d58a"), false, 2)
 	var ink := Color("a7d9d2") if skill == "Shoo" else Color("e8c18a")
 	_text(prompt, 18, 12, gold)
 	draw_line(Vector2(12, 25), Vector2(size.x - 12, 25), Color("526378"), 1)

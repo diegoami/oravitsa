@@ -41,7 +41,7 @@ func _enable_touch() -> void:
 
 func _layout() -> void:
 	_radius = clampf(minf(size.x, size.y) * 0.145, 64.0, 82.0)
-	_stick_center = Vector2(size.x - 28.0 - _radius, size.y - 28.0 - _radius)
+	_stick_center = Vector2(size.x - 28.0 - _radius, size.y - 144.0 - _radius)
 	_shoo_center = Vector2(68, size.y - 72)
 	_sling_center = _shoo_center + Vector2(112, 0)
 	_reset()

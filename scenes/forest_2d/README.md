@@ -57,12 +57,15 @@ is 600 px, the cooldown is four seconds, and a hit stuns for three seconds
 without injury or removal. Bumping a stunned animal preserves the longer stun.
 The selection ring, flying stone, and circling stun stars are drawn effects;
 Oravitsa currently keeps her walking or idle pose rather than a sling animation.
-Controllers use the left stick or D-pad to walk, LB/RB (L1/R1) to cycle in-range
-living targets, A/Cross to sling and B/Circle to shoo. The first target is the
-nearest eligible animal; subsequent shoulder presses wrap through the list.
+Controllers use the left stick or D-pad to walk and right-stick flicks to cycle
+in-range living targets, nearest first. LT/RT (L2/R2) switch the highlighted active
+skill, Y/Triangle casts it, and A/Cross picks up food within 40 px; controller
+walking does not collect automatically. Keyboard and touch retain walk-over pickup.
+Stick targeting and trigger selection require returning to neutral before repeating.
 The bottom-left skill slots show icons, cooldowns, and the active input prompts.
-Touch uses the same slots with a right-hand movement stick. The top map and
-instructions collapse independently using their buttons, M/H, or Select/Start.
+Berries and mushrooms have icons and counts in the bottom-right inventory; the
+touch movement stick sits above it. Map and Help start hidden and toggle
+independently with their buttons, M/H, or Select/Start.
 
 Oravitsa uses the approved Tripo/Meshy walk with local shoe, skirt, and arm
 repairs: eight distinct poses in each of eight directions, including separate

@@ -10,7 +10,7 @@ bushes, stones, ferns, fallen logs, and collectible mushrooms and berries. See t
 Open this folder in **Godot 4.7** (tested with 4.7.2) and press **F5**, or run
 `godot --path .` here. Use **WASD / arrows** to walk. The camera follows Oravitsa;
 the minimap in the upper right shows the full forest. Grass, dirt, ferns, and
-mushrooms and berries are passable. Walking over food collects it. Trees, bushes,
+mushrooms and berries are passable. Walking over food collects it with keyboard or touch; on controller, press A/Cross nearby. Trees, bushes,
 stones, and fallen logs block at their bases; dark green ground marks those
 footprints while open diagonal gaps remain walkable. Press **Space** to shoo
 nearby wildlife.
@@ -54,16 +54,19 @@ and Sling buttons, with a HUD that
 adapts to portrait and landscape. Keyboard and touch input can coexist.
 The Compatibility renderer supports native desktop builds and WebGL 2 browsers.
 
-Controllers use the **left stick or D-pad** to move, **LB/RB (L1/R1)** to cycle
-nearby living animal targets, **A/Cross** to fire the sling, and **B/Circle**
-to shoo. The first shoulder press selects the nearest animal within sling range.
+Controllers use the **left stick or D-pad** to move and **right-stick flicks**
+to cycle nearby living animal targets. **LT/RT (L2/R2)** switch the active skill,
+**Y/Triangle** casts it, and **A/Cross** picks up food within reach. Return the
+stick to center between targets and release each trigger between skill changes.
+The active skill has a gold outline; its slot shows the cast button and cooldown.
 Stick movement is analog with a deadzone, so gentle input walks more slowly.
 On Web, enter the forest and press a controller button to let the browser detect it.
 
 Shoo and Sling appear in the bottom-left skill bar with icons, cooldown timers,
-and prompts that follow keyboard/mouse, controller, or touch input. On phones,
-the movement stick is on the right. Collapse the top map and instructions with
-their buttons, **M/H**, or controller **Select/Start**, respectively.
+and prompts that follow keyboard/mouse, controller, or touch input. Berries and
+mushrooms appear as icons and counts in the bottom-right inventory. On phones,
+the movement stick sits above the inventory. Map and Help start hidden; open
+or collapse them with their buttons, **M/H**, or controller **Select/Start**.
 
 Web export requires the **standard (non-.NET) Godot 4.7.2** editor together with
 its matching **4.7.2.stable export templates** (install them in the editor via

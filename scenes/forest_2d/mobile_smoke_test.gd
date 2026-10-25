@@ -53,7 +53,7 @@ func _run() -> void:
 		await process_frame
 		await process_frame
 		var viewport_size: Vector2 = forest.get_viewport_rect().size
-		assert(forest._minimap.position.x >= forest._hud_panel.position.x + forest._hud_panel.size.x)
+		assert(forest._minimap.position.x >= forest._help_panel.position.x + forest._help_panel.size.x)
 		assert(forest._minimap.position.x + forest._minimap.size.x * forest._minimap.scale.x <= viewport_size.x)
 		assert(controls._stick_center.y + controls._radius <= viewport_size.y)
 		assert(controls._shoo_center.x + controls._radius * 0.72 <= viewport_size.x)
@@ -63,8 +63,13 @@ func _run() -> void:
 		assert(forest._shoo_button.get("prompt") == "TAP")
 		assert(forest._sling_button.get("prompt") == "TAP")
 		assert(forest._hint_label.position.y + forest._hint_label.size.y <= forest._help_panel.position.y + forest._help_panel.size.y)
+		var inventory := Rect2(forest._inventory.position, forest._inventory.size)
+		assert(Rect2(Vector2.ZERO, viewport_size).encloses(inventory))
+		assert(not skills.intersects(inventory))
+		assert(controls._stick_center.y + controls._radius < inventory.position.y)
 		assert(controls.direction == Vector2.ZERO)
-	# Visible toggle buttons remain usable after collapsing both panels.
+	# Both panels start hidden; toggle buttons open them and can collapse again.
+	assert(not forest._minimap.visible and not forest._hint_label.visible)
 	for button in [forest._map_toggle, forest._instructions_toggle]:
 		var click := InputEventMouseButton.new()
 		click.button_index = MOUSE_BUTTON_LEFT
@@ -74,7 +79,9 @@ func _run() -> void:
 		click.pressed = false
 		root.push_input(click, true)
 		await process_frame
-	assert(not forest._minimap.visible and not forest._hint_label.visible)
+	assert(forest._minimap.visible and forest._hint_label.visible)
+	forest._toggle_map()
+	forest._toggle_instructions()
 	forest._layout_hud()
 	await process_frame
 	assert(not forest._minimap.visible and not forest._hint_label.visible)
