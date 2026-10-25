@@ -1,3 +1,9 @@
+> **2.5D prototype branch:** F5 now opens Mossbank clearing: 3D terrain, lake,
+> stream, bridge, cottage and animated deer, with the approved Oravitsa sprite
+> and current controller/HUD. See [the prototype guide](scenes/forest_25d/README.md).
+> The original 2D forest is still available as `scenes/forest_2d/forest.tscn`;
+> the instructions below describe that larger forest.
+
 # Oravitsa
 
 Oravitsa is a cosy 2D forest game prototype. The current default scene explores a
