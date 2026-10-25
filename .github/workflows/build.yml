@@ -23,6 +23,7 @@ jobs:
           godot --headless --editor --import
           godot --headless --script scenes/forest_2d/smoke_test.gd
           godot --headless --script scenes/forest_2d/mobile_smoke_test.gd
+          godot --headless --script scenes/forest_2d/sling_smoke_test.gd
       - name: Export both platforms
         run: python3 tools/export.py all
       - name: Check native export starts

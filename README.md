@@ -13,8 +13,18 @@ the minimap in the upper right shows the full forest. Grass, dirt, ferns, and
 mushrooms and berries are passable. Walking over food collects it. Trees, bushes,
 stones, and fallen logs block at their bases; dark green ground marks those
 footprints while open diagonal gaps remain walkable. Press **Space** to shoo
-nearby wildlife. Animals avoid each other
-and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
+nearby wildlife.
+
+**Click an animal** to
+select it, then press **F** or click **Sling** to throw a stone. On phones,
+tap the animal and then the **Sling** button. A gold ring marks the selected
+target; the ring turns red when it is too far away. Stones stun on impact for
+**3 seconds**, with a **4-second cooldown** and a **600 px** firing range.
+Stunned animals stop moving and show circling stars, then recover. The sling
+does not injure or remove animals. Clicking or tapping empty ground clears
+the selection. Movement and Shoo remain available while using the sling.
+
+Animals avoid each other and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
 stuns both of them.
 
 Hares are frequent, deer and foxes are less common, boars are uncommon, and
@@ -35,7 +45,8 @@ play it. It includes the boar and deer and is documented in its
 ## Desktop and mobile Web builds
 
 The project stays in **Godot 4.7.2 / GDScript**. Desktop keeps WASD, arrows,
-and Space. Touch devices show a thumb stick and Shoo button, with a HUD that
+and Space, with F to fire the sling. Touch devices show a thumb stick, Shoo,
+and Sling buttons, with a HUD that
 adapts to portrait and landscape. Keyboard and touch input can coexist.
 The Compatibility renderer supports native desktop builds and WebGL 2 browsers.
 
@@ -83,6 +94,7 @@ Godot's normal export dialog.
 godot --headless --editor --import
 godot --headless --script scenes/forest_2d/smoke_test.gd
 godot --headless --script scenes/forest_2d/mobile_smoke_test.gd
+godot --headless --script scenes/forest_2d/sling_smoke_test.gd
 ```
 
 ## Project layout

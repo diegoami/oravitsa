@@ -3,12 +3,17 @@ extends Control
 ## Touch input stays separate from Input actions so releasing a finger never
 ## releases a desktop key. Each control owns its finger for multitouch play.
 signal shoo_requested
+signal sling_requested
 signal touch_mode_changed
 
 var touch_enabled := false
 var direction := Vector2.ZERO
 var cooldown := 0.0
 var stunned := false
+var sling_cooldown := 0.0
+var sling_available := false
+var _sling_finger := -1
+var _sling_center := Vector2.ZERO
 var _stick_finger := -1
 var _shoo_finger := -1
 var _stick_center := Vector2.ZERO
@@ -38,6 +43,7 @@ func _layout() -> void:
 	_radius = clampf(minf(size.x, size.y) * 0.145, 64.0, 82.0)
 	_stick_center = Vector2(28.0 + _radius, size.y - 28.0 - _radius)
 	_shoo_center = Vector2(size.x - 28.0 - _radius * 0.72, _stick_center.y)
+	_sling_center = _shoo_center - Vector2(0, _radius * 1.8)
 	_reset()
 
 
@@ -51,6 +57,9 @@ func _input(event: InputEvent) -> void:
 			elif _shoo_finger < 0 and event.position.distance_to(_shoo_center) <= _radius * 0.85:
 				_shoo_finger = event.index
 				shoo_requested.emit()
+			elif _sling_finger < 0 and event.position.distance_to(_sling_center) <= _radius * 0.85:
+				_sling_finger = event.index
+				sling_requested.emit()
 			else:
 				return
 		elif event.index == _stick_finger:
@@ -58,6 +67,8 @@ func _input(event: InputEvent) -> void:
 			direction = Vector2.ZERO
 		elif event.index == _shoo_finger:
 			_shoo_finger = -1
+		elif event.index == _sling_finger:
+			_sling_finger = -1
 		else:
 			return
 		get_viewport().set_input_as_handled()
@@ -82,6 +93,7 @@ func _reset() -> void:
 	direction = Vector2.ZERO
 	_stick_finger = -1
 	_shoo_finger = -1
+	_sling_finger = -1
 	queue_redraw()
 
 
@@ -102,3 +114,11 @@ func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	var text_size := font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22)
 	draw_string(font, _shoo_center + Vector2(-text_size.x * 0.5, 8.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, outline)
+	var sling_fill := Color(0.43, 0.35, 0.18, 0.88) if sling_available else Color(0.12, 0.17, 0.12, 0.78)
+	if _sling_finger >= 0:
+		sling_fill = sling_fill.lightened(0.16)
+	draw_circle(_sling_center, _radius * 0.72, sling_fill)
+	draw_arc(_sling_center, _radius * 0.72, 0.0, TAU, 64, outline, 2.0, true)
+	var sling_caption := "%.1fs" % sling_cooldown if sling_cooldown > 0.0 else "Sling"
+	var sling_size := font.get_string_size(sling_caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22)
+	draw_string(font, _sling_center + Vector2(-sling_size.x * 0.5, 8), sling_caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, outline)
