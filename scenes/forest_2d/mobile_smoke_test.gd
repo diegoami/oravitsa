@@ -57,6 +57,27 @@ func _run() -> void:
 		assert(forest._minimap.position.x + forest._minimap.size.x * forest._minimap.scale.x <= viewport_size.x)
 		assert(controls._stick_center.y + controls._radius <= viewport_size.y)
 		assert(controls._shoo_center.x + controls._radius * 0.72 <= viewport_size.x)
+		var skills := Rect2(forest._skill_bar.position, forest._skill_bar.size)
+		assert(Rect2(Vector2.ZERO, viewport_size).encloses(skills))
+		assert(skills.end.x < controls._stick_center.x - controls._radius)
+		assert(forest._shoo_button.get("prompt") == "TAP")
+		assert(forest._sling_button.get("prompt") == "TAP")
+		assert(forest._hint_label.position.y + forest._hint_label.size.y <= forest._help_panel.position.y + forest._help_panel.size.y)
 		assert(controls.direction == Vector2.ZERO)
+	# Visible toggle buttons remain usable after collapsing both panels.
+	for button in [forest._map_toggle, forest._instructions_toggle]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.position = button.get_global_rect().get_center()
+		click.pressed = true
+		root.push_input(click, true)
+		click.pressed = false
+		root.push_input(click, true)
+		await process_frame
+	assert(not forest._minimap.visible and not forest._hint_label.visible)
+	forest._layout_hud()
+	await process_frame
+	assert(not forest._minimap.visible and not forest._hint_label.visible)
+	assert(forest._map_toggle.visible and forest._instructions_toggle.visible)
 	print("Mobile smoke test passed: multitouch movement/shoo, independent keyboard input, focus reset, portrait/landscape HUD")
 	quit()

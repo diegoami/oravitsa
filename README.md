@@ -60,6 +60,11 @@ to shoo. The first shoulder press selects the nearest animal within sling range.
 Stick movement is analog with a deadzone, so gentle input walks more slowly.
 On Web, enter the forest and press a controller button to let the browser detect it.
 
+Shoo and Sling appear in the bottom-left skill bar with icons, cooldown timers,
+and prompts that follow keyboard/mouse, controller, or touch input. On phones,
+the movement stick is on the right. Collapse the top map and instructions with
+their buttons, **M/H**, or controller **Select/Start**, respectively.
+
 Web export requires the **standard (non-.NET) Godot 4.7.2** editor together with
 its matching **4.7.2.stable export templates** (install them in the editor via
 *Editor > Manage Export Templates*). The .NET/Mono edition rejects Web export

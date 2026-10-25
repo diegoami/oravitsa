@@ -90,5 +90,34 @@ func _run() -> void:
 	await process_frame
 	assert(forest.selected_target == -1)
 	_button(JOY_BUTTON_RIGHT_SHOULDER, false)
+	assert(forest._shoo_button.get("prompt") == "B / Circle")
+	assert(forest._sling_button.get("prompt") == "A / Cross")
+	assert(is_equal_approx(float(forest._sling_button.get("cooldown")), forest.sling_cooldown))
+	_button(JOY_BUTTON_BACK)
+	await process_frame
+	assert(not forest._minimap.visible and forest._map_toggle.visible)
+	_button(JOY_BUTTON_BACK, false)
+	_button(JOY_BUTTON_START)
+	await process_frame
+	assert(not forest._help_panel.visible and not forest._hint_label.visible)
+	_button(JOY_BUTTON_START, false)
+	# Switching back to keyboard updates prompts and can restore hidden panels.
+	var key := InputEventKey.new()
+	key.keycode = KEY_M
+	key.pressed = true
+	Input.parse_input_event(key)
+	await process_frame
+	assert(forest._minimap.visible)
+	assert(forest._sling_button.get("prompt") == "RMB / F")
+	key.pressed = false
+	Input.parse_input_event(key)
+	key = InputEventKey.new()
+	key.keycode = KEY_H
+	key.pressed = true
+	Input.parse_input_event(key)
+	await process_frame
+	assert(forest._help_panel.visible and forest._hint_label.visible)
+	key.pressed = false
+	Input.parse_input_event(key)
 	print("Controller smoke test passed: analog movement/deadzone, D-pad, target filtering/cycling, sling/cooldown and shoo")
 	quit()

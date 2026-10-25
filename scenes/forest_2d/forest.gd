@@ -68,6 +68,14 @@ var _stones: Array[Dictionary] = []
 var _sling_effects: Node2D
 var _sling_label: Label
 var _sling_button: Button
+var _shoo_button: Button
+var _skill_bar: Control
+var _map_toggle: Button
+var _instructions_toggle: Button
+var _help_panel: Panel
+var _map_visible := true
+var _instructions_visible := true
+var _input_mode := "keyboard"
 var _ground: TileMapLayer
 var _dirt: TileMapLayer
 var _blocked_ground: Node2D
@@ -151,7 +159,11 @@ func _update_player_walk(motion: Vector2) -> void:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_SPACE:
+		if event.keycode == KEY_M:
+			_toggle_map()
+		elif event.keycode == KEY_H:
+			_toggle_instructions()
+		elif event.keycode == KEY_SPACE:
 			_shoo()
 		elif event.physical_keycode == KEY_F or event.keycode == KEY_F:
 			_fire_sling()
@@ -162,7 +174,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_show_controller_hint()
 	elif event is InputEventJoypadButton and event.pressed:
 		_show_controller_hint()
-		if event.is_action_pressed("target_next"):
+		if event.button_index == JOY_BUTTON_BACK:
+			_toggle_map()
+		elif event.button_index == JOY_BUTTON_START:
+			_toggle_instructions()
+		elif event.is_action_pressed("target_next"):
 			_cycle_sling_target(1)
 		elif event.is_action_pressed("target_previous"):
 			_cycle_sling_target(-1)
@@ -178,8 +194,34 @@ func _unhandled_input(event: InputEvent) -> void:
 		_select_sling_target(event.position)
 
 
+func _input(event: InputEvent) -> void:
+	if not is_instance_valid(_skill_bar):
+		return
+	var mode := _input_mode
+	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf(event.axis_value) > 0.2):
+		mode = "controller"
+	elif event is InputEventScreenTouch or event is InputEventScreenDrag:
+		mode = "touch"
+	elif event is InputEventKey or event is InputEventMouseButton or (event is InputEventMouseMotion and event.relative.length_squared() > 4):
+		mode = "keyboard"
+	if mode != _input_mode:
+		_input_mode = mode
+		_update_hud()
+
+
 func _show_controller_hint() -> void:
-	_hint_label.text = "Stick / D-pad: walk   •   LB / RB: target   •   A / Cross: sling   •   B / Circle: shoo"
+	_input_mode = "controller"
+	_update_hud()
+
+
+func _toggle_map() -> void:
+	_map_visible = not _map_visible
+	_update_hud()
+
+
+func _toggle_instructions() -> void:
+	_instructions_visible = not _instructions_visible
+	_update_hud()
 
 
 func _cycle_sling_target(step: int) -> void:
@@ -202,7 +244,7 @@ func _valid_sling_target(id: int) -> bool:
 
 
 func _select_sling_target(screen_position: Vector2) -> void:
-	if _hud_panel.get_global_rect().has_point(screen_position) or _minimap.get_global_rect().has_point(screen_position):
+	if _hud_panel.get_global_rect().has_point(screen_position) or (_minimap.visible and _minimap.get_global_rect().has_point(screen_position)):
 		return
 	selected_target = -1
 	var nearest := INF
@@ -457,38 +499,49 @@ func _build_hud() -> void:
 	var canvas := CanvasLayer.new()
 	canvas.name = "HUD"
 	add_child(canvas)
-	_hud_panel = PanelContainer.new()
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.09, 0.17, 0.13, 0.88)
-	style.set_corner_radius_all(14)
+	style.bg_color = Color(0.06, 0.10, 0.17, 0.92)
+	style.border_color = Color("95876b")
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(5)
+	_hud_panel = PanelContainer.new()
 	_hud_panel.add_theme_stylebox_override("panel", style)
 	_hud_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(_hud_panel)
 	_count_label = Label.new()
-	_count_label.position = Vector2(36, 22)
-	_count_label.add_theme_font_size_override("font_size", 22)
+	_count_label.add_theme_font_size_override("font_size", 17)
 	_count_label.add_theme_color_override("font_color", Color("f8eed5"))
 	canvas.add_child(_count_label)
+	_help_panel = Panel.new()
+	_help_panel.add_theme_stylebox_override("panel", style)
+	_help_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(_help_panel)
 	_hint_label = Label.new()
-	_hint_label.text = "WASD / arrows: walk   •   Space: shoo   •   Left click: select   •   Right click / F: sling"
 	_hint_label.add_theme_font_size_override("font_size", 14)
 	_hint_label.add_theme_color_override("font_color", Color("e9dfbb"))
 	canvas.add_child(_hint_label)
+	_map_toggle = _hud_toggle(canvas, _toggle_map)
+	_instructions_toggle = _hud_toggle(canvas, _toggle_instructions)
+	_skill_bar = Control.new()
+	_skill_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_skill_bar.size = Vector2(212, 108)
+	canvas.add_child(_skill_bar)
+	_shoo_button = _skill_button("Shoo", _shoo)
+	_shoo_button.position = Vector2.ZERO
+	_sling_button = _skill_button("Sling", _fire_sling)
+	_sling_button.position = Vector2(112, 0)
 	_sling_label = Label.new()
 	_sling_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_sling_label.add_theme_font_size_override("font_size", 17)
+	_sling_label.add_theme_font_size_override("font_size", 14)
 	_sling_label.add_theme_color_override("font_color", Color("f4d58a"))
-	canvas.add_child(_sling_label)
-	_sling_button = Button.new()
-	_sling_button.focus_mode = Control.FOCUS_NONE
-	_sling_button.custom_minimum_size = Vector2(170, 54)
-	_sling_button.add_theme_font_size_override("font_size", 20)
-	_sling_button.pressed.connect(_fire_sling)
-	canvas.add_child(_sling_button)
+	_sling_label.add_theme_color_override("font_shadow_color", Color("101820"))
+	_sling_label.add_theme_constant_override("shadow_offset_x", 1)
+	_sling_label.add_theme_constant_override("shadow_offset_y", 2)
+	_sling_label.position = Vector2(0, -25)
+	_skill_bar.add_child(_sling_label)
 	_minimap = Control.new()
 	_minimap.set_script(load("res://scenes/forest_2d/minimap.gd"))
 	_minimap.name = "Minimap"
-	_minimap.position = Vector2(1016, 16)
 	_minimap.custom_minimum_size = Vector2(244, 272)
 	_minimap.size = Vector2(244, 272)
 	_minimap.set("forest", self)
@@ -499,11 +552,38 @@ func _build_hud() -> void:
 	_touch_controls.name = "TouchControls"
 	_touch_controls.shoo_requested.connect(_shoo)
 	_touch_controls.sling_requested.connect(_fire_sling)
-	_touch_controls.touch_mode_changed.connect(_layout_hud)
+	_touch_controls.touch_mode_changed.connect(func():
+		_input_mode = "touch"
+		_layout_hud())
 	canvas.add_child(_touch_controls)
 	get_viewport().size_changed.connect(_layout_hud)
 	get_viewport().size_changed.connect(_on_viewport_resized)
 	_layout_hud()
+
+
+func _hud_toggle(canvas: CanvasLayer, callback: Callable) -> Button:
+	var button := Button.new()
+	button.focus_mode = Control.FOCUS_NONE
+	button.add_theme_font_size_override("font_size", 14)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("1a2a3e")
+	style.border_color = Color("bca677")
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	button.add_theme_stylebox_override("normal", style)
+	button.pressed.connect(callback)
+	canvas.add_child(button)
+	return button
+
+
+func _skill_button(skill: String, callback: Callable) -> Button:
+	var button := Button.new()
+	button.set_script(load("res://scenes/forest_2d/skill_button.gd"))
+	button.set("skill", skill)
+	button.size = Vector2(100, 108)
+	button.pressed.connect(callback)
+	_skill_bar.add_child(button)
+	return button
 
 
 func _on_viewport_resized() -> void:
@@ -523,16 +603,21 @@ func _layout_hud() -> void:
 	var viewport_size := get_viewport_rect().size
 	var map_scale := 0.58 if touch and viewport_size.x < 800.0 else (0.8 if touch else 1.0)
 	_minimap.scale = Vector2.ONE * map_scale
-	_minimap.position = Vector2(viewport_size.x - 20.0 - 244.0 * map_scale, 16.0)
+	_minimap.position = Vector2(viewport_size.x - 20.0 - 244.0 * map_scale, 60.0)
+	_map_toggle.position = Vector2(_minimap.position.x, 16)
+	_map_toggle.size = Vector2(244.0 * map_scale, 32)
 	_hud_panel.position = Vector2(18, 16)
-	_hud_panel.size = Vector2(minf(750.0, _minimap.position.x - 36.0), 108.0)
-	_count_label.position = Vector2(34, 24)
-	_count_label.add_theme_font_size_override("font_size", 20 if touch else 22)
-	_sling_label.position = Vector2(34, 78 if touch else 54)
-	_hint_label.position = Vector2(34, 82)
-	_hint_label.visible = not touch
-	_sling_button.visible = not touch
-	_sling_button.position = Vector2(viewport_size.x - 190, viewport_size.y - 76)
+	_hud_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 40)
+	_count_label.position = Vector2(30, 25)
+	_count_label.add_theme_font_size_override("font_size", 15 if touch else 17)
+	_instructions_toggle.position = Vector2(18, 66)
+	_instructions_toggle.size = Vector2(180, 32)
+	_help_panel.position = Vector2(18, 106)
+	_help_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 144)
+	_hint_label.position = _help_panel.position + Vector2(12, 9)
+	_hint_label.size = _help_panel.size - Vector2(24, 18)
+	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_skill_bar.position = Vector2(18, viewport_size.y - 126)
 	_update_hud()
 
 
@@ -1065,21 +1150,36 @@ func _collect_nearby() -> void:
 
 
 func _update_hud() -> void:
-	var status := "Stunned" if player_stun > 0.0 else ("Shoo %.1fs" % shoo_cooldown if shoo_cooldown > 0.0 else "Shoo ready")
-	_count_label.text = "Oravitsa’s forest    Mushrooms: %d   Berries: %d   %s" % [basket, berries_basket, status]
+	_count_label.text = "Mushrooms: %d   Berries: %d" % [basket, berries_basket]
+	_minimap.visible = _map_visible
+	_help_panel.visible = _instructions_visible
+	_hint_label.visible = _instructions_visible
+	var controller := _input_mode == "controller"
+	var touch := _input_mode == "touch"
+	_map_toggle.text = ("− Map" if _map_visible else "+ Map") + (" [Select]" if controller else ("" if touch else " [M]"))
+	_instructions_toggle.text = ("− Instructions" if _instructions_visible else "+ Instructions") + (" [Start]" if controller else ("" if touch else " [H]"))
+	if controller:
+		_hint_label.text = "Left stick / D-pad: walk\nLB / RB: cycle nearby targets\nA / Cross: sling\nB / Circle: shoo\nSelect: map · Start: instructions"
+	elif touch:
+		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap a skill to use it\nWalk over mushrooms & berries\nUse the top buttons to hide panels"
+	else:
+		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling\nSpace: shoo nearby animals\nM: map · H: instructions"
 	var target_name: String = ANIMAL_NAMES[_animals[selected_target]["kind"]] if _valid_sling_target(selected_target) else ""
-	var sling_status := "Tap an animal to select" if _touch_controls.touch_enabled else "Click an animal to select"
+	_sling_label.text = "LB / RB: select target" if controller else ("Tap animal to target" if touch else "Click animal to target")
 	if not target_name.is_empty():
-		sling_status = target_name + (" · Too far" if player_position.distance_to(_animals[selected_target]["position"]) > SLING_RANGE else " · Ready")
-	if sling_cooldown > 0.0:
-		sling_status = "%.1fs" % sling_cooldown + (" · " + target_name if not target_name.is_empty() else "")
-	elif player_stun > 0.0:
-		sling_status = "Recovering"
-	_sling_label.text = "Sling: " + sling_status
-	_sling_button.text = "Sling %.1fs" % sling_cooldown if sling_cooldown > 0.0 else "Sling [F]"
+		_sling_label.text = target_name + (" · Out of range" if player_position.distance_to(_animals[selected_target]["position"]) > SLING_RANGE else " · Selected")
+	if player_stun > 0:
+		_sling_label.text = "Recovering"
+	_shoo_button.disabled = shoo_cooldown > 0.0 or player_stun > 0.0
 	_sling_button.disabled = not _sling_ready()
+	_shoo_button.set("cooldown", shoo_cooldown)
+	_sling_button.set("cooldown", sling_cooldown)
+	_sling_button.set("cooldown_duration", SLING_COOLDOWN)
+	_shoo_button.set("prompt", "B / Circle" if controller else ("TAP" if touch else "SPACE"))
+	_sling_button.set("prompt", "A / Cross" if controller else ("TAP" if touch else "RMB / F"))
+	_shoo_button.queue_redraw()
+	_sling_button.queue_redraw()
 	if _touch_controls.touch_enabled:
-		_count_label.text = "Mushrooms: %d   Berries: %d\n%s" % [basket, berries_basket, status]
 		_touch_controls.cooldown = shoo_cooldown
 		_touch_controls.stunned = player_stun > 0.0
 		_touch_controls.sling_cooldown = sling_cooldown

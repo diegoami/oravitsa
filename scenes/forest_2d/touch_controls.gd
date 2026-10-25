@@ -41,9 +41,9 @@ func _enable_touch() -> void:
 
 func _layout() -> void:
 	_radius = clampf(minf(size.x, size.y) * 0.145, 64.0, 82.0)
-	_stick_center = Vector2(28.0 + _radius, size.y - 28.0 - _radius)
-	_shoo_center = Vector2(size.x - 28.0 - _radius * 0.72, _stick_center.y)
-	_sling_center = _shoo_center - Vector2(0, _radius * 1.8)
+	_stick_center = Vector2(size.x - 28.0 - _radius, size.y - 28.0 - _radius)
+	_shoo_center = Vector2(68, size.y - 72)
+	_sling_center = _shoo_center + Vector2(112, 0)
 	_reset()
 
 
@@ -54,10 +54,10 @@ func _input(event: InputEvent) -> void:
 			if _stick_finger < 0 and event.position.distance_to(_stick_center) <= _radius * 1.25:
 				_stick_finger = event.index
 				_update_direction(event.position)
-			elif _shoo_finger < 0 and event.position.distance_to(_shoo_center) <= _radius * 0.85:
+			elif _shoo_finger < 0 and Rect2(_shoo_center - Vector2(50, 54), Vector2(100, 108)).has_point(event.position):
 				_shoo_finger = event.index
 				shoo_requested.emit()
-			elif _sling_finger < 0 and event.position.distance_to(_sling_center) <= _radius * 0.85:
+			elif _sling_finger < 0 and Rect2(_sling_center - Vector2(50, 54), Vector2(100, 108)).has_point(event.position):
 				_sling_finger = event.index
 				sling_requested.emit()
 			else:
@@ -104,21 +104,3 @@ func _draw() -> void:
 	draw_circle(_stick_center, _radius, Color(0.06, 0.14, 0.10, 0.58))
 	draw_arc(_stick_center, _radius, 0.0, TAU, 64, outline, 2.0, true)
 	draw_circle(_stick_center + direction * _radius * 0.55, _radius * 0.38, Color(0.94, 0.89, 0.72, 0.75))
-	var ready := cooldown <= 0.0 and not stunned
-	var fill := Color(0.25, 0.39, 0.24, 0.86) if ready else Color(0.08, 0.16, 0.12, 0.72)
-	if _shoo_finger >= 0:
-		fill = fill.lightened(0.16)
-	draw_circle(_shoo_center, _radius * 0.72, fill)
-	draw_arc(_shoo_center, _radius * 0.72, 0.0, TAU, 64, outline, 2.0, true)
-	var caption := "%.1fs" % cooldown if cooldown > 0.0 else "Shoo"
-	var font := ThemeDB.fallback_font
-	var text_size := font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22)
-	draw_string(font, _shoo_center + Vector2(-text_size.x * 0.5, 8.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, outline)
-	var sling_fill := Color(0.43, 0.35, 0.18, 0.88) if sling_available else Color(0.12, 0.17, 0.12, 0.78)
-	if _sling_finger >= 0:
-		sling_fill = sling_fill.lightened(0.16)
-	draw_circle(_sling_center, _radius * 0.72, sling_fill)
-	draw_arc(_sling_center, _radius * 0.72, 0.0, TAU, 64, outline, 2.0, true)
-	var sling_caption := "%.1fs" % sling_cooldown if sling_cooldown > 0.0 else "Sling"
-	var sling_size := font.get_string_size(sling_caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22)
-	draw_string(font, _sling_center + Vector2(-sling_size.x * 0.5, 8), sling_caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, outline)
