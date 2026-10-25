@@ -160,6 +160,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_select_sling_target(event.position)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		_fire_sling()
 	elif event is InputEventScreenTouch and event.pressed:
 		_select_sling_target(event.position)
 
@@ -437,7 +439,7 @@ func _build_hud() -> void:
 	_count_label.add_theme_color_override("font_color", Color("f8eed5"))
 	canvas.add_child(_count_label)
 	_hint_label = Label.new()
-	_hint_label.text = "WASD / arrows: walk   •   Space: shoo   •   Click animal: select   •   F: sling"
+	_hint_label.text = "WASD / arrows: walk   •   Space: shoo   •   Left click: select   •   Right click / F: sling"
 	_hint_label.add_theme_font_size_override("font_size", 14)
 	_hint_label.add_theme_color_override("font_color", Color("e9dfbb"))
 	canvas.add_child(_hint_label)

@@ -34,7 +34,7 @@
       <div class="eyebrow">A little time in the forest</div>
       <h1>Oravitsa</h1>
       <p>Follow the winding paths. Gather mushrooms and berries.<br>See who’s wandering among the trees.</p>
-      <p class="keyboard">WASD or arrows to walk · Space to shoo<br>Click an animal, then F to use the sling.</p>
+      <p class="keyboard">WASD or arrows to walk · Space to shoo<br>Left-click an animal, then right-click or F to use the sling.</p>
       <p class="touch">Thumb stick to walk · Shoo to scare animals<br>Tap an animal, then Sling to stun it.</p>
       <button id="play" type="button">Enter the forest</button>
       <p id="status" role="status" aria-live="polite">Your forest will load when you’re ready.</p>
@@ -51,6 +51,7 @@
     const status = document.getElementById('status');
     const progress = document.getElementById('progress');
     const canvas = document.getElementById('canvas');
+    canvas.addEventListener('contextmenu', event => event.preventDefault());
     const fullscreen = document.getElementById('fullscreen');
     let downloaded = 0;
     let lastActivity = Date.now();

@@ -16,7 +16,7 @@ footprints while open diagonal gaps remain walkable. Press **Space** to shoo
 nearby wildlife.
 
 **Click an animal** to
-select it, then press **F** or click **Sling** to throw a stone. On phones,
+select it, then **right-click**, press **F**, or click **Sling** to throw a stone. On phones,
 tap the animal and then the **Sling** button. A gold ring marks the selected
 target; the ring turns red when it is too far away. Stones stun on impact for
 **3 seconds**, with a **4-second cooldown** and a **600 px** firing range.

@@ -75,6 +75,20 @@ func _run() -> void:
 	assert(sprite.modulate == Color.WHITE)
 	target["feeding"] = 0.0
 	forest._update_sling(forest.SLING_COOLDOWN)
+	# Right-click activates the selection even when the pointer is over empty ground.
+	target["position"] = forest.player_position + Vector2(180, 40)
+	sprite.position = target["position"]
+	click.button_index = MOUSE_BUTTON_RIGHT
+	click.position = Vector2(900, 600)
+	root.push_input(click, true)
+	await process_frame
+	assert(forest._stones.size() == 1 and forest.selected_target == 0)
+	click.pressed = false
+	root.push_input(click, true)
+	await process_frame
+	assert(forest._stones.size() == 1)
+	forest._update_sling(forest.SLING_COOLDOWN)
+	assert(forest._stones.is_empty())
 	target["position"] = forest.player_position + Vector2(forest.SLING_RANGE + 1.0, 0)
 	forest._fire_sling()
 	assert(forest._stones.is_empty() and forest.sling_cooldown == 0.0)
