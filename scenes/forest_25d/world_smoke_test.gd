@@ -136,5 +136,20 @@ func _run() -> void:
 	for site in world.landscape.SITES:
 		assert(visited.has(Vector2i(site)))
 	assert(visited.size() > 22000)
+	# The dressed starting area keeps the crossing and the new discovery usable.
+	assert(visited.has(Vector2i(13, 3)))
+	assert(not world.landscape.can_walk(world.landscape.WELL_POSITION, world.PLAYER_RADIUS / world.METRE))
+	for shoreline in [Vector2(-14.5, -5), Vector2(-9, -9.5), Vector2(world.landscape.river_x(10) + 1.2, 10)]:
+		assert(absf(world.landscape.terrain_height_at(shoreline) + 0.08) < 0.001, "Bank must meet water at the collision shoreline")
+	var well_food: Vector2i = world.START + Vector2i(7, 2)
+	assert(world.objects[world._index(well_food)] == world.MUSHROOM)
+	await _travel(world, world.to_ground(world._cell_center(well_food)))
+	assert(world._landmark_label.text == "The forester’s old well")
+	var mushrooms_before: int = world._inventory.get("mushrooms")
+	world._collect_nearby()
+	assert(world._inventory.get("mushrooms") > mushrooms_before)
+	await _travel(world, Vector2(70, 70))
+	await _travel(world, world.to_ground(world._cell_center(well_food)))
+	assert(world.objects[world._index(well_food)] == world.EMPTY and not world._forage_visuals.has(well_food))
 	print("Expanded world test passed: species counts [boar,deer,fox,lynx,hare]=", counts, "; peak nearby chunks=", peak_chunks, "; reachable square-metre cells=", visited.size(), "; persistent pickups, model unloading and stationary resize coverage")
 	quit()

@@ -101,3 +101,24 @@ The source 2D scene retains its original large forest independently.
 
 Asset license evidence, download sources and checksums:
 [assets/ATTRIBUTION.md](assets/ATTRIBUTION.md).
+
+## Starting-area dressing
+
+The cottage and first bridge are the reference area for the next art pass.
+The cottage has layered shingles, a gable, timber braces, chipped plaster,
+foundation stones, side-window framing, firewood and a broken fence. All new
+roof geometry follows the existing interior cutaway. A broken bridge rail and
+worn approach stones leave the crossing clear.
+
+A short stone path leads east to the forester's old well, with two real mushroom
+patches nearby. Its ring blocks walking; its approach stays reachable and the
+nearby label names the discovery. Gathered mushrooms retain the usual inventory
+and streaming persistence rules. The well is a landmark, not an interaction yet.
+
+Shallow-water colour and wet bank shading share the same waterway definitions.
+Banks meet the water at the collision shoreline. A finer terrain grid smooths
+shore silhouettes; reeds, seed heads and small stones stream around the starting
+lake/river. Low dressing stones can be stepped over, while the well, woodpile
+and fence posts use persistent collision. Cottage details are combined by
+material to keep draw calls bounded. These additions use procedural geometry
+and existing materials, with no new external assets.

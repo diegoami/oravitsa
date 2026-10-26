@@ -7,6 +7,7 @@ const LAKES := [Vector4(-9, -5, 5.5, 4.5), Vector4(38, -44, 12, 9), Vector4(-48,
 const TRIBUTARY := [Vector2(-48, 42), Vector2(-30, 30), Vector2(-12, 28), Vector2(-5.419, 24)]
 const SITES := [Vector2(7, -4), Vector2(45, -30), Vector2(-64, 28), Vector2(-55, -45), Vector2(35, 58)]
 const SITE_NAMES := ["Forester’s cottage", "Old watchhouse", "Alderwater mill", "Overgrown orchard", "Southern shelter"]
+const WELL_POSITION := Vector2(13, 1)
 var blockers: Array[Vector3] = []
 var walls: Array[Rect2] = []
 var roofs: Array[MeshInstance3D] = []
@@ -22,6 +23,7 @@ var _build_parent: Node3D
 var _terrain_material: ShaderMaterial
 var _water_material: ShaderMaterial
 var _stream_rect := Rect2i()
+var _reed_mesh: Mesh
 
 
 func river_x(z: float) -> float:
@@ -79,7 +81,10 @@ func terrain_height_at(p: Vector2) -> float:
 	var hill := 0.22 * sin(p.x * 0.16) * cos(p.y * 0.14) + 0.8 * exp(-p.distance_squared_to(Vector2(13, -11)) / 65.0)
 	hill += 0.3 * sin(p.x * 0.045) * sin(p.y * 0.06)
 	var edge := water_edge(p)
-	var height := lerpf(-0.72, hill + 0.16, smoothstep(0.85, 1.35, edge))
+	# The bank meets the water at the collision shoreline, instead of leaving
+	# an exposed trench between a narrow water mesh and a steep raised bank.
+	var dry_bank := clampf((edge - 1.0) / 0.6, 0.0, 1.0)
+	var height := lerpf(-0.72, -0.08, clampf((edge - 0.25) / 0.75, 0, 1)) if edge < 1.0 else lerpf(-0.08, hill + 0.16, dry_bank * (2.0 - dry_bank))
 	if edge < 1.0:
 		return height # Bridge approaches must not dam the water beside the deck.
 	# Low, smooth approaches meet each deck instead of stepping off a hillside.
@@ -106,6 +111,8 @@ func trail_distance(p: Vector2) -> float:
 
 
 func _reserved(p: Vector2) -> bool:
+	if p.distance_to(WELL_POSITION) < 3.5:
+		return true
 	if p.length() < 3.0 or trail_distance(p) < 2.0:
 		return true
 	for site in SITES:
@@ -144,6 +151,9 @@ func build() -> void:
 	_water()
 	_bridge()
 	_cottage()
+	var details = load("res://scenes/forest_25d/cottage_details.gd").new()
+	add_child(details)
+	details.build(self)
 	for i in range(1, SITES.size()):
 		_ruin(SITES[i], i)
 	_prepare_trees()
@@ -175,6 +185,7 @@ func stream(center: Vector2, half: Vector2) -> bool:
 			_build_parent = chunk
 			_terrain_chunk(key)
 			_vegetation_chunk(key)
+			_shore_chunk(key)
 	_build_parent = null
 	return true
 
@@ -212,28 +223,31 @@ func _mesh(mesh: Mesh, mat: Material, at: Vector3 = Vector3.ZERO) -> MeshInstanc
 func _terrain_chunk(key: Vector2i) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var cells := 24
+	var cells := 48 # Finer shore silhouettes without screen-space transparency.
 	var step := CHUNK / cells
+	# Cache a one-vertex border as well: smooth normals need neighboring heights,
+	# but should not evaluate all waterways five times for every rendered vertex.
+	var stride := cells + 3
+	var heights := PackedFloat32Array()
+	heights.resize(stride * stride)
+	for z in stride:
+		for x in stride:
+			var p := Vector2(key) * CHUNK + Vector2(x - 1, z - 1) * step
+			heights[z * stride + x] = terrain_height_at(p)
 	# Shared vertices and world-space derivatives keep rolling hills smooth and
 	# give neighboring chunks identical normals along their common boundary.
 	for z in cells + 1:
 		for x in cells + 1:
 			var p := Vector2(key) * CHUNK + Vector2(x, z) * step
-			st.set_normal(terrain_normal_at(p))
-			st.add_vertex(Vector3(p.x, terrain_height_at(p), p.y))
+			var h := (z + 1) * stride + x + 1
+			st.set_normal(Vector3(heights[h - 1] - heights[h + 1], step * 2, heights[h - stride] - heights[h + stride]).normalized())
+			st.add_vertex(Vector3(p.x, heights[h], p.y))
 	for z in cells:
 		for x in cells:
 			var i := z * (cells + 1) + x
 			for index in [i, i + cells + 1, i + 1, i + 1, i + cells + 1, i + cells + 2]:
 				st.add_index(index)
 	_mesh(st.commit(), _terrain_material).name = "RollingTerrain"
-
-
-func terrain_normal_at(p: Vector2) -> Vector3:
-	const SAMPLE := 0.12
-	var dx := terrain_height_at(p + Vector2(SAMPLE, 0)) - terrain_height_at(p - Vector2(SAMPLE, 0))
-	var dz := terrain_height_at(p + Vector2(0, SAMPLE)) - terrain_height_at(p - Vector2(0, SAMPLE))
-	return Vector3(-dx, SAMPLE * 2, -dz).normalized()
 
 
 func _water() -> void:
@@ -244,25 +258,25 @@ func _water() -> void:
 		for i in 80:
 			var a := float(i) * TAU / 80
 			var b := float(i + 1) * TAU / 80
-			_tri(st, center, center + Vector3(cos(b) * lake.z, 0, sin(b) * lake.w), center + Vector3(cos(a) * lake.z, 0, sin(a) * lake.w))
+			_tri(st, center, center + Vector3(cos(b) * lake.z * 1.12, 0, sin(b) * lake.w * 1.12), center + Vector3(cos(a) * lake.z * 1.12, 0, sin(a) * lake.w * 1.12))
 	for i in int((EXTENT + CHUNK) * 4):
 		var z := -EXTENT - CHUNK + i * 0.5
-		var a := Vector3(river_x(z) - 1.2, -0.075, z)
-		var b := a + Vector3(2.4, 0, 0)
-		var c := Vector3(river_x(z + 0.5) - 1.2, -0.075, z + 0.5)
-		var d := c + Vector3(2.4, 0, 0)
+		var a := Vector3(river_x(z) - 1.35, -0.08, z)
+		var b := a + Vector3(2.7, 0, 0)
+		var c := Vector3(river_x(z + 0.5) - 1.35, -0.08, z + 0.5)
+		var d := c + Vector3(2.7, 0, 0)
 		_tri(st, a, c, b)
 		_tri(st, b, c, d)
 	for i in TRIBUTARY.size() - 1:
 		var a: Vector2 = TRIBUTARY[i]
 		var b: Vector2 = TRIBUTARY[i + 1]
-		var side := (b - a).normalized().orthogonal() * 1.2
-		_tri(st, Vector3(a.x + side.x, -0.075, a.y + side.y), Vector3(b.x + side.x, -0.075, b.y + side.y), Vector3(a.x - side.x, -0.075, a.y - side.y))
-		_tri(st, Vector3(a.x - side.x, -0.075, a.y - side.y), Vector3(b.x + side.x, -0.075, b.y + side.y), Vector3(b.x - side.x, -0.075, b.y - side.y))
+		var side := (b - a).normalized().orthogonal() * 1.35
+		_tri(st, Vector3(a.x + side.x, -0.08, a.y + side.y), Vector3(b.x + side.x, -0.08, b.y + side.y), Vector3(a.x - side.x, -0.08, a.y - side.y))
+		_tri(st, Vector3(a.x - side.x, -0.08, a.y - side.y), Vector3(b.x + side.x, -0.08, b.y + side.y), Vector3(b.x - side.x, -0.08, b.y - side.y))
 		for j in 20:
-			var u := Vector2.from_angle(j * TAU / 20.0) * 1.2
-			var v := Vector2.from_angle((j + 1) * TAU / 20.0) * 1.2
-			_tri(st, Vector3(b.x, -0.075, b.y), Vector3(b.x + u.x, -0.075, b.y + u.y), Vector3(b.x + v.x, -0.075, b.y + v.y))
+			var u := Vector2.from_angle(j * TAU / 20.0) * 1.35
+			var v := Vector2.from_angle((j + 1) * TAU / 20.0) * 1.35
+			_tri(st, Vector3(b.x, -0.08, b.y), Vector3(b.x + u.x, -0.08, b.y + u.y), Vector3(b.x + v.x, -0.08, b.y + v.y))
 	_mesh(st.commit(), _water_material).name = "LakesAndRivers"
 
 
@@ -444,6 +458,54 @@ func _vegetation_chunk(key: Vector2i) -> void:
 	grass_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_batch(st.commit(), grass_mat, grasses)
 	_batch(_sphere(), material("e1ce84"), flowers)
+
+
+func _shore_chunk(key: Vector2i) -> void:
+	# Dress the starting lake and crossing first. Deterministic streamed batches
+	# add no permanent nodes, and small stones are low enough to step over.
+	if not Rect2(-22, -20, 44, 40).intersects(Rect2(Vector2(key) * CHUNK, Vector2.ONE * CHUNK)):
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _seed_for(key) ^ 420263
+	var reeds: Array[Transform3D] = []
+	var stones: Array[Transform3D] = []
+	var seed_heads: Array[Transform3D] = []
+	for i in 700:
+		var p := Vector2(key) * CHUNK + Vector2(rng.randf(), rng.randf()) * CHUNK
+		if p.distance_to(Vector2(-4, -1)) > 22 or trail_distance(p) < 1.5:
+			continue
+		var near_deck := false
+		for bridge in bridges:
+			var local := (p - Vector2(bridge.x, bridge.y)).rotated(-bridge.z)
+			if absf(local.x) < 3.8 and absf(local.y) < 1.5:
+				near_deck = true
+		if near_deck:
+			continue
+		var edge := water_edge(p)
+		if edge < 0.88 or edge > 1.45:
+			continue
+		var at := Vector3(p.x, terrain_height_at(p), p.y)
+		if i % 4 == 0 and edge > 1.03:
+			var r := rng.randf_range(0.08, 0.23)
+			stones.append(Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(r, r * 0.42, r * 0.8)), at + Vector3.UP * r * 0.2))
+		elif edge < 1.12:
+			var h := rng.randf_range(0.35, 0.85)
+			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(1, h, 1))
+			reeds.append(Transform3D(basis, at))
+			if i % 3 == 0:
+				seed_heads.append(Transform3D(Basis.IDENTITY.scaled(Vector3(0.035, 0.09, 0.035)), at + Vector3.UP * h))
+	if _reed_mesh == null:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_tri(st, Vector3(-0.018, 0, 0), Vector3(0, 1, 0), Vector3(0.018, 0, 0))
+		for side in [-1.0, 1.0]:
+			_tri(st, Vector3.ZERO, Vector3(side * 0.24, 0.72, 0.05), Vector3(side * 0.05, 0.24, 0.02))
+		_reed_mesh = st.commit()
+	var reed_mat := material("75875b")
+	reed_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_batch(_reed_mesh, reed_mat, reeds)
+	_batch(_sphere(), material("68533b"), seed_heads)
+	_batch(_sphere(), material("95988a"), stones)
 
 
 func _prepare_trees() -> void:

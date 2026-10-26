@@ -55,6 +55,8 @@ func _generate_map() -> void:
 	for data in [Vector3(1, 1, MUSHROOM), Vector3(2, -2, BERRIES), Vector3(4, 1, MUSHROOM), Vector3(5, -3, BERRIES), Vector3(-1, 3, MUSHROOM), Vector3(-6, 4, BERRIES), Vector3(-8, 2, MUSHROOM), Vector3(7, -6, MUSHROOM), Vector3(9, -3, BERRIES)]:
 		var cell := START + Vector2i(int(data.x), int(data.y))
 		objects[_index(cell)] = int(data.z)
+	for offset in [Vector2i(7, 2), Vector2i(8, 2)]:
+		objects[_index(START + offset)] = MUSHROOM
 	rules.free()
 
 
@@ -568,5 +570,7 @@ func _sync_presentation(delta: float) -> void:
 		_landmark_label.text = "Alderwater lake"
 	elif p.distance_to(Vector2(38, -44)) < 16:
 		_landmark_label.text = "Pinewater lake"
+	if p.distance_to(landscape.WELL_POSITION) < 3.0:
+		_landmark_label.text = "The forester’s old well"
 	if _stats_label.visible:
 		_stats_label.text = "%d FPS · %d draws · %dk triangles" % [Engine.get_frames_per_second(), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME) / 1000]

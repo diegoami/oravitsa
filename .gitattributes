@@ -1,6 +1,7 @@
 # Godot text resources: keep diffs readable and line endings stable.
 *.gd     text eol=lf
 *.gdshader text eol=lf
+*.gdshaderinc text eol=lf
 *.gltf   text eol=lf
 *.uid    text eol=lf
 *.tscn   text eol=lf
