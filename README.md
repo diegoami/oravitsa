@@ -7,6 +7,10 @@
 
 # Oravitsa
 
+Contribution and verification rules: [AGENTS.md](AGENTS.md). Independent
+[PR reviews](docs/review-pr.md) use a separate session; formal
+[milestone reviews](docs/RELEASES.md) happen before a release tag.
+
 Oravitsa is a cosy 2D forest game prototype. The current default scene explores a
 larger world built from connecting painted tiles, with winding dirt paths, trees,
 bushes, stones, ferns, fallen logs, and collectible mushrooms and berries. See the

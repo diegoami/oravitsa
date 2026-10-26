@@ -20,13 +20,8 @@ jobs:
         run: |
           mkdir -p build
           touch build/.gdignore
-          godot --headless --editor --import
-          godot --headless --script scenes/forest_2d/smoke_test.gd
-          godot --headless --script scenes/forest_2d/mobile_smoke_test.gd
-          godot --headless --script scenes/forest_2d/sling_smoke_test.gd
-          godot --headless --script scenes/forest_2d/controller_smoke_test.gd
-          godot --headless --script scenes/forest_25d/smoke_test.gd
-          godot --headless --script scenes/forest_25d/world_smoke_test.gd
+          python3 -m unittest discover -s tools -p 'test_*.py'
+          python3 tools/verify.py
       - name: Export both platforms
         run: python3 tools/export.py all
       - name: Check native export starts
