@@ -68,6 +68,14 @@ func height_at(p: Vector2) -> float:
 		return 0.27
 	if Rect2(4.5, -6.2, 5.0, 4.4).has_point(p):
 		return 0.55
+	return terrain_height_at(p)
+
+
+func terrain_height_at(p: Vector2) -> float:
+	# Walking surfaces belong to the structures, not to the ground mesh. Baking
+	# their tops into the terrain produces coplanar faces and camera-motion flicker.
+	if Rect2(4.5, -6.2, 5.0, 4.4).has_point(p):
+		return 0.37 # Below the cottage foundation, whose bottom is at 0.39.
 	var hill := 0.22 * sin(p.x * 0.16) * cos(p.y * 0.14) + 0.8 * exp(-p.distance_squared_to(Vector2(13, -11)) / 65.0)
 	hill += 0.3 * sin(p.x * 0.045) * sin(p.y * 0.06)
 	var edge := water_edge(p)
@@ -78,7 +86,7 @@ func height_at(p: Vector2) -> float:
 	for b in bridges:
 		var local := (p - Vector2(b.x, b.y)).rotated(-b.z)
 		var approach := (1 - smoothstep(2.5, 4.5, absf(local.x))) * (1 - smoothstep(0.85, 1.8, absf(local.y)))
-		height = lerpf(height, 0.27, approach)
+		height = lerpf(height, 0.10, approach) # Below the plank undersides (0.11).
 	return height
 
 
@@ -212,7 +220,7 @@ func _terrain_chunk(key: Vector2i) -> void:
 			var points: Array[Vector3] = []
 			for off in [Vector2.ZERO, Vector2(step, 0), Vector2(0, step), Vector2(step, step)]:
 				var q: Vector2 = p + off
-				points.append(Vector3(q.x, height_at(q), q.y))
+				points.append(Vector3(q.x, terrain_height_at(q), q.y))
 			_tri(st, points[0], points[2], points[1])
 			_tri(st, points[1], points[2], points[3])
 	_mesh(st.commit(), _terrain_material).name = "RollingTerrain"
@@ -307,7 +315,7 @@ func _cottage() -> void:
 		for section in 4:
 			if side == -1 and section == 1:
 				continue
-			var roof := box(Vector3(7 + side * 1.3, base + 3.3, -5.65 + section * 1.1), Vector3(3.0, 0.14, 1.16), "435446" if section % 2 else "52604b")
+			var roof := box(Vector3(7 + side * 1.3, base + 3.3, -5.65 + section * 1.1), Vector3(3.0, 0.14, 1.08), "435446" if section % 2 else "52604b")
 			roof.rotation.z = -side * 0.5
 			roofs.append(roof)
 	for z in [-5.9, -4.6, -3.3, -2.0]:

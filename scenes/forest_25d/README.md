@@ -54,7 +54,10 @@ status timers continue; hunting progress resets when a predator deactivates.
 Collision uses deterministic world data and spatial buckets independently of
 loaded render chunks. The visible terrain and collision use the same analytic
 height/water definitions. Bridge approaches flatten dry banks without damming
-the channel. Gathered food does not reappear when returning to a chunk.
+the channel. Terrain stays beneath bridge decks and the cottage foundation;
+walking height uses the tops of those structures. Roof panels have small seams
+instead of overlapping coplanar faces, avoiding depth-buffer flicker.
+Gathered food does not reappear when returning to a chunk.
 
 ## Validation
 

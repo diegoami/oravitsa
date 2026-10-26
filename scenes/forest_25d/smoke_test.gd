@@ -26,6 +26,20 @@ func _run() -> void:
 		var crossing := Vector2(bridge_x + dx, 5)
 		assert(clearing._can_stand(clearing.from_ground(crossing)))
 		assert(is_equal_approx(clearing.landscape.height_at(crossing), 0.27))
+	# The rendered ground must stay below the real deck/floor, rather than
+	# duplicating the walkable surface and fighting it in the depth buffer.
+	for bridge in clearing.landscape.bridges:
+		for dx in [-2.4, -1.2, 0.0, 1.2, 2.4]:
+			for dz in [-0.7, 0.0, 0.7]:
+				var p := Vector2(bridge.x, bridge.y) + Vector2(dx, dz).rotated(bridge.z)
+				assert(clearing.landscape.terrain_height_at(p) < 0.11)
+				assert(is_equal_approx(clearing.landscape.height_at(p), 0.27))
+	assert(clearing.landscape.terrain_height_at(Vector2(7, -4)) < 0.39)
+	for chunk in clearing.landscape.chunks.values():
+		var ground: MeshInstance3D = chunk.get_node("RollingTerrain")
+		var vertices: PackedVector3Array = ground.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		for vertex in vertices:
+			assert(is_equal_approx(vertex.y, clearing.landscape.terrain_height_at(Vector2(vertex.x, vertex.z))))
 	assert(not clearing._can_stand(clearing.from_ground(Vector2(4.55, -4))))
 	assert(clearing._can_stand(clearing.from_ground(Vector2(7, -1.7))))
 	clearing.player_position = clearing.from_ground(Vector2(7, -3))
