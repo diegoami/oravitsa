@@ -214,16 +214,26 @@ func _terrain_chunk(key: Vector2i) -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var cells := 24
 	var step := CHUNK / cells
+	# Shared vertices and world-space derivatives keep rolling hills smooth and
+	# give neighboring chunks identical normals along their common boundary.
+	for z in cells + 1:
+		for x in cells + 1:
+			var p := Vector2(key) * CHUNK + Vector2(x, z) * step
+			st.set_normal(terrain_normal_at(p))
+			st.add_vertex(Vector3(p.x, terrain_height_at(p), p.y))
 	for z in cells:
 		for x in cells:
-			var p := Vector2(key) * CHUNK + Vector2(x, z) * step
-			var points: Array[Vector3] = []
-			for off in [Vector2.ZERO, Vector2(step, 0), Vector2(0, step), Vector2(step, step)]:
-				var q: Vector2 = p + off
-				points.append(Vector3(q.x, terrain_height_at(q), q.y))
-			_tri(st, points[0], points[2], points[1])
-			_tri(st, points[1], points[2], points[3])
+			var i := z * (cells + 1) + x
+			for index in [i, i + cells + 1, i + 1, i + 1, i + cells + 1, i + cells + 2]:
+				st.add_index(index)
 	_mesh(st.commit(), _terrain_material).name = "RollingTerrain"
+
+
+func terrain_normal_at(p: Vector2) -> Vector3:
+	const SAMPLE := 0.12
+	var dx := terrain_height_at(p + Vector2(SAMPLE, 0)) - terrain_height_at(p - Vector2(SAMPLE, 0))
+	var dz := terrain_height_at(p + Vector2(0, SAMPLE)) - terrain_height_at(p - Vector2(0, SAMPLE))
+	return Vector3(-dx, SAMPLE * 2, -dz).normalized()
 
 
 func _water() -> void:
@@ -461,7 +471,7 @@ func _prepare_trees() -> void:
 						var leaves := ShaderMaterial.new()
 						leaves.shader = load("res://scenes/forest_25d/foliage.gdshader")
 						leaves.set_shader_parameter("leaf_texture", mat.albedo_texture)
-						leaves.set_shader_parameter("tint", Color("79906d"))
+						leaves.set_shader_parameter("tint", Color("5d7455"))
 						_leaf_materials.append(leaves)
 						replacement = leaves
 					mesh.surface_set_material(surface, replacement)

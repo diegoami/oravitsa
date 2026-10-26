@@ -155,19 +155,22 @@ func _lighting() -> void:
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color("9ba98c")
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("bbc8a3")
-	env.ambient_light_energy = 0.85
+	env.ambient_light_color = Color("b8c8d0")
+	env.ambient_light_energy = 0.72
 	env.ambient_light_sky_contribution = 0.0
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.environment = env
 	stage.add_child(environment)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55, -32, 0)
-	sun.light_color = Color("fff7e8")
-	sun.light_energy = 0.95
+	sun.light_color = Color("ffedcf")
+	sun.light_energy = 1.0
 	sun.shadow_enabled = true
+	# A fixed orthographic view does not need perspective shadow cascades.
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 55
 	sun.shadow_bias = 0.04
+	sun.shadow_opacity = 0.75
 	stage.add_child(sun)
 
 

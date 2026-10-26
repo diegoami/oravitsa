@@ -28,6 +28,12 @@ Oravitsa keeps the approved eight-direction walk on a camera-facing sprite in
 a true 3D depth buffer, with a ground contact shadow. Foreground foliage opens a
 small dithered window around her so crowns do not completely hide her. This
 keeps her approved face/clothes; the camera follows at a fixed heading/elevation.
+The reveal closely surrounds her silhouette, fades with foreground depth, and
+anchors its stipple to world positions instead of the screen. Leaves receive
+lighting with a little backlight; cool ambient fill and warm sunlight give the
+canopy depth. A single orthographic shadow map avoids cascade transitions in
+the fixed view. Terrain uses smooth normals shared across chunk boundaries,
+with quieter grass variation and broad, slow water ripples to reduce shimmer.
 
 ## Controls
 
@@ -75,13 +81,14 @@ godot --headless --script scenes/forest_2d/controller_smoke_test.gd
 The world test checks species abundance, spawn clearance, distant collision,
 stream/model unloading, gathered-food persistence, fox clips, prey model removal
 and offscreen respawn, status recovery, stationary resizing, edge coverage, and
-flood-fill reachability of all landmarks. More than 32,000 square-metre grid
+flood-fill reachability of all landmarks. The scene test also checks ground
+clearance beneath structures and matching terrain normals at chunk boundaries.
+More than 32,000 square-metre grid
 positions connect to the start. GPU captures cover both large lakes, ruins,
 arrival, world map and portrait/landscape layouts.
 
-Short native samples at 1280×720 on Intel Iris Xe, with VSync disabled: about
-139–163 FPS across three locations, with 362–490 draw calls and 142–160k rendered
-triangles. These are native samples, not browser/mobile performance guarantees.
+Use F3 to inspect native frame rate, draw calls and triangle counts on the
+target device. Native samples do not predict browser/mobile performance.
 Web export uses the standard non-.NET Godot engine; an actual browser playtest
 remains separate from successful export and package startup checks.
 

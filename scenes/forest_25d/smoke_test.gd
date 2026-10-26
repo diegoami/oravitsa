@@ -35,11 +35,20 @@ func _run() -> void:
 				assert(clearing.landscape.terrain_height_at(p) < 0.11)
 				assert(is_equal_approx(clearing.landscape.height_at(p), 0.27))
 	assert(clearing.landscape.terrain_height_at(Vector2(7, -4)) < 0.39)
+	var shared_normals := {}
 	for chunk in clearing.landscape.chunks.values():
 		var ground: MeshInstance3D = chunk.get_node("RollingTerrain")
-		var vertices: PackedVector3Array = ground.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
-		for vertex in vertices:
+		var arrays: Array = ground.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		for i in vertices.size():
+			var vertex := vertices[i]
 			assert(is_equal_approx(vertex.y, clearing.landscape.terrain_height_at(Vector2(vertex.x, vertex.z))))
+			assert(absf(normals[i].length() - 1.0) < 0.001 and normals[i].y > 0)
+			var key := Vector2i(roundi(vertex.x * 1000), roundi(vertex.z * 1000))
+			if shared_normals.has(key):
+				assert(normals[i].distance_to(shared_normals[key]) < 0.001, "Terrain lighting seam at chunk boundary")
+			shared_normals[key] = normals[i]
 	assert(not clearing._can_stand(clearing.from_ground(Vector2(4.55, -4))))
 	assert(clearing._can_stand(clearing.from_ground(Vector2(7, -1.7))))
 	clearing.player_position = clearing.from_ground(Vector2(7, -3))

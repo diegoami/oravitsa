@@ -14,8 +14,8 @@ float river_x(float z) {
 void vertex() { world=(MODEL_MATRIX*vec4(VERTEX,1.0)).xyz; }
 void fragment() {
  vec2 p=world.xz;
- float grain=noise(p*6.0)*0.35+noise(p*1.3)*0.65;
- vec3 grass=mix(vec3(0.22,0.32,0.12),vec3(0.47,0.52,0.22),grain);
+ float grain=noise(p*2.8)*0.4+noise(p*0.65)*0.6;
+ vec3 grass=mix(vec3(0.30,0.36,0.18),vec3(0.45,0.48,0.25),grain);
  float road=abs(p.y-(5.0+0.6*sin(p.x*0.15)));
  road=min(road,abs(p.y-(-28.0+0.6*sin(p.x*0.15))));
  road=min(road,abs(p.y-(58.0+0.6*sin(p.x*0.15))));
