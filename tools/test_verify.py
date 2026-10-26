@@ -1,6 +1,7 @@
 """Prove the gate rejects Godot's exit-zero failure modes, not just crashes."""
 from pathlib import Path
 import sys
+import time
 import unittest
 
 from verify import run_checked
@@ -37,6 +38,16 @@ class VerifyTests(unittest.TestCase):
     def test_timeout(self):
         with self.assertRaisesRegex(RuntimeError, "could not complete"):
             self.run_program("import time; time.sleep(10)", timeout=0.05)
+
+    def test_error_then_hang_fails_early_with_diagnostics(self):
+        started = time.monotonic()
+        with self.assertRaisesRegex(RuntimeError, r"\nSCRIPT ERROR: Assertion failed"):
+            self.run_program("import time; print('SCRIPT ERROR: Assertion failed at fixture:7', flush=True); time.sleep(10)", timeout=3)
+        self.assertLess(time.monotonic() - started, 2.0)
+
+    def test_timeout_retains_output(self):
+        with self.assertRaisesRegex(RuntimeError, r"\nlast diagnostic before hang"):
+            self.run_program("import time; print('last diagnostic before hang', flush=True); time.sleep(10)", timeout=0.5)
 
     def test_missing_executable(self):
         with self.assertRaisesRegex(RuntimeError, "could not complete"):

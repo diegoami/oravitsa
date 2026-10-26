@@ -21,13 +21,14 @@ jobs:
           mkdir -p build
           touch build/.gdignore
           python3 -m unittest discover -s tools -p 'test_*.py'
+          python3 -m unittest discover -s art -p 'test_*.py'
           python3 tools/verify.py
       - name: Export both platforms
         run: python3 tools/export.py all
       - name: Check native export starts
         run: |
           chmod +x build/linux/oravitsa.x86_64
-          build/linux/oravitsa.x86_64 --headless --quit-after 10
+          python3 tools/verify.py --native-smoke build/linux/oravitsa.x86_64
       - uses: actions/upload-artifact@v4
         with:
           name: oravitsa-web

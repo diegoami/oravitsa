@@ -51,6 +51,10 @@ Terrain, trees, rocks, grass, flowers and pickups stream in **16 m chunks** arou
 the visible camera area, including camera lag and a margin for tree overhang.
 Phone and wide-window layouts derive coverage from the viewport. Native captures
 load about 8–16 nearby chunks; the entire world is not instantiated at once.
+During walking, a nearest-first queue builds at most one new chunk per frame
+inside the 9 m margin; repeated refreshes share that frame's budget. Reversing
+direction discards stale requests. Startup, teleports larger than the margin
+and viewport resizing fill the new view immediately before it is drawn.
 Tree meshes/materials and animal animation resources are shared. Each pickup
 cluster uses a single combined mesh. Only nearby animals have model instances
 and active movement simulation. All animal positions, home areas, prey respawn
@@ -61,21 +65,19 @@ Collision uses deterministic world data and spatial buckets independently of
 loaded render chunks. The visible terrain and collision use the same analytic
 height/water definitions. Bridge approaches flatten dry banks without damming
 the channel. Terrain stays beneath bridge decks and the cottage foundation;
-walking height uses the tops of those structures. Roof panels have small seams
-instead of overlapping coplanar faces, avoiding depth-buffer flicker.
+walking height uses the tops of those structures.
+Wooden bridge approaches and the stone doorstep ramp blend walking height into
+the deck/floor without raising the riverbed or duplicating the deck in terrain.
+Roof panels have small seams instead of overlapping coplanar faces, avoiding
+depth-buffer flicker.
 Gathered food does not reappear when returning to a chunk.
 
 ## Validation
 
-Import once with `godot --headless --editor --import`, then run:
+Run the shared error-aware gate (it imports first):
 
 ```sh
-godot --headless --script scenes/forest_25d/smoke_test.gd
-godot --headless --script scenes/forest_25d/world_smoke_test.gd
-godot --headless --script scenes/forest_2d/smoke_test.gd
-godot --headless --script scenes/forest_2d/mobile_smoke_test.gd
-godot --headless --script scenes/forest_2d/sling_smoke_test.gd
-godot --headless --script scenes/forest_2d/controller_smoke_test.gd
+python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The world test checks species abundance, spawn clearance, distant collision,
