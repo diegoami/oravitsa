@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the same Godot project for static Web hosting and/or native Linux."""
+"""Export the same Godot project for Web, Windows and Linux."""
 import argparse
 import os
 from pathlib import Path
@@ -58,7 +58,7 @@ def web_project(build: Path) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("target", choices=["web", "linux", "all"], default="web", nargs="?")
+    parser.add_argument("target", choices=["web", "windows", "linux", "all"], default="web", nargs="?")
     parser.add_argument("--godot", default=os.environ.get("GODOT_BIN", "godot"))
     args = parser.parse_args()
     build = ROOT / "build"
@@ -77,6 +77,11 @@ def main() -> None:
         linux = build / "linux"
         linux.mkdir(exist_ok=True)
         run(args.godot, "--export-release", "Linux", str(linux / "oravitsa.x86_64"))
+    if args.target in ("windows", "all"):
+        run(args.godot, "--editor", "--import")
+        windows = build / "windows"
+        windows.mkdir(exist_ok=True)
+        run(args.godot, "--export-release", "Windows", str(windows / "oravitsa.exe"))
 
 
 if __name__ == "__main__":

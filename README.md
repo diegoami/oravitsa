@@ -88,13 +88,20 @@ even though this project uses only GDScript, and its templates
 if the chosen engine is the .NET edition. Then:
 
 ```sh
-# Website (build/site/) and native Linux executable (build/linux/)
+# Website and native Linux/Windows executables
 python3 tools/export.py all
 
 # Or export only one target; --godot selects a specific engine executable
 python3 tools/export.py web --godot /path/to/standard/godot
 python3 tools/export.py linux
+python3 tools/export.py windows
 ```
+
+The Windows build is `build/windows/oravitsa.exe`; the Linux build is
+`build/linux/oravitsa.x86_64`. From a clean candidate checkout,
+`python3 tools/package_release.py` creates three downloadable ZIPs plus source
+metadata and SHA-256 checksums under `build/releases/<version>/`. Packaging
+does not create a tag or publish a release. See [release policy](docs/RELEASES.md).
 
 Host `build/site/` on an HTTPS static host. The browser explicitly decompresses
 the engine, so startup does not depend on the host applying `_headers` or

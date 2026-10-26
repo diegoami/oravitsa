@@ -23,7 +23,7 @@ jobs:
           python3 -m unittest discover -s tools -p 'test_*.py'
           python3 -m unittest discover -s art -p 'test_*.py'
           python3 tools/verify.py
-      - name: Export both platforms
+      - name: Export Web, Linux and Windows
         run: python3 tools/export.py all
       - name: Check native export starts
         run: |
@@ -37,3 +37,7 @@ jobs:
         with:
           name: oravitsa-linux
           path: build/linux/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: oravitsa-windows
+          path: build/windows/
