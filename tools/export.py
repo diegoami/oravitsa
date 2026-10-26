@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Export the same Godot project for Web, Windows and Linux."""
 import argparse
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -8,12 +9,26 @@ import re
 import shutil
 
 from package_web import package
+from verify import run_checked
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def run(godot: str, *arguments: str, project: Path = ROOT) -> None:
-    subprocess.run([godot, "--headless", "--path", str(project), *arguments], check=True)
+    print(run_checked([godot, "--headless", "--path", str(project), *arguments],
+                      "Godot export/import", timeout=600, cwd=ROOT), end="")
+
+
+def source_state() -> dict:
+    commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True).strip())
+    return {"source_commit": commit, "source_dirty": dirty}
+
+
+def stamp_export(target: Path, before: dict) -> None:
+    if source_state() != before:
+        raise SystemExit("Source changed during export; rerun from the intended checkout.")
+    (target / "EXPORT_SOURCE.json").write_text(json.dumps(before, indent=2) + "\n", encoding="utf-8")
 
 
 def require_web_capable_engine(godot: str) -> None:
@@ -61,6 +76,7 @@ def main() -> None:
     parser.add_argument("target", choices=["web", "windows", "linux", "all"], default="web", nargs="?")
     parser.add_argument("--godot", default=os.environ.get("GODOT_BIN", "godot"))
     args = parser.parse_args()
+    source = source_state()
     build = ROOT / "build"
     build.mkdir(exist_ok=True)
     (build / ".gdignore").touch()
@@ -72,16 +88,19 @@ def main() -> None:
         web.mkdir(exist_ok=True)
         run(args.godot, "--export-release", "Web", str(web / "index.html"), project=project)
         package(web, build / "site")
+        stamp_export(build / "site", source)
     if args.target in ("linux", "all"):
         run(args.godot, "--editor", "--import")
         linux = build / "linux"
         linux.mkdir(exist_ok=True)
         run(args.godot, "--export-release", "Linux", str(linux / "oravitsa.x86_64"))
+        stamp_export(linux, source)
     if args.target in ("windows", "all"):
         run(args.godot, "--editor", "--import")
         windows = build / "windows"
         windows.mkdir(exist_ok=True)
         run(args.godot, "--export-release", "Windows", str(windows / "oravitsa.exe"))
+        stamp_export(windows, source)
 
 
 if __name__ == "__main__":

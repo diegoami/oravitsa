@@ -23,6 +23,12 @@ def main() -> None:
     for folder, filename in required.items():
         if not (ROOT / "build" / folder / filename).is_file():
             raise SystemExit(f"Missing {folder} export; run tools/export.py all first.")
+        stamp = ROOT / "build" / folder / "EXPORT_SOURCE.json"
+        if not stamp.is_file():
+            raise SystemExit(f"Missing provenance for {folder}; rebuild with tools/export.py.")
+        state = json.loads(stamp.read_text(encoding="utf-8"))
+        if state.get("source_commit") != commit or state.get("source_dirty") is not False:
+            raise SystemExit(f"Stale or dirty {folder} export; rebuild from {commit}.")
     output = ROOT / "build" / "releases" / f"v{version}"
     output.mkdir(parents=True, exist_ok=True)
     readme = f"""Oravitsa v{version} — Mossbank woods
