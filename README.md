@@ -120,12 +120,18 @@ the native Linux executable. Other desktop targets remain available through
 Godot's normal export dialog.
 
 ```sh
-godot --headless --editor --import
-godot --headless --script scenes/forest_2d/smoke_test.gd
-godot --headless --script scenes/forest_2d/mobile_smoke_test.gd
-godot --headless --script scenes/forest_2d/sling_smoke_test.gd
-godot --headless --script scenes/forest_2d/controller_smoke_test.gd
+python3 -m unittest discover -s tools -p 'test_*.py'
+python3 -m unittest discover -s art -p 'test_*.py'
+python3 tools/verify.py --godot /path/to/standard/godot
 ```
+
+The runner imports and checks both forests, queued streaming and the retained
+foraging prototype (eight smoke scripts). It rejects logged errors immediately
+and preserves output on timeouts. Native package startup uses the same log
+checks via `python3 tools/verify.py --native-smoke /path/to/export`.
+The offline art tests mock paid APIs; they make no uploads or paid requests.
+`node art/test_walk_layout.mjs` is a local artifact-dependent check: it requires
+the ignored Blender render manifest and is not a clean-checkout CI gate.
 
 ## Project layout
 

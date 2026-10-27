@@ -24,6 +24,10 @@ var _terrain_material: ShaderMaterial
 var _water_material: ShaderMaterial
 var _stream_rect := Rect2i()
 var _reed_mesh: Mesh
+var _pending_chunks: Array[Vector2i] = []
+var _stream_center := Vector2.ZERO
+var _stream_half := Vector2.ZERO
+var _last_build_frame := -1
 
 
 func river_x(z: float) -> float:
@@ -70,7 +74,16 @@ func height_at(p: Vector2) -> float:
 		return 0.27
 	if Rect2(4.5, -6.2, 5.0, 4.4).has_point(p):
 		return 0.55
-	return terrain_height_at(p)
+	if Rect2(6.3, -1.975, 1.4, 0.75).has_point(p):
+		return 0.55 # Existing stone doorstep is part of the walkable floor.
+	var height := terrain_height_at(p)
+	if p.x >= 6.3 and p.x <= 7.7 and p.y >= -1.225 and p.y < -0.35:
+		return lerpf(0.55, height, smoothstep(-1.225, -0.35, p.y))
+	for bridge in bridges:
+		var local := (p - Vector2(bridge.x, bridge.y)).rotated(-bridge.z)
+		if absf(local.y) <= 0.85 and absf(local.x) < 3.8:
+			return lerpf(0.27, height, smoothstep(2.6, 3.8, absf(local.x)))
+	return height
 
 
 func terrain_height_at(p: Vector2) -> float:
@@ -166,28 +179,43 @@ func stream(center: Vector2, half: Vector2) -> bool:
 	minimum = minimum.max(Vector2i(-8, -8))
 	maximum = maximum.min(Vector2i(7, 7))
 	var rect := Rect2i(minimum, maximum - minimum + Vector2i.ONE)
-	if rect == _stream_rect:
-		return false
-	_stream_rect = rect
-	for key in chunks.keys():
-		if not rect.has_point(key):
-			chunks[key].queue_free()
-			chunks.erase(key)
-	for z in range(rect.position.y, rect.end.y):
-		for x in range(rect.position.x, rect.end.x):
-			var key := Vector2i(x, z)
-			if chunks.has(key):
-				continue
-			var chunk := Node3D.new()
-			chunk.name = "Chunk_%d_%d" % [x, z]
-			add_child(chunk)
-			chunks[key] = chunk
-			_build_parent = chunk
-			_terrain_chunk(key)
-			_vegetation_chunk(key)
-			_shore_chunk(key)
+	# Fill a genuinely new view before drawing it. Normal walking has a 9 m
+	# margin, so its newly requested border can be built one chunk per frame.
+	var immediate := chunks.is_empty() or center.distance_to(_stream_center) > 9.0 or not half.is_equal_approx(_stream_half)
+	_stream_center = center
+	_stream_half = half
+	var changed := rect != _stream_rect
+	if changed:
+		_stream_rect = rect
+		for key in chunks.keys():
+			if not rect.has_point(key):
+				chunks[key].queue_free()
+				chunks.erase(key)
+		# Rebuild requests on direction changes; never construct obsolete chunks.
+		_pending_chunks.clear()
+		for z in range(rect.position.y, rect.end.y):
+			for x in range(rect.position.x, rect.end.x):
+				var key := Vector2i(x, z)
+				if not chunks.has(key):
+					_pending_chunks.append(key)
+		_pending_chunks.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+			return (Vector2(a) * CHUNK + Vector2.ONE * CHUNK * 0.5).distance_squared_to(center) < (Vector2(b) * CHUNK + Vector2.ONE * CHUNK * 0.5).distance_squared_to(center))
+	var frame := Engine.get_process_frames()
+	var budget := _pending_chunks.size() if immediate else (1 if frame != _last_build_frame else 0)
+	for i in mini(budget, _pending_chunks.size()):
+		var key: Vector2i = _pending_chunks.pop_front()
+		var chunk := Node3D.new()
+		chunk.name = "Chunk_%d_%d" % [key.x, key.y]
+		add_child(chunk)
+		chunks[key] = chunk
+		_build_parent = chunk
+		_terrain_chunk(key)
+		_vegetation_chunk(key)
+		_shore_chunk(key)
+		_last_build_frame = frame
+		changed = true
 	_build_parent = null
-	return true
+	return changed
 
 
 func material(color: String) -> StandardMaterial3D:
@@ -301,6 +329,30 @@ func _bridge() -> void:
 			for dx in [-2.4, 2.4]:
 				box(Vector3(dx, 0.56, z), Vector3(0.13, 1.3, 0.13), "6a553c")
 	_build_parent = null
+	for bridge in bridges:
+		for side in [-1, 1]:
+			var center := Vector2(bridge.x, bridge.y)
+			_ramp(center + Vector2(side * 2.6, 0).rotated(bridge.z), center + Vector2(side * 3.8, 0).rotated(bridge.z), 0.85, "796247")
+
+
+func _ramp(a: Vector2, b: Vector2, half_width: float, color: String) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var side := (b - a).normalized().orthogonal() * half_width
+	for i in 12:
+		var points: Array[Vector3] = []
+		for p in [a.lerp(b, i / 12.0) - side, a.lerp(b, i / 12.0) + side, a.lerp(b, (i + 1) / 12.0) - side, a.lerp(b, (i + 1) / 12.0) + side]:
+			# Small separation from the bank avoids reintroducing depth fighting.
+			points.append(Vector3(p.x, height_at(p) + 0.006, p.y))
+		for indices in [Vector3i(0, 2, 1), Vector3i(1, 2, 3)]:
+			var p := points[indices.x]
+			var q := points[indices.y]
+			var r := points[indices.z]
+			if (q - p).cross(r - p).y < 0:
+				_tri(st, p, r, q)
+			else:
+				_tri(st, p, q, r)
+	_mesh(st.commit(), material(color)).name = "ApproachRamp"
 
 
 func _ruin(p: Vector2, variant: int) -> void:
@@ -354,6 +406,7 @@ func _cottage() -> void:
 	for x in [5.0, 5.32, 5.64]:
 		box(Vector3(x, base + 1.5, -1.73), Vector3(0.14, 0.88, 0.06), "64573e")
 	box(Vector3(7, base + 0.08, -1.6), Vector3(1.4, 0.16, 0.75), "84826e")
+	_ramp(Vector2(7, -1.225), Vector2(7, -0.35), 0.7, "84826e")
 	var door := box(Vector3(9.65, base + 0.9, -1.75), Vector3(0.8, 1.7, 0.09), "62553b")
 	door.rotation = Vector3(-0.12, 0.15, -0.2)
 	var ivy: Array[Transform3D] = []

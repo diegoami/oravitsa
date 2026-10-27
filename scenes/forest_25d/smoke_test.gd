@@ -35,6 +35,12 @@ func _run() -> void:
 				assert(clearing.landscape.terrain_height_at(p) < 0.11)
 				assert(is_equal_approx(clearing.landscape.height_at(p), 0.27))
 	assert(clearing.landscape.terrain_height_at(Vector2(7, -4)) < 0.39)
+	for bridge in clearing.landscape.bridges:
+		for side in [-1, 1]:
+			var a := Vector2(bridge.x, bridge.y) + Vector2(side * 2.61, 0).rotated(bridge.z)
+			var b := Vector2(bridge.x, bridge.y) + Vector2(side * 2.59, 0).rotated(bridge.z)
+			assert(absf(clearing.landscape.height_at(a) - clearing.landscape.height_at(b)) < 0.02, "Bridge entry must not snap vertically")
+	assert(absf(clearing.landscape.height_at(Vector2(7, -1.79)) - clearing.landscape.height_at(Vector2(7, -1.81))) < 0.02, "Cottage threshold must not snap vertically")
 	var shared_normals := {}
 	for chunk in clearing.landscape.chunks.values():
 		var ground: MeshInstance3D = chunk.get_node("RollingTerrain")
