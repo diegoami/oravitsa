@@ -4,11 +4,11 @@ Contribution and verification rules: [AGENTS.md](AGENTS.md). Independent
 [PR reviews](docs/review-pr.md) use a separate session; formal
 [milestone reviews](docs/RELEASES.md) happen before a release tag.
 
-Oravitsa is a cosy forest game prototype. The default scene is the streamed
-**192 × 192 m Mossbank woods**, a 2.5D world with three lakes, a river and
-tributary, four bridges, five abandoned sites and the forester's old well.
-Gather berries and mushrooms, explore the ruins, and watch five wildlife
-species. See the [world guide](scenes/forest_25d/README.md),
+Oravitsa is a cosy forest game prototype. The default scene is the **endless
+Mossbank woods**: a procedural 2.5D world with meandering roads and waterways,
+generated bridges, lakes, ruins, standing stones and abandoned camps. Walk in
+any direction through meadows, birch, pine and alder-marsh areas. Gather food
+and watch six wildlife species. See the [endless-world guide](scenes/endless_woods/README.md),
 [design](docs/design.md) and [character reference](docs/character.md).
 
 ## Play
@@ -38,14 +38,23 @@ separate westward views. Her gait follows actual movement and keeps its phase
 through turns; blocked movement and stun return her to a grounded idle pose.
 
 Hares are frequent, deer and foxes are less common, boars are uncommon, and
-lynxes are rare. The fixed seed starts with **127 animals: 83 hares, 23 deer,
-11 foxes, 9 boars and one lynx**, with four hares close to the arrival area.
-Replenishment keeps the species-specific chances. New arrivals and respawns
+wolves and lynxes are more frequent than in the retained finite scene. The
+fixed seed starts with **103 animals: 62 hares, 14 deer, 12 foxes, 5 boars,
+6 lynxes and 4 wolves**, with four hares near arrival. Replenishment keeps
+species-specific chances. New arrivals and respawns
 wait outside the actual camera view, including its smoothing lag.
 
 Terrain, trees, food and nearby animal models stream around the camera. Gathered
 food and wildlife state survive leaving and returning to an area during the
 session. Progress is **not saved** across quitting or reloading.
+Rendering rebases its local origin during long walks; generated world data has
+no fixed playable border. Only nearby terrain and animal visuals stay loaded.
+
+The earlier **192 × 192 m clearing** remains playable at
+`res://scenes/forest_25d/clearing.tscn`, with its three lakes, four bridges and
+five abandoned sites. Its [guide](scenes/forest_25d/README.md) describes that
+finite version. The independently pinned alpha draft remains unchanged by
+this development branch.
 
 The original painted **416 × 416 tile 2D forest** remains playable at
 `res://scenes/forest_2d/forest.tscn`; open it and press **F6**. Its dark blocked
@@ -136,7 +145,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (nine smoke scripts). It rejects logged errors immediately
+foraging prototype (eleven smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.
@@ -145,8 +154,10 @@ the ignored Blender render manifest and is not a clean-checkout CI gate.
 
 ## Project layout
 
-- `scenes/forest_25d/` — current default world, terrain/water/foliage, streamed
-  scenery, 3D animal presentation, cottage/bridge/well dressing and world map.
+- `scenes/endless_woods/` — current default, procedural terrain/roads/ecology,
+  sparse forage state, floating origin, local map and recovery pathfinding.
+- `scenes/forest_25d/` — shared 3D presentation and retained finite clearing,
+  terrain/water/foliage, cottage/bridge/well dressing and world map.
 - `scenes/forest_2d/` — shared simulation, input, HUD and approved heroine walk,
   plus the retained painted forest scene and its map/tiles/props.
 - `prototypes/foraging_2d/` — earlier fixed-clearing game, retained as a
@@ -162,14 +173,16 @@ animation through fal.ai, followed by local mesh/rig repairs and Blender
 renders. See [the experiment record](docs/tripo-experiment.md) and
 [approved-walk provenance](scenes/forest_2d/art/oravitsa/provenance.json).
 
-The 2.5D deer and foxes use rigged Quaternius models; hares, boars and lynxes use
+The 2.5D deer, foxes and wolves use rigged Quaternius models; hares, boars and lynxes use
 painted animated billboards. Their sources and the tree assets are recorded in
 [asset attribution](scenes/forest_25d/assets/ATTRIBUTION.md). The retained 2D
 tile/prop bitmap generation used no Tripo, fal.ai or OpenRouter credits; that
 statement does not apply to the heroine's paid 3D-to-sprite pipeline.
 
-Diagonal movement uses the open diagonal cell when possible. Lynxes sprint in
-short bursts and can catch hares quickly. Deer take three seconds of continuous
-close pursuit to catch; both prey species return later away from the player.
+Wolves and lynxes sprint in short bursts and catch hares quickly. Deer take
+three seconds of continuous close pursuit to catch; both prey species return
+later away from the player. A catch resets the predator's hunger; after 180 s
+without a catch it despawns, including offscreen. Stuck animals can plan a local
+collision-safe recovery route. The finite scenes retain their original ecology.
 Oravitsa cannot kill any animal, including hares. There are no quests, swimming,
 building loot or camera orbit yet; this is an early playable alpha.

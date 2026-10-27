@@ -21,6 +21,8 @@ SMOKES = (
     ("scenes/forest_25d/streaming_smoke_test.gd", "Streaming smoke test passed:"),
     ("scenes/forest_25d/spawn_smoke_test.gd", "Spawn smoke test passed:"),
     ("prototypes/foraging_2d/smoke_test.gd", "2D foraging smoke test passed"),
+    ("scenes/endless_woods/world_smoke_test.gd", "Endless world smoke test passed:"),
+    ("scenes/endless_woods/wildlife_smoke_test.gd", "Endless wildlife smoke test passed:"),
 )
 ERROR = re.compile(r"^\s*(?:(?:SCRIPT|SHADER|USER) ERROR:|ERROR:)", re.MULTILINE)
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
