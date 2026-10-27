@@ -41,8 +41,8 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twelve smoke scripts, including endless-world
-travel/rebasing/ecology/food regrowth, queued streaming, offscreen wildlife spawning and the
+`verify.py` imports and runs all thirteen smoke scripts, including targeted
+Shoo, endless-world travel/rebasing/ecology/food regrowth, queued streaming, offscreen wildlife spawning and the
 retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
@@ -64,6 +64,9 @@ Record unavailable checks as untested, never as passed.
 ## Gameplay contracts
 
 - Oravitsa cannot kill animals, including hares. Sling stuns; Shoo repels.
+  Both use the selected animal. Shoo applies five seconds of visible scared
+  status and fast escape, with a seven-second cooldown; invalid casts do not
+  spend cooldown. It interrupts feeding/hunting and existing animal stun.
   Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
 - In the endless world wolves/lynxes are more frequent, hunt both prey species
   and despawn after 180 hungry seconds. The finite scenes retain rare lynxes.

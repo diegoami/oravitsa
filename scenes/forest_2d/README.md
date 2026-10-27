@@ -25,8 +25,10 @@ remain passable. Tree, bush, stone, and log collision follows their small base
 footprints instead of filling their whole tile, so a visible diagonal gap
 between two props can be crossed. Animals and Oravitsa have solid circular
 footprints. A bump
-stuns both for 0.85 seconds. Space shoos animals within 200 px for 3 seconds,
-with a 7-second cooldown. Boars move slowly, forage for mushrooms and berries,
+stuns both for 0.85 seconds. Select an animal, then Space scares that target
+within 600 px for five seconds, with a seven-second cooldown. A visible SCARED
+countdown marks its fast escape away from Oravitsa. Invalid casts spend no
+cooldown. Boars move slowly, forage for mushrooms and berries,
 and sometimes hold their ground near Oravitsa. Deer seek berries and flee
 lynxes; lynxes pursue nearby deer and hares in 1.5-second bursts at 220 px/s,
 then recover before sprinting again. Hares are caught immediately on contact;

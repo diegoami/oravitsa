@@ -47,8 +47,10 @@ const STREAM_MARGIN := 2
 const POPULATION_RADIUS := 1150.0
 const POPULATION_INTERVAL := 7.0
 const PLAYER_RADIUS := 24.0
-const SHOO_RANGE := 200.0
+const SHOO_RANGE := 600.0
 const SHOO_COOLDOWN := 7.0
+const SHOO_FEAR_TIME := 5.0
+const SHOO_FLEE_SPEED := SPEED * 1.8
 const SLING_RANGE := 600.0
 const SLING_COOLDOWN := 4.0
 const SLING_STUN_TIME := 3.0
@@ -872,13 +874,33 @@ func _can_animal_move(id: int, candidate: Vector2) -> bool:
 
 
 func _shoo() -> void:
-	if shoo_cooldown > 0.0 or player_stun > 0.0:
+	if not _shoo_ready():
 		return
 	shoo_cooldown = SHOO_COOLDOWN
-	for id in _active_animals.keys():
-		if _animals[id]["alive"] and _animals[id]["position"].distance_to(player_position) <= SHOO_RANGE:
-			_animals[id]["shoo"] = 3.0
-			_animals[id]["timeout"] = 0.0
+	var data := _animals[selected_target]
+	var away: Vector2 = (data["position"] - player_position).normalized()
+	if away.length_squared() < 0.01:
+		away = Vector2.DOWN
+	data["shoo"] = SHOO_FEAR_TIME
+	data["state"] = "scared"
+	data["stun"] = 0.0
+	data["feeding"] = 0.0
+	data["eat_time"] = 0.0
+	data["burst"] = 0.0
+	data["catch_target"] = -1
+	data["catch_time"] = 0.0
+	data["timeout"] = 0.0
+	data["velocity"] = away * SHOO_FLEE_SPEED
+	if data.has("route"):
+		data["route"] = PackedVector2Array()
+		data["nav_cooldown"] = 0.0
+		data["stuck"] = 0.0
+		data["progress_time"] = 0.0
+		data["progress_origin"] = data["position"]
+
+
+func _shoo_ready() -> bool:
+	return _valid_sling_target(selected_target) and shoo_cooldown <= 0 and player_stun <= 0 and player_position.distance_to(_animals[selected_target]["position"]) <= SHOO_RANGE
 
 
 func _catch_prey(lynx_id: int, prey_id: int, delta: float = 0.0) -> bool:
@@ -1041,6 +1063,10 @@ func _move_animals(delta: float) -> void:
 		var sprite: AnimatedSprite2D = _active_animals[id]
 		data["stun"] = maxf(0.0, data["stun"] - delta)
 		data["shoo"] = maxf(0.0, data["shoo"] - delta)
+		sprite.speed_scale = 2.2 if data["shoo"] > 0 else 1.0
+		if data["shoo"] <= 0.0 and data["state"] == "scared":
+			data["state"] = "idle"
+			data["timeout"] = 0.0
 		var was_feeding: bool = data["feeding"] > 0.0
 		data["feeding"] = maxf(0.0, data["feeding"] - delta)
 		if was_feeding and data["feeding"] <= 0.0:
@@ -1068,9 +1094,16 @@ func _move_animals(delta: float) -> void:
 		var avoid_player := player_distance < (135.0 if kind == BOAR else 235.0)
 		if kind == BOAR and _hash(id, 0, 451) < 0.45 and player_distance > 80.0:
 			avoid_player = false
-		if data["shoo"] > 0.0 or threat >= 0 or avoid_player:
+		if data["shoo"] > 0.0:
+			var away: Vector2 = (position - player_position).normalized()
+			if away.length_squared() < 0.01:
+				away = Vector2.DOWN
+			target = position + away * 600
+			data["state"] = "scared"
+			speed = maxf(SHOO_FLEE_SPEED, ANIMAL_SPEEDS[kind] * 2.4)
+		elif threat >= 0 or avoid_player:
 			var away := Vector2.ZERO
-			if data["shoo"] > 0.0 or avoid_player:
+			if avoid_player:
 				away += (position - player_position).normalized()
 			if threat >= 0:
 				away += (position - _animals[threat]["position"]).normalized() * 1.4
@@ -1227,16 +1260,16 @@ func _update_hud() -> void:
 	if controller:
 		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLB / RB: switch active skill\nY / Triangle: cast · A / Cross: pick up\nSelect: map · Start: help"
 	elif touch:
-		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap a skill to use it\nWalk over mushrooms & berries\nUse the top buttons to hide panels"
+		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap Shoo or Sling on that target\nWalk over mushrooms & berries\nUse the top buttons to hide panels"
 	else:
-		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling\nSpace: shoo nearby animals\nM: map · H: instructions"
+		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling target\nSpace: scare selected animal\nM: map · H: instructions"
 	var target_name: String = ANIMAL_NAMES[_animals[selected_target]["kind"]] if _valid_sling_target(selected_target) else ""
 	_sling_label.text = "Right stick: select target" if controller else ("Tap animal to target" if touch else "Click animal to target")
 	if not target_name.is_empty():
 		_sling_label.text = target_name + (" · Out of range" if player_position.distance_to(_animals[selected_target]["position"]) > SLING_RANGE else " · Selected")
 	if player_stun > 0:
 		_sling_label.text = "Recovering"
-	_shoo_button.disabled = shoo_cooldown > 0.0 or player_stun > 0.0
+	_shoo_button.disabled = not _shoo_ready()
 	_sling_button.disabled = not _sling_ready()
 	_shoo_button.set("cooldown", shoo_cooldown)
 	_sling_button.set("cooldown", sling_cooldown)

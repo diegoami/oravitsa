@@ -304,7 +304,7 @@ func _plan_route(id: int, target: Vector2) -> PackedVector2Array:
 
 func _steer_animal(id: int, heading: Vector2, target: Vector2, _delta: float) -> Vector2:
 	var data := _animals[id]
-	if data["route_goal"].distance_to(target) > 150:
+	if data["shoo"] <= 0 and data["route_goal"].distance_to(target) > 150:
 		data["route"] = PackedVector2Array()
 	if data["stuck"] > 0 and data["nav_cooldown"] <= 0 and _nav_budget > 0:
 		_nav_budget -= 1

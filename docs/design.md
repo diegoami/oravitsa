@@ -14,6 +14,9 @@ prototype uses a hunger clock; the current exploration scene has no time limit.
 Her interactions with creatures are non-lethal influences such as shooing,
 attracting, confusing, or slowing. The sling temporarily stuns a selected animal;
 it does not injure or kill it.
+Shoo is also targeted: it interrupts the selected animal and sends it running
+away from Oravitsa for five seconds, with a visible scared countdown. Other
+animals are unaffected, and invalid targets do not consume cooldown.
 
 - Animal predation is separate from player abilities: wolves and lynxes can kill hares
   and deer. Hares are caught quickly; deer require three seconds of continuous

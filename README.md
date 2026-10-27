@@ -19,7 +19,7 @@ map and help start hidden, toggled with **M/H** or their buttons. Walking over
 food collects it with keyboard/touch; on controller press **A/Cross** nearby.
 Water, trunks, large rocks, walls and the well block movement; use bridges to
 cross the waterways. Low path and shore stones can be stepped over. The cottage
-roof cuts away inside. Press **Space** to shoo nearby wildlife.
+roof cuts away inside. Select an animal, then press **Space** to Shoo it.
 
 **Click an animal** to
 select it, then **right-click**, press **F**, or click **Sling** to throw a stone. On phones,
@@ -29,6 +29,16 @@ target; the ring turns red when it is too far away. Stones stun on impact for
 Stunned animals stop moving and show circling stars, then recover. The sling
 does not injure or remove animals. Clicking or tapping empty ground clears
 the selection. Movement and Shoo remain available while using the sling.
+
+**Shoo uses the same selected animal and range as Sling** (600 simulation px,
+about 9.4 m in 2.5D). Space, the Shoo button, or controller Y with Shoo selected
+gives that animal **five seconds of SCARED status**, shown above its head with
+a countdown. It immediately abandons feeding/hunting and runs away from
+Oravitsa faster than she can walk. Existing animal stun is cleared so it can
+flee immediately. No target, a dead/out-of-range target, player stun or cooldown
+prevents the cast without wasting its seven-second cooldown. Other animals
+are unaffected; normal behavior returns after fear expires. Both skills remain
+non-lethal.
 
 Animals avoid each other and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
 stuns both of them.
@@ -148,7 +158,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (twelve smoke scripts). It rejects logged errors immediately
+foraging prototype (thirteen smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.

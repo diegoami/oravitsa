@@ -63,6 +63,13 @@ The population system may later introduce a different arriving animal.
 Wolves use a rigged Quaternius CC0 model with Idle/Walk/Eating clips; there are
 no attack or death animation calls. Oravitsa still cannot kill any animal:
 Sling stuns and Shoo repels, with the existing keyboard/touch/controller inputs.
+Shoo shares the selected target/range with Sling and scares only that animal
+for five seconds. It interrupts feeding/hunting and existing animal stun,
+immediately starts a fast escape away from Oravitsa, and shows an orange
+`SCARED` countdown above the animal. Rigged animals gallop where available;
+painted animals animate faster. The cooldown is seven seconds and is not spent
+on invalid casts. Fear has priority over prey pursuit, food and home return;
+ordinary AI resumes when it expires. Collision and recovery routes still apply.
 
 Animals that make little progress for 0.8 s can request a bounded 19 × 19
 local A* route around solid scenery. At most one recovery route is planned

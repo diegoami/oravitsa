@@ -129,6 +129,7 @@ func _run() -> void:
 	assert(forest.player_position.x < start.x and forest.player_position.y > start.y)
 	assert(forest._player.animation == "sw" and not forest._player.flip_h)
 	forest.player_position = forest._animals[0]["position"] + Vector2(-100.0, 0.0)
+	forest.selected_target = 0
 	forest._shoo()
 	assert(forest.shoo_cooldown > 0.0)
 	assert(forest._animals[0]["shoo"] > 0.0)
@@ -136,6 +137,7 @@ func _run() -> void:
 	forest.shoo_cooldown = 0.0
 	var hare_position: Vector2 = forest._animals[4]["position"]
 	forest.player_position = hare_position + Vector2(-100.0, 0.0)
+	forest.selected_target = 4
 	forest._shoo()
 	assert(forest._animals[4]["shoo"] > 0.0)
 	assert(forest._animals[4]["alive"])

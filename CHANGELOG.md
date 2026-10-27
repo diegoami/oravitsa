@@ -2,6 +2,9 @@
 
 ## Unreleased — endless woods
 
+- Targeted, stronger Shoo: select an animal, then scare it into a five-second
+  fast escape with a visible SCARED countdown; no cooldown spent on invalid casts.
+
 - Infinite-direction procedural terrain with winding connected roads, generated
   river crossings, lakes, four landscape types and four landmark styles.
 - Sparse forage state and floating-origin rendering; harvested food remains
