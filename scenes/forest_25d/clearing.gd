@@ -238,6 +238,36 @@ func _visible_half() -> Vector2:
 	return Vector2(view.size * 0.5 * aspect, view.size * 0.5 / 0.57735)
 
 
+func _spawn_is_hidden(spot: Vector2, kind: int) -> bool:
+	# Project the whole animal, including height, through the actual smoothed
+	# camera. A player-distance threshold cannot cover wide or tall viewports.
+	var feet := to_world(spot)
+	var height: float = _animal_heights[kind]
+	var radius := maxf(ANIMAL_RADIUS[kind] / METRE, height * 0.8)
+	var bounds := Rect2(view.unproject_position(feet), Vector2.ZERO)
+	for x in [-radius, radius]:
+		for z in [-radius, radius]:
+			for y in [-0.1, height + 0.2]:
+				bounds = bounds.expand(view.unproject_position(feet + Vector3(x, y, z)))
+	return not get_viewport_rect().grow(48).intersects(bounds)
+
+
+func _local_spawn_cell(kind: int, attempt: int) -> Vector2i:
+	var center := Vector2(view.position.x - CAMERA_OFFSET.x, view.position.z - CAMERA_OFFSET.z)
+	var half := _visible_half() + Vector2.ONE * (3.5 + _hash(_population_tick + attempt, kind, 804) * 2.0)
+	var side := int(_hash(_population_tick + attempt, kind, 801) * 4.0)
+	var along := _hash(_population_tick + attempt, kind, 802) * 2.0 - 1.0
+	var offset := Vector2(half.x if side == 0 else -half.x, along * half.y) if side < 2 else Vector2(along * half.x, half.y if side == 2 else -half.y)
+	return _world_cell(from_ground(center + offset))
+
+
+func _population_radius() -> float:
+	# Count the offscreen entry ring too, otherwise a wide viewport continually
+	# replenishes animals just outside the old, smaller 2D population radius.
+	var center := Vector2(view.position.x - CAMERA_OFFSET.x, view.position.z - CAMERA_OFFSET.z)
+	return maxf(POPULATION_RADIUS, (_visible_half().length() + 10.0 + center.distance_to(to_ground(player_position))) * METRE)
+
+
 func _refresh_visible() -> void:
 	_loaded_center = _world_cell(player_position)
 	_loaded_half = _stream_half()
