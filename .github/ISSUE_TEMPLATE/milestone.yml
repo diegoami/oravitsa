@@ -1,0 +1,43 @@
+name: Release milestone review
+description: Record an exact release candidate and its independent review.
+title: "Milestone vX.Y.Z"
+body:
+  - type: markdown
+    attributes:
+      value: "Follow docs/RELEASES.md. A milestone is a release, not an ordinary PR. Do not tag before review and candidate checks."
+  - type: textarea
+    id: candidate
+    attributes:
+      label: Candidate and scope
+      description: Proposed tag, full candidate SHA on main, previous stable tag and SHA, implementer tool/model, and round number. For the first release say previous none and scope entire tracked repository.
+    validations:
+      required: true
+  - type: textarea
+    id: changes
+    attributes:
+      label: Changes and claims
+      description: Merged PRs AND direct commits since the previous milestone, change summary, and claims to verify with file/line references.
+    validations:
+      required: true
+  - type: textarea
+    id: gates
+    attributes:
+      label: Candidate verification and artifacts
+      description: Exact commands, engine/Python versions, final candidate CI URL, results, what checks catch, artifact paths and SHA-256 hashes. Include desktop/browser/device checks and explicitly list untested areas.
+    validations:
+      required: true
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Owner decisions and known limits
+      description: Settled decisions, outstanding owner questions, explicit check deferrals, or none.
+    validations:
+      required: true
+  - type: textarea
+    id: review
+    attributes:
+      label: Review rounds
+      value: "Review: pending\nRound 1: candidate SHA, pending independent review."
+      description: Keep candidate SHA, AGREE/BLOCK verdict link, finding issues and fix PRs for each round. Maximum three rounds before owner decision.
+    validations:
+      required: true
