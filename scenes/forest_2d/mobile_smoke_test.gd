@@ -30,6 +30,8 @@ func _run() -> void:
 	var before: Vector2 = forest.player_position
 	forest._process(1.0 / 60.0)
 	assert(forest.player_position.x > before.x)
+	forest.selected_target = 0 # Both skill buttons cast on the selected animal.
+	forest._update_hud()
 	_touch(controls, 7, controls._shoo_center, true)
 	assert(forest.shoo_cooldown > 0.0)
 	assert(controls.direction.x > 0.9)

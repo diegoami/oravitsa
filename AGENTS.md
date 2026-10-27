@@ -1,7 +1,8 @@
 # Oravitsa
 
 Godot 4.7.2 / GDScript, Compatibility renderer. The default is the streamed
-2.5D Mossbank world in `scenes/forest_25d/`; its simulation, controls and HUD
+endless 2.5D Mossbank world in `scenes/endless_woods/`, extending the finite
+presentation in `scenes/forest_25d/`; its simulation, controls and HUD
 extend `scenes/forest_2d/forest.gd`. Read the world guide there before changing
 it. The older 2D forest and `prototypes/foraging_2d/` remain usable.
 
@@ -40,8 +41,9 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all nine smoke scripts, including queued streaming,
-offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot
+`verify.py` imports and runs all thirteen smoke scripts, including targeted
+Shoo, endless-world travel/rebasing/ecology/food regrowth, queued streaming, offscreen wildlife spawning and the
+retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
 Logged errors terminate the process immediately; timeouts retain diagnostics.
@@ -62,8 +64,13 @@ Record unavailable checks as untested, never as passed.
 ## Gameplay contracts
 
 - Oravitsa cannot kill animals, including hares. Sling stuns; Shoo repels.
-  Lynxes can kill hares; deer require three seconds of close pursuit.
-- Hares are frequent; deer/foxes less; boars uncommon; lynxes rare.
+  Both use the selected animal. Shoo applies five seconds of visible scared
+  status and fast escape, with a seven-second cooldown; invalid casts do not
+  spend cooldown. It interrupts feeding/hunting and existing animal stun.
+  Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
+- In the endless world wolves/lynxes are more frequent, hunt both prey species
+  and despawn after 180 hungry seconds. The finite scenes retain rare lynxes.
+  Hares remain most frequent, with deer/foxes less and boars uncommon.
 - Controller: left stick/D-pad moves, right-stick flicks cycle targets,
   LB/RB select the active skill, Y always casts it, A collects food.
   LT/RT do not select skills. Map/Help start hidden (M/H; Select/Start).
@@ -71,6 +78,8 @@ Record unavailable checks as untested, never as passed.
   Do not replace it with the uncorrected source model.
 - Streaming must preserve pickups and animal state. Collision must work even
   outside loaded render chunks. Dress paths without making them impassable.
+  Endless-world food can regrow on staggered offscreen timers; preserve their
+  absolute deadlines across streaming and rebasing rather than resetting them.
 
 ## Scope and sources
 

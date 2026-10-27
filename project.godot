@@ -12,8 +12,8 @@ config_version=5
 
 config/name="Oravitsa"
 config/version="0.1.0-alpha.1"
-config/description="Mossbank: a streamed 2.5D forest with lakes, ruins and wildlife."
-run/main_scene="res://scenes/forest_25d/clearing.tscn"
+config/description="Mossbank: endless procedural woodland, winding roads and a living wildlife ecosystem."
+run/main_scene="res://scenes/endless_woods/woods.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 

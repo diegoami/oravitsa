@@ -22,11 +22,20 @@ func _draw() -> void:
 		draw_circle(position, 4.5, Color("ddd8c7"))
 	for id in forest._active_animals:
 		var animal: Dictionary = forest._animals[id]
-		if animal["stun"] <= 0.0 or not animal["alive"]:
+		if not animal["alive"]:
 			continue
 		var sprite: AnimatedSprite2D = forest._active_animals[id]
 		var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
 		var center: Vector2 = animal["position"] - Vector2(0, texture.get_height() * sprite.scale.y * 0.75)
+		if animal["shoo"] > 0:
+			var text := "!! SCARED %.1fs" % animal["shoo"]
+			if animal["stun"] > 0:
+				text = "STUNNED %.1fs / " % animal["stun"] + text
+			var font := ThemeDB.fallback_font
+			var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+			draw_string(font, center - Vector2(width * 0.5, 20 if animal["stun"] > 0 else 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("ffcb79"))
+		if animal["stun"] <= 0:
+			continue
 		for star in 3:
 			var angle := Time.get_ticks_msec() * 0.003 + star * TAU / 3.0
 			var at := center + Vector2(cos(angle) * 16.0, sin(angle) * 5.0)

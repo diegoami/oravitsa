@@ -69,8 +69,11 @@ def web_project(build: Path) -> Path:
     shutil.copytree(ROOT / "web", target / "web")
     shutil.copytree(ROOT / "scenes/forest_2d", target / "scenes/forest_2d",
                     ignore=shutil.ignore_patterns("*.md", "*smoke_test*", "oravitsa_walk_side.png*"))
-    if 'scenes/forest_25d/' in (ROOT / "project.godot").read_text():
+    if any(scene in (ROOT / "project.godot").read_text() for scene in ['scenes/forest_25d/', 'scenes/endless_woods/']):
         shutil.copytree(ROOT / "scenes/forest_25d", target / "scenes/forest_25d",
+                        ignore=shutil.ignore_patterns("*.md", "*smoke_test*"))
+    if 'scenes/endless_woods/' in (ROOT / "project.godot").read_text():
+        shutil.copytree(ROOT / "scenes/endless_woods", target / "scenes/endless_woods",
                         ignore=shutil.ignore_patterns("*.md", "*smoke_test*"))
     art = target / "prototypes/foraging_2d/art"
     art.mkdir(parents=True)

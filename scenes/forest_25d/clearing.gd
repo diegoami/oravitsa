@@ -79,7 +79,7 @@ func _build_world() -> void:
 	stage = Node3D.new()
 	stage.name = "Clearing3D"
 	add_child(stage)
-	landscape = load("res://scenes/forest_25d/landscape.gd").new()
+	landscape = _make_landscape()
 	stage.add_child(landscape)
 	landscape.build()
 	_lighting()
@@ -118,8 +118,6 @@ func _build_world() -> void:
 	stage.add_child(_target_ring)
 	_build_food()
 	_build_hud()
-	_minimap.set_script(load("res://scenes/forest_25d/clearing_map.gd"))
-	_minimap.set("forest", self)
 	_landmark_label = Label.new()
 	_landmark_label.position = Vector2(18, 58)
 	_landmark_label.add_theme_font_size_override("font_size", 14)
@@ -136,6 +134,14 @@ func _build_world() -> void:
 	_stats_label.add_theme_constant_override("shadow_offset_y", 2)
 	get_node("HUD").add_child(_stats_label)
 	_layout_hud()
+
+
+func _make_landscape() -> Node3D:
+	return load("res://scenes/forest_25d/landscape.gd").new()
+
+
+func _minimap_script() -> Script:
+	return load("res://scenes/forest_25d/clearing_map.gd")
 
 
 func _layout_hud() -> void:
@@ -345,8 +351,8 @@ func _add_animal_visual(id: int) -> void:
 	var kind: int = _animals[id]["kind"]
 	var height: float = _animal_heights[kind]
 	var model: Node3D
-	if kind in [DEER, FOX]:
-		var filename := "deer" if kind == DEER else "fox"
+	if kind in [DEER, FOX, WOLF]:
+		var filename := "deer" if kind == DEER else ("fox" if kind == FOX else "wolf")
 		model = load("res://scenes/forest_25d/assets/" + filename + ".gltf").instantiate()
 		stage.add_child(model)
 		var bounds := _model_bounds(model)
@@ -560,15 +566,22 @@ func _sync_presentation(delta: float) -> void:
 		if _animal_players.has(id):
 			var animator: AnimationPlayer = _animal_players[id]
 			var wanted := "Idle" if data["stun"] > 0.0 or velocity.length_squared() < 1 else "Walk"
-			if data["stun"] <= 0.0 and data["state"] == "forage" and data["eat_time"] > 0.0 and animator.has_animation("Eating"):
+			if data["stun"] <= 0.0 and (data["state"] == "forage" and data["eat_time"] > 0.0 or data["state"] == "feed" and data["feeding"] > 0.0) and animator.has_animation("Eating"):
 				wanted = "Eating"
+			if data["shoo"] > 0 and velocity.length_squared() > 1 and animator.has_animation("Gallop"):
+				wanted = "Gallop"
 			if animator.current_animation != wanted:
 				animator.play(wanted, 0.2)
-			animator.speed_scale = 0.0 if data["stun"] > 0 else 1.0
+			animator.speed_scale = 0.0 if data["stun"] > 0 else (1.4 if data["shoo"] > 0 else 1.0)
 		_animal_shadows[id].position = model.position + Vector3.UP * 0.015
 		var stars: Label3D = _animal_stars[id]
 		stars.position = model.position + Vector3.UP * (_animal_heights[kind] + 0.25 + sin(Time.get_ticks_msec() * 0.005) * 0.05)
-		stars.visible = data["stun"] > 0.0
+		stars.text = "!! SCARED %.1fs" % data["shoo"] if data["shoo"] > 0 else "✦  ✦  ✦"
+		if data["stun"] > 0 and data["shoo"] > 0:
+			stars.text = "STUNNED %.1fs\n" % data["stun"] + stars.text
+		stars.modulate = Color("ffcb79") if data["shoo"] > 0 else Color("ffe2a0")
+		stars.no_depth_test = data["shoo"] > 0
+		stars.visible = data["stun"] > 0.0 or data["shoo"] > 0.0
 
 	_target_ring.visible = _valid_sling_target(selected_target)
 	if _target_ring.visible:

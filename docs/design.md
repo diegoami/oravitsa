@@ -2,10 +2,11 @@
 
 ## Premise
 
-Oravitsa is a cosy 2D foraging game in a Nordic summer forest. A young
-forager gathers food against a hunger clock while animals compete for the same
-resources. The central question is whether choosing routes and responding to
-animals makes a pleasant, replayable loop.
+Oravitsa is a cosy foraging game in a Nordic summer forest. The current default
+is an endless procedural 2.5D woodland: winding connected roads, rivers, lakes,
+varied tree cover and discoverable landmarks. A young forager gathers food
+while animals compete for the same resources. The earlier single-clearing
+prototype uses a hunger clock; the current exploration scene has no time limit.
 
 ## The hard constraint
 
@@ -13,11 +14,15 @@ animals makes a pleasant, replayable loop.
 Her interactions with creatures are non-lethal influences such as shooing,
 attracting, confusing, or slowing. The sling temporarily stuns a selected animal;
 it does not injure or kill it.
+Shoo is also targeted: it interrupts the selected animal and sends it running
+away from Oravitsa for five seconds, with a visible scared countdown. Other
+animals are unaffected, and invalid targets do not consume cooldown.
 
-- Animal predation is separate from player abilities: lynxes can kill hares
+- Animal predation is separate from player abilities: wolves and lynxes can kill hares
   and deer. Hares are caught quickly; deer require three seconds of continuous
-  close pursuit. Losing contact or interrupting the lynx resets that progress.
+  close pursuit. Losing contact or interrupting the predator resets that progress.
   Both prey species return away from the player; hares replenish frequently.
+  Wolves/lynxes despawn after 180 seconds without a catch, including offscreen.
 - No player damage, health, or hit-point combat system.
 - Competition for resources is the conflict. An animal reaching a mushroom
   first wins that exchange.
@@ -26,9 +31,10 @@ it does not injure or kill it.
 ## Wildlife abundance
 
 Hares are frequent, deer and foxes are less common, boars are less common
-again, and lynxes are rare. Both initial world generation and replenishment
-must respect this order; do not guarantee every species near the player.
-The current tuning is documented in `scenes/forest_2d/README.md`.
+again. The endless world deliberately has more wolves and lynxes than the
+retained finite scenes. Replenishment respects per-species chances, offscreen
+entry and bounded local populations. The current tuning is documented in
+`scenes/endless_woods/README.md`; finite-scene tuning remains in the older guides.
 
 ## Earlier single-clearing playtest loop
 
