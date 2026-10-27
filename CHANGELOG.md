@@ -13,6 +13,9 @@
 - Lit foliage with a character reveal, calmer water, dressed starting shores,
   weathered cottage details and smooth bridge/doorstep approaches.
 - Windows and Linux desktop exports and a static-hostable Web build.
+- Wildlife arrivals and respawns stay outside the smoothed camera view.
+- Export cleanup and per-file provenance reject stray or changed archive
+  contents; Windows version resources identify this alpha as 0.1.0.1.
 
 This is an early prototype. Progress does not survive quitting/reloading; there
 are no quests, swimming or building loot. Animal/building styles remain mixed.

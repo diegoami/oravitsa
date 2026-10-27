@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import subprocess
 import zipfile
+from export_manifest import file_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -20,6 +21,7 @@ def main() -> None:
         raise SystemExit("Invalid release version")
     targets = {"windows-x86_64": "windows", "linux-x86_64": "linux", "web": "site"}
     required = {"windows": "oravitsa.exe", "linux": "oravitsa.x86_64", "site": "index.html"}
+    verified = {}
     for folder, filename in required.items():
         if not (ROOT / "build" / folder / filename).is_file():
             raise SystemExit(f"Missing {folder} export; run tools/export.py all first.")
@@ -29,6 +31,13 @@ def main() -> None:
         state = json.loads(stamp.read_text(encoding="utf-8"))
         if state.get("source_commit") != commit or state.get("source_dirty") is not False:
             raise SystemExit(f"Stale or dirty {folder} export; rebuild from {commit}.")
+        try:
+            current_files = file_manifest(ROOT / "build" / folder)
+        except (ValueError, OSError) as error:
+            raise SystemExit(f"Invalid {folder} export contents: {error}") from error
+        if not state.get("files") or current_files != state["files"]:
+            raise SystemExit(f"Changed or unrecorded {folder} export contents; rebuild before packaging.")
+        verified[folder] = state["files"]
     output = ROOT / "build" / "releases" / f"v{version}"
     output.mkdir(parents=True, exist_ok=True)
     readme = f"""Oravitsa v{version} — Mossbank woods
@@ -56,15 +65,16 @@ Project and asset provenance: https://github.com/diegoami/oravitsa/tree/{commit}
         archive = output / f"oravitsa-v{version}-{platform}.zip"
         source = ROOT / "build" / folder
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as bundle:
-            for file in sorted(source.rglob("*")):
-                if file.is_file() and not file.name.endswith(".import"):
-                    relative = file.relative_to(source).as_posix()
-                    info = zipfile.ZipInfo(relative, (2026, 1, 1, 0, 0, 0))
-                    info.create_system = 3
-                    mode = 0o755 if platform == "linux-x86_64" and relative == "oravitsa.x86_64" else 0o644
-                    info.external_attr = (0o100000 | mode) << 16
-                    info.compress_type = zipfile.ZIP_DEFLATED
-                    bundle.writestr(info, file.read_bytes())
+            for relative in [*sorted(verified[folder]), "EXPORT_SOURCE.json"]:
+                data = (source / relative).read_bytes()
+                if relative != "EXPORT_SOURCE.json" and hashlib.sha256(data).hexdigest() != verified[folder][relative]:
+                    raise SystemExit(f"Export contents changed while packaging: {folder}/{relative}")
+                info = zipfile.ZipInfo(relative, (2026, 1, 1, 0, 0, 0))
+                info.create_system = 3
+                mode = 0o755 if platform == "linux-x86_64" and relative == "oravitsa.x86_64" else 0o644
+                info.external_attr = (0o100000 | mode) << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                bundle.writestr(info, data)
             bundle.writestr("PLAY.txt", readme)
             bundle.writestr("SOURCE.json", json.dumps({"version": version, "source_commit": commit}, indent=2) + "\n")
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()

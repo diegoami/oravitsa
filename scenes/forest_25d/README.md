@@ -1,8 +1,8 @@
 # Mossbank woods: a streamed 2.5D world
 
-This branch launches `res://scenes/forest_25d/clearing.tscn` by default. Run
+The default scene is `res://scenes/forest_25d/clearing.tscn`. Run
 `godot --path .` or press F5. The playable world is **192 × 192 metres**, sixteen
-times the area of the original 48 × 48 m clearing. Main retains the original
+times the area of the original 48 × 48 m clearing. The project retains the original
 2D forest at `res://scenes/forest_2d/forest.tscn`.
 
 Three lakes connect through a winding river and tributary, with four working
@@ -22,7 +22,9 @@ lynxes use their existing painted animation strips on depth-tested upright
 sprites. All five species retain their original roaming, avoidance, foraging,
 pursuit and stun rules. Lynxes catch hares quickly and require three seconds of
 continuous close contact with deer. Prey respawn away from the player. Oravitsa
-cannot kill any animal.
+cannot kill any animal. Respawns and new arrivals are excluded from the actual
+smoothed camera view, including animal height and an extra screen margin.
+The entry ring and population radius adapt to wide/portrait viewports.
 
 Oravitsa keeps the approved eight-direction walk on a camera-facing sprite in
 a true 3D depth buffer, with a ground contact shadow. Foreground foliage opens a

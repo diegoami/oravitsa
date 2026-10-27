@@ -10,6 +10,7 @@ import shutil
 
 from package_web import package
 from verify import run_checked
+from export_manifest import file_manifest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -28,7 +29,22 @@ def source_state() -> dict:
 def stamp_export(target: Path, before: dict) -> None:
     if source_state() != before:
         raise SystemExit("Source changed during export; rerun from the intended checkout.")
-    (target / "EXPORT_SOURCE.json").write_text(json.dumps(before, indent=2) + "\n", encoding="utf-8")
+    stamp = {**before, "files": file_manifest(target)}
+    (target / "EXPORT_SOURCE.json").write_text(json.dumps(stamp, indent=2) + "\n", encoding="utf-8")
+
+
+def reset_export_dir(name: str) -> Path:
+    if name not in {"web-project", "web", "site", "linux", "windows"}:
+        raise ValueError("Unknown generated export directory")
+    target = ROOT / "build" / name
+    expected = ROOT.resolve() / "build" / name
+    # Check the resolved target before deletion, including a linked build root.
+    if target.is_symlink() or getattr(target, "is_junction", lambda: False)() or target.resolve() != expected:
+        raise ValueError("Refusing to clear a linked or redirected export directory")
+    if target.exists():
+        shutil.rmtree(target)
+    target.mkdir(parents=True)
+    return target
 
 
 def require_web_capable_engine(godot: str) -> None:
@@ -47,10 +63,7 @@ def require_web_capable_engine(godot: str) -> None:
 
 def web_project(build: Path) -> Path:
     """Compress only the Web copy; native imports and source PNGs stay intact."""
-    target = build / "web-project"
-    if target.exists():
-        shutil.rmtree(target)
-    target.mkdir()
+    target = reset_export_dir("web-project")
     for name in ["project.godot", "export_presets.cfg", "icon.svg", "icon.svg.import"]:
         shutil.copy2(ROOT / name, target / name)
     shutil.copytree(ROOT / "web", target / "web")
@@ -84,21 +97,19 @@ def main() -> None:
         require_web_capable_engine(args.godot)
         project = web_project(build)
         run(args.godot, "--editor", "--import", project=project)
-        web = build / "web"
-        web.mkdir(exist_ok=True)
+        web = reset_export_dir("web")
         run(args.godot, "--export-release", "Web", str(web / "index.html"), project=project)
-        package(web, build / "site")
-        stamp_export(build / "site", source)
+        site = reset_export_dir("site")
+        package(web, site)
+        stamp_export(site, source)
     if args.target in ("linux", "all"):
         run(args.godot, "--editor", "--import")
-        linux = build / "linux"
-        linux.mkdir(exist_ok=True)
+        linux = reset_export_dir("linux")
         run(args.godot, "--export-release", "Linux", str(linux / "oravitsa.x86_64"))
         stamp_export(linux, source)
     if args.target in ("windows", "all"):
         run(args.godot, "--editor", "--import")
-        windows = build / "windows"
-        windows.mkdir(exist_ok=True)
+        windows = reset_export_dir("windows")
         run(args.godot, "--export-release", "Windows", str(windows / "oravitsa.exe"))
         stamp_export(windows, source)
 

@@ -1,30 +1,25 @@
-> **2.5D prototype branch:** F5 opens the streamed 192 × 192 m Mossbank woods,
-> with three lakes, four bridges, five abandoned sites and 127 initial animals.
-> The approved Oravitsa sprite, controller controls and HUD are retained.
-> See [the world guide](scenes/forest_25d/README.md).
-> The original 2D forest is still available as `scenes/forest_2d/forest.tscn`;
-> the instructions below describe that original forest.
-
 # Oravitsa
 
 Contribution and verification rules: [AGENTS.md](AGENTS.md). Independent
 [PR reviews](docs/review-pr.md) use a separate session; formal
 [milestone reviews](docs/RELEASES.md) happen before a release tag.
 
-Oravitsa is a cosy 2D forest game prototype. The current default scene explores a
-larger world built from connecting painted tiles, with winding dirt paths, trees,
-bushes, stones, ferns, fallen logs, and collectible mushrooms and berries. See the
+Oravitsa is a cosy forest game prototype. The default scene is the streamed
+**192 × 192 m Mossbank woods**, a 2.5D world with three lakes, a river and
+tributary, four bridges, five abandoned sites and the forester's old well.
+Gather berries and mushrooms, explore the ruins, and watch five wildlife
+species. See the [world guide](scenes/forest_25d/README.md),
 [design](docs/design.md) and [character reference](docs/character.md).
 
 ## Play
 
-Open this folder in **Godot 4.7** (tested with 4.7.2) and press **F5**, or run
+Open this folder in **Godot 4.7.2** and press **F5**, or run
 `godot --path .` here. Use **WASD / arrows** to walk. The camera follows Oravitsa;
-the minimap in the upper right shows the full forest. Grass, dirt, ferns, and
-mushrooms and berries are passable. Walking over food collects it with keyboard or touch; on controller, press A/Cross nearby. Trees, bushes,
-stones, and fallen logs block at their bases; dark green ground marks those
-footprints while open diagonal gaps remain walkable. Press **Space** to shoo
-nearby wildlife.
+map and help start hidden, toggled with **M/H** or their buttons. Walking over
+food collects it with keyboard/touch; on controller press **A/Cross** nearby.
+Water, trunks, large rocks, walls and the well block movement; use bridges to
+cross the waterways. Low path and shore stones can be stepped over. The cottage
+roof cuts away inside. Press **Space** to shoo nearby wildlife.
 
 **Click an animal** to
 select it, then **right-click**, press **F**, or click **Sling** to throw a stone. On phones,
@@ -43,13 +38,19 @@ separate westward views. Her gait follows actual movement and keeps its phase
 through turns; blocked movement and stun return her to a grounded idle pose.
 
 Hares are frequent, deer and foxes are less common, boars are uncommon, and
-lynxes are rare. World generation and nearby wildlife replenishment both use
-species-specific rates; the starting clearing introduces four hares.
+lynxes are rare. The fixed seed starts with **127 animals: 83 hares, 23 deer,
+11 foxes, 9 boars and one lynx**, with four hares close to the arrival area.
+Replenishment keeps the species-specific chances. New arrivals and respawns
+wait outside the actual camera view, including its smoothing lag.
 
-The forest is **416 × 416 tiles**, 10.56 times the previous map area. It uses a
-fixed seed, so paths and objects are the same on every run. Ground tiles and
-nearby sprites stream around Oravitsa as she explores. The
-[forest guide](scenes/forest_2d/README.md) explains the map and art sources.
+Terrain, trees, food and nearby animal models stream around the camera. Gathered
+food and wildlife state survive leaving and returning to an area during the
+session. Progress is **not saved** across quitting or reloading.
+
+The original painted **416 × 416 tile 2D forest** remains playable at
+`res://scenes/forest_2d/forest.tscn`; open it and press **F6**. Its dark blocked
+ground and tile/sprite streaming are described in the
+[2D forest guide](scenes/forest_2d/README.md).
 
 The earlier timed, single-clearing foraging loop remains available at
 `res://prototypes/foraging_2d/game.tscn`; open that scene and press **F6** to
@@ -121,10 +122,12 @@ Real-device performance should be checked before a wider release. There is no
 cloud game server or multiplayer service: hosting delivers the Godot game to
 each browser. No game progress is persisted across reloads.
 
-The GitHub **Build desktop and Web** workflow runs gameplay/touch smoke checks
-and exports both targets. Its artifacts contain the ready-to-host website and
-the native Linux executable. Other desktop targets remain available through
-Godot's normal export dialog.
+The GitHub **Build desktop and Web** workflow runs the offline Python suites
+and gameplay/input/streaming smoke checks, then exports **Web, Linux and
+Windows**. Its three artifacts contain the ready-to-host website and native
+Linux/Windows builds. Linux package startup is checked through the log-aware
+runner; Windows package startup is also checked locally during release
+preparation.
 
 ```sh
 python3 -m unittest discover -s tools -p 'test_*.py'
@@ -133,7 +136,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (eight smoke scripts). It rejects logged errors immediately
+foraging prototype (nine smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.
@@ -142,24 +145,31 @@ the ignored Blender render manifest and is not a clean-checkout CI gate.
 
 ## Project layout
 
-- `scenes/forest_2d/` — current scrolling forest scene, map script, minimap,
-  painted tiles and forest objects.
+- `scenes/forest_25d/` — current default world, terrain/water/foliage, streamed
+  scenery, 3D animal presentation, cottage/bridge/well dressing and world map.
+- `scenes/forest_2d/` — shared simulation, input, HUD and approved heroine walk,
+  plus the retained painted forest scene and its map/tiles/props.
 - `prototypes/foraging_2d/` — earlier fixed-clearing game, retained as a
   separate playable experiment.
 - `docs/character.md` and `character-drafts/` — canonical Oravitsa reference.
-- `scenes/`, `scripts/`, `models/`, `art/`, and `resources/` also contain earlier
-  3D experiments retained for history.
+- `art/` — asset generation/import/repair scripts and offline paid-job guards.
+  `scenes/`, `scripts/`, `models/` and `resources/` also retain earlier 3D
+  experiments.
 
-Oravitsa and all four animals display eight movement directions using five
-painted views and three mirrored views. These strips are still prototype
-animation. The new forest art was generated as bitmap assets and checked in
-Godot at play size; no Tripo, Fal, or OpenRouter credits were used.
+Oravitsa uses **eight distinct directional atlases**, each with an eight-pose
+walk loop. The shipped walk comes from a paid Tripo reconstruction and Meshy
+animation through fal.ai, followed by local mesh/rig repairs and Blender
+renders. See [the experiment record](docs/tripo-experiment.md) and
+[approved-walk provenance](scenes/forest_2d/art/oravitsa/provenance.json).
+
+The 2.5D deer and foxes use rigged Quaternius models; hares, boars and lynxes use
+painted animated billboards. Their sources and the tree assets are recorded in
+[asset attribution](scenes/forest_25d/assets/ATTRIBUTION.md). The retained 2D
+tile/prop bitmap generation used no Tripo, fal.ai or OpenRouter credits; that
+statement does not apply to the heroine's paid 3D-to-sprite pipeline.
 
 Diagonal movement uses the open diagonal cell when possible. Lynxes sprint in
 short bursts and can catch hares quickly. Deer take three seconds of continuous
 close pursuit to catch; both prey species return later away from the player.
-Oravitsa cannot kill any animal,
-including hares, in this iteration. The
-new side and straight-back Oravitsa walk strips run four-pose loops.
-Her south view is now straight-on, distinct from the southeast three-quarter
-view.
+Oravitsa cannot kill any animal, including hares. There are no quests, swimming,
+building loot or camera orbit yet; this is an early playable alpha.

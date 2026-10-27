@@ -921,7 +921,7 @@ func _update_respawns(delta: float) -> void:
 		if data["respawn"] > 0.0:
 			continue
 		var home: Vector2 = data["home"]
-		if home.distance_to(player_position) < 450.0 or not _can_animal_move(id, home):
+		if home.distance_to(player_position) < 450.0 or not _spawn_is_hidden(home, data["kind"]) or not _can_animal_move(id, home):
 			data["respawn"] = 3.0
 			continue
 		data["position"] = home
@@ -937,22 +937,34 @@ func _update_respawns(delta: float) -> void:
 func _local_population(kind: int) -> int:
 	var count := 0
 	for animal in _animals:
-		if animal["alive"] and animal["kind"] == kind and animal["position"].distance_to(player_position) <= POPULATION_RADIUS:
+		if animal["alive"] and animal["kind"] == kind and animal["position"].distance_to(player_position) <= _population_radius():
 			count += 1
 	return count
 
 
+func _population_radius() -> float:
+	return POPULATION_RADIUS
+
+
+func _spawn_is_hidden(_spot: Vector2, _kind: int) -> bool:
+	# The original 2D scene retains its distance-based exclusion below.
+	return true
+
+
+func _local_spawn_cell(kind: int, attempt: int) -> Vector2i:
+	var angle := _hash(_population_tick + attempt, kind, 801) * TAU
+	var distance := 7 + int(_hash(_population_tick + attempt, kind, 802) * 3.0)
+	return _world_cell(player_position) + Vector2i(roundi(cos(angle) * distance), roundi(sin(angle) * distance))
+
+
 func _find_local_spawn(kind: int) -> Vector2i:
 	# Enter from outside the camera rather than appearing beside Oravitsa.
-	var player_cell := _world_cell(player_position)
 	for attempt in 48:
-		var angle := _hash(_population_tick + attempt, kind, 801) * TAU
-		var distance := 7 + int(_hash(_population_tick + attempt, kind, 802) * 3.0)
-		var cell := player_cell + Vector2i(roundi(cos(angle) * distance), roundi(sin(angle) * distance))
+		var cell := _local_spawn_cell(kind, attempt)
 		if not _in_bounds(cell):
 			continue
 		var spot := _cell_center(cell)
-		if spot.distance_to(player_position) < 730.0 or not _can_stand(spot, ANIMAL_RADIUS[kind]):
+		if spot.distance_to(player_position) < 730.0 or not _spawn_is_hidden(spot, kind) or not _can_stand(spot, ANIMAL_RADIUS[kind]):
 			continue
 		var clear := true
 		for animal in _animals:
@@ -978,7 +990,7 @@ func _replenish_local_animals() -> void:
 			var donor := -1
 			for id in _animals.size():
 				var animal := _animals[id]
-				if animal["kind"] == kind and not _active_animals.has(id) and animal["position"].distance_to(player_position) > POPULATION_RADIUS * 1.5:
+				if animal["kind"] == kind and not _active_animals.has(id) and animal["position"].distance_to(player_position) > _population_radius() * 1.5:
 					donor = id
 					break
 			if donor < 0:
