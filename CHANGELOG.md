@@ -5,7 +5,9 @@
 - Infinite-direction procedural terrain with winding connected roads, generated
   river crossings, lakes, four landscape types and four landmark styles.
 - Sparse forage state and floating-origin rendering; harvested food remains
-  consumed when revisiting distant regions during the session.
+  consumed until its regrowth timer expires, even when revisiting distant regions.
+- Occasional offscreen food regrowth: berries after 3–6 minutes, mushrooms after
+  5–9 minutes, with staggered timers for player- and animal-consumed patches.
 - More predators, with a rigged CC0 wolf joining lynxes. Both hunt hares/deer,
   reset hunger after eating and despawn after three hungry minutes.
 - Bounded local pathfinding recovery for stuck wildlife, an endless local map,

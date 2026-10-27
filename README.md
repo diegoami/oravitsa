@@ -47,6 +47,9 @@ wait outside the actual camera view, including its smoothing lag.
 Terrain, trees, food and nearby animal models stream around the camera. Gathered
 food and wildlife state survive leaving and returning to an area during the
 session. Progress is **not saved** across quitting or reloading.
+Berries can regrow after **3–6 minutes** and mushrooms after **5–9 minutes**,
+with staggered timers. Due patches wait until offscreen before reappearing;
+leaving/revisiting a region does not reset their countdown.
 Rendering rebases its local origin during long walks; generated world data has
 no fixed playable border. Only nearby terrain and animal visuals stay loaded.
 
@@ -145,7 +148,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (eleven smoke scripts). It rejects logged errors immediately
+foraging prototype (twelve smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.

@@ -41,8 +41,8 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all eleven smoke scripts, including endless-world
-travel/rebasing/ecology, queued streaming, offscreen wildlife spawning and the
+`verify.py` imports and runs all twelve smoke scripts, including endless-world
+travel/rebasing/ecology/food regrowth, queued streaming, offscreen wildlife spawning and the
 retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
@@ -75,6 +75,8 @@ Record unavailable checks as untested, never as passed.
   Do not replace it with the uncorrected source model.
 - Streaming must preserve pickups and animal state. Collision must work even
   outside loaded render chunks. Dress paths without making them impassable.
+  Endless-world food can regrow on staggered offscreen timers; preserve their
+  absolute deadlines across streaming and rebasing rather than resetting them.
 
 ## Scope and sources
 

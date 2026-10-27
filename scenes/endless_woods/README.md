@@ -34,10 +34,16 @@ terrain and harvested food on return. Coordinate types still have the normal
 engine/platform limits; the world has no designed map edge.
 
 Food is generated lazily in sparse dictionaries, with no full-world array.
-Cells inside solid scenery are excluded. Collected/consumed cells retain an
-absolute identity when their render chunks unload. The harvest history grows
-with consumed food; full terrain history is regenerated. There is no save to
-disk, and quitting/reloading starts a fresh session.
+Cells inside solid scenery are excluded. Picked or animal-eaten food schedules
+a staggered game-time regrowth delay: **berries 3–6 minutes**, **mushrooms
+5–9 minutes**. Once due, a patch recovers outside the actual camera view so it
+does not visibly pop in. Visible due patches wait until the player looks away.
+The check runs once per second; unloaded patches recover without creating
+render nodes. Absolute cell identities and deadlines survive chunk unloading
+and origin rebasing, and revisiting never restarts the timer. Depletion records
+are discarded when the patch recovers; full terrain history is regenerated.
+Regrowth adds no inventory, and a recovered patch must be collected again.
+There is no save to disk, and quitting/reloading starts a fresh session.
 
 ## Wildlife
 
@@ -78,6 +84,9 @@ caches/population, persistent harvests and dry-ground height. The wildlife test
 checks the rigged wolf, both predator species, non-lethal Sling, feeding/hunger,
 offscreen starvation and collision-safe recovery. Native captures inspect
 arrival, a meadow, a generated lake, distant woods and the local map.
+The regrowth test covers both food delays, visible-patch deferral, loaded and
+unloaded recovery, timer persistence over rebases, re-collection and duplicate
+visual prevention.
 
 Assets and checksums: [shared attribution](../forest_25d/assets/ATTRIBUTION.md).
 This development branch does not replace the independently pinned alpha draft.

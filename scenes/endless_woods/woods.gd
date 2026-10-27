@@ -5,11 +5,15 @@ const WILDLIFE_TARGETS := {HARE: 18, DEER: 8, FOX: 4, BOAR: 4, WOLF: 3, LYNX: 2}
 const WILDLIFE_CHANCE := {HARE: 1.0, DEER: 0.65, FOX: 0.35, BOAR: 0.25, WOLF: 0.32, LYNX: 0.22}
 const PREDATOR_HUNGER_LIMIT := 180.0
 const PREDATOR_RETURN_DELAY := 45.0
+const BERRY_REGROW_SECONDS := Vector2(180, 360)
+const MUSHROOM_REGROW_SECONDS := Vector2(300, 540)
 var origin_cells := Vector2i.ZERO
 var _harvested: Dictionary = {}
 var _cached_cells: Dictionary = {}
 var _nav_budget := 1
 var _nav_frame := -1
+var _food_clock := 0.0
+var _regrowth_check := 0.0
 
 
 func _generate_map() -> void:
@@ -73,7 +77,7 @@ func _refresh_food() -> void:
 		for z in range(first.y, end.y):
 			for x in range(first.x, end.x):
 				var cell := Vector2i(x, z) - origin_cells + START
-				if objects[_index(cell)] in [MUSHROOM, BERRIES] and _can_stand(_cell_center(cell), 10):
+				if not _forage_visuals.has(cell) and objects[_index(cell)] in [MUSHROOM, BERRIES] and _can_stand(_cell_center(cell), 10):
 					_add_food_visual(cell)
 	var center := _world_cell(player_position) - START + origin_cells
 	for key in _cached_cells.keys():
@@ -85,8 +89,43 @@ func _refresh_food() -> void:
 
 
 func _consume_food(cell: Vector2i) -> void:
-	_harvested[_index(cell)] = true
+	var key := _index(cell)
+	var kind: int = objects[key]
+	if kind not in [MUSHROOM, BERRIES]:
+		return
+	var global_cell := cell - START + origin_cells
+	var limits := BERRY_REGROW_SECONDS if kind == BERRIES else MUSHROOM_REGROW_SECONDS
+	var delay: float = lerpf(limits.x, limits.y, landscape.random_at(global_cell, 1200 + floori(_food_clock)))
+	_harvested[key] = {"cell": global_cell, "ready_at": _food_clock + delay}
 	super._consume_food(cell)
+
+
+func _update_food_regrowth(delta: float) -> void:
+	_food_clock += maxf(0, delta)
+	_regrowth_check -= maxf(0, delta)
+	if _regrowth_check > 0 or _harvested.is_empty():
+		return
+	_regrowth_check = 1.0
+	var refresh := false
+	for key in _harvested.keys():
+		var record: Dictionary = _harvested[key]
+		if _food_clock < record["ready_at"]:
+			continue
+		var global_cell: Vector2i = record["cell"]
+		var local_cell := global_cell - origin_cells + START
+		# Let the patch recover outside the actual smoothed view, so it cannot
+		# visibly pop in beside the player. Unloaded areas need no render nodes.
+		if not _spawn_is_hidden(_cell_center(local_cell), HARE):
+			continue
+		_harvested.erase(key)
+		objects.erase(key)
+		terrain.erase(key)
+		_cached_cells.erase(key)
+		var chunk := Vector2i((Vector2(global_cell) * TILE / METRE / landscape.CHUNK).floor())
+		_food_chunks.erase(chunk)
+		refresh = refresh or landscape.chunks.has(chunk)
+	if refresh:
+		_refresh_food()
 
 
 func _try_move(step: Vector2) -> bool:
@@ -315,6 +354,7 @@ func _rebase_if_needed() -> void:
 
 func _process(delta: float) -> void:
 	_rebase_if_needed()
+	_update_food_regrowth(delta)
 	super._process(delta)
 
 
