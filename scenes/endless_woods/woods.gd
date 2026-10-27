@@ -251,7 +251,8 @@ func _move_animals(delta: float) -> void:
 			data["respawn"] = maxf(0, data["respawn"] - delta)
 		elif data["alive"] and _is_predator(data["kind"]):
 			data["hunger"] += delta
-			if data["hunger"] >= PREDATOR_HUNGER_LIMIT:
+			# Keep aging in view, but only remove a hungry predator once hidden.
+			if data["hunger"] >= PREDATOR_HUNGER_LIMIT and _spawn_is_hidden(data["position"], data["kind"]):
 				data["alive"] = false
 				data["gone"] = true
 				data["respawn"] = PREDATOR_RETURN_DELAY

@@ -29,10 +29,11 @@ func _draw() -> void:
 		var center: Vector2 = animal["position"] - Vector2(0, texture.get_height() * sprite.scale.y * 0.75)
 		if animal["shoo"] > 0:
 			var text := "!! SCARED %.1fs" % animal["shoo"]
+			if animal["stun"] > 0:
+				text = "STUNNED %.1fs / " % animal["stun"] + text
 			var font := ThemeDB.fallback_font
 			var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-			draw_string(font, center - Vector2(width * 0.5, 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("ffcb79"))
-			continue
+			draw_string(font, center - Vector2(width * 0.5, 20 if animal["stun"] > 0 else 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("ffcb79"))
 		if animal["stun"] <= 0:
 			continue
 		for star in 3:

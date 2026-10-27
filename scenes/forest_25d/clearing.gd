@@ -577,6 +577,8 @@ func _sync_presentation(delta: float) -> void:
 		var stars: Label3D = _animal_stars[id]
 		stars.position = model.position + Vector3.UP * (_animal_heights[kind] + 0.25 + sin(Time.get_ticks_msec() * 0.005) * 0.05)
 		stars.text = "!! SCARED %.1fs" % data["shoo"] if data["shoo"] > 0 else "✦  ✦  ✦"
+		if data["stun"] > 0 and data["shoo"] > 0:
+			stars.text = "STUNNED %.1fs\n" % data["stun"] + stars.text
 		stars.modulate = Color("ffcb79") if data["shoo"] > 0 else Color("ffe2a0")
 		stars.no_depth_test = data["shoo"] > 0
 		stars.visible = data["stun"] > 0.0 or data["shoo"] > 0.0

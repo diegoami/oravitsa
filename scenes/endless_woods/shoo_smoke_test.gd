@@ -63,11 +63,26 @@ func _run() -> void:
 	var marker: Label3D = world._animal_stars[0]
 	assert(marker.visible and "SCARED" in marker.text and "4.9" in marker.text)
 	assert(target["alive"] and world._animals[1]["alive"] and world._animals[2]["alive"])
+	# Sling can interrupt fear; show both statuses while the animal is frozen.
+	world.selected_target = 0
+	world._use_skill(1)
+	world._update_sling(1.0)
+	var stopped: Vector2 = target["position"]
+	world._move_animals(0.5)
+	world._sync_presentation(0.0)
+	assert(target["stun"] > 0 and target["shoo"] > 0 and target["position"] == stopped)
+	assert("STUNNED" in marker.text and "SCARED" in marker.text, "Fear must not hide the current stun")
+	target["stun"] = 0.01
+	world._move_animals(0.02)
+	world._sync_presentation(0.0)
+	assert("STUNNED" not in marker.text and "SCARED" in marker.text)
 	target["shoo"] = 0.01
 	world._move_animals(0.02)
 	world._sync_presentation(0.0)
 	assert(target["shoo"] == 0 and target["state"] != "scared" and not marker.visible)
 	# A predator must flee instead of finishing an almost-complete deer catch.
+	world._animals[1]["position"] = world.from_ground(Vector2(8, 1))
+	world._refresh_visible()
 	world.shoo_cooldown = 0.0
 	world.selected_target = 1
 	world._animals[1]["catch_target"] = -1
@@ -79,5 +94,5 @@ func _run() -> void:
 	assert("SCARED" in world._animal_stars[1].text)
 	assert(world._animal_players[1].current_animation == "Gallop")
 	assert(world._animals[3]["alive"])
-	print("Targeted Shoo smoke test passed: selection/range/death guards, one target, immediate strong escape, interrupt/reset, cooldown, scared marker/countdown, expiry and predator fear")
+	print("Targeted Shoo smoke test passed: selection/range/death guards, one target, immediate strong escape, interrupt/reset, cooldown, scared/stunned markers, fear resumption, expiry and predator fear")
 	quit()

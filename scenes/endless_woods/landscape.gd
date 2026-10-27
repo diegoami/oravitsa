@@ -89,12 +89,18 @@ func trail_distance(p: Vector2) -> float:
 	var column := roundi((q.x - 70) / 256.0)
 	var distance := minf(absf(q.y - road_z(q.x, row)), absf(q.x - road_x(q.y, column)))
 	var region := Vector2i(floori(q.x / 256), floori(q.y / 128))
-	var site: Vector2 = landmark_at(region)["position"]
-	var start := road_x(site.y, region.x)
+	var feature := landmark_at(region)
+	var site: Vector2 = feature["position"]
+	# Ruins have a solid west wall and an open south side. Approach below
+	# the walls, then turn north through that opening rather than into stone.
+	var approach := site + Vector2(0, 4.5) if feature["kind"] == 0 else site
+	var start := road_x(approach.y, region.x)
 	if q.x >= start and q.x <= site.x:
 		var t := (q.x - start) / maxf(1, site.x - start)
-		var path_z := site.y + sin(t * PI) * (3 + random_at(region, 29) * 4)
+		var path_z := approach.y + sin(t * PI) * (3 + random_at(region, 29) * 4)
 		distance = minf(distance, absf(q.y - path_z))
+	if feature["kind"] == 0:
+		distance = minf(distance, _segment_distance(q, approach, site))
 	if q.y > -7 and q.y < 6:
 		distance = minf(distance, absf(q.x - 7))
 	distance = minf(distance, _segment_distance(q, Vector2(7, -0.8), WELL_POSITION + Vector2(0, 1.8)))

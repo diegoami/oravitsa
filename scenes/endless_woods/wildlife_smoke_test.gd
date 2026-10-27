@@ -36,6 +36,14 @@ func _run() -> void:
 		world._animals[id]["hunger"] = world.PREDATOR_HUNGER_LIMIT - 0.01
 	world._move_animals(0.02)
 	for id in [0, 1]:
+		assert(not world._spawn_is_hidden(world._animals[id]["position"], world._animals[id]["kind"]))
+		assert(world._animals[id]["alive"] and world._animal_models.has(id), "Hungry predators must not pop out in view")
+		assert(world._animals[id]["hunger"] >= world.PREDATOR_HUNGER_LIMIT)
+	# Once outside the view they leave, retaining hunger until that point.
+	for id in [0, 1]:
+		world._animals[id]["position"] = world.from_ground(Vector2(200 + id * 4, 200))
+	world._move_animals(0.02)
+	for id in [0, 1]:
 		assert(not world._animals[id]["alive"] and world._animals[id]["gone"])
 		assert(not world._animal_models.has(id))
 	world._update_respawns(1000)
@@ -80,5 +88,5 @@ func _run() -> void:
 		if wolf["position"].distance_to(target) < 40:
 			break
 	assert(visited_side and wolf["position"].distance_to(target) < 40, "Stuck animal must physically recover and reach the doorway")
-	print("Endless wildlife smoke test passed: rigged wolf, wolf/deer pursuit, lynx/hare catch, non-lethal sling, feeding resets hunger, active/offscreen starvation, no predator auto-respawn and collision-safe stuck recovery")
+	print("Endless wildlife smoke test passed: rigged wolf, wolf/deer pursuit, lynx/hare catch, non-lethal sling, feeding resets hunger, visible starvation deferral/offscreen removal, no predator auto-respawn and collision-safe stuck recovery")
 	quit()

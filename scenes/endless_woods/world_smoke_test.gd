@@ -44,6 +44,28 @@ func _run() -> void:
 	for col in [-2, 0, 2]:
 		for z in range(-512, 513, 8):
 			assert(land.can_walk(Vector2(land.road_x(z, col), z), world.PLAYER_RADIUS / world.METRE), "North/south route must stay connected")
+	# Walk every homestead approach in positive and negative regions, through
+	# the open south entrance. The visible trail must agree with collision.
+	var homesteads := 0
+	for x in range(-3, 4):
+		for z in range(-3, 4):
+			var region := Vector2i(x, z)
+			var feature: Dictionary = land.landmark_at(region)
+			if feature["kind"] != 0:
+				continue
+			homesteads += 1
+			var site: Vector2 = feature["position"]
+			var approach := site + Vector2(0, 4.5)
+			var start: float = land.road_x(approach.y, x)
+			for step in 401:
+				var t := step / 400.0
+				var p := Vector2(lerpf(start, site.x, t), approach.y + sin(t * PI) * (3 + land.random_at(region, 29) * 4))
+				assert(land.trail_distance(p) < 0.01, "Homestead trail must lead to the south entrance")
+				assert(land.can_walk(p, world.PLAYER_RADIUS / world.METRE), "Dressed approach must be passable")
+			for step in 46:
+				var p := approach.lerp(site, step / 45.0)
+				assert(land.trail_distance(p) < 0.01 and land.can_walk(p, world.PLAYER_RADIUS / world.METRE))
+	assert(homesteads == 13)
 	var food: Vector2i = world._forage_visuals.keys()[0]
 	var food_world: Vector2 = world.absolute_ground(world._cell_center(food))
 	var key: int = world._index(food)
@@ -79,5 +101,5 @@ func _run() -> void:
 			var p: Vector2 = Vector2(x, z) - land.origin
 			if land.water_edge(p) > 1.7:
 				assert(land.terrain_height_at(p) > -0.08)
-	print("Endless world smoke test passed: six species ", counts, ", four biomes/landmarks, winding connected routes, four-direction 4 km travel, rebasing, bounded caches and persistent harvests")
+	print("Endless world smoke test passed: six species ", counts, ", four biomes/landmarks, winding connected routes and 13 passable homestead approaches, four-direction 4 km travel, rebasing, bounded caches and persistent harvests")
 	quit()
