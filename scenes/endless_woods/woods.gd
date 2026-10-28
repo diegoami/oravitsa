@@ -40,6 +40,12 @@ const FIGHT_COOLDOWN := 45.0
 const FIGHT_INTERRUPT_COOLDOWN := 20.0
 const PREDATOR_HUNGER_LIMIT := 180.0
 const PREDATOR_RETURN_DELAY := 45.0
+# The generated world is fixed by the landscape's seeds; saves name it so a
+# save can never be applied to a differently generated world.
+const WORLD_ID := "mossbank-27102026"
+const SAVE_GAME := preload("res://scenes/endless_woods/save_game.gd")
+const SAVED_ANIMAL_TIMERS := ["respawn", "stun", "shoo", "hunger", "feeding", "burst_cooldown", "hunt_rest", "aggro_cooldown", "fight_cooldown", "timeout"]
+const SAVED_ANIMAL_COUNTERS := ["turn", "hunt_attempts", "aggro_rolls"]
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
 const MUSHROOM_REGROW_SECONDS := Vector2(300, 540)
 var origin_cells := Vector2i.ZERO
@@ -51,6 +57,7 @@ var _food_clock := 0.0
 var _regrowth_check := 0.0
 var _fight_check := FIGHT_CHECK
 var _fight_tick := 0
+var save_path: String = SAVE_GAME.PATH
 
 
 func _generate_map() -> void:
@@ -182,9 +189,8 @@ func _try_move(step: Vector2) -> bool:
 	return true
 
 
-func _add_animal(kind: int, cell: Vector2i) -> void:
-	super._add_animal(kind, cell)
-	var data := _animals[-1]
+func _animal_record(kind: int, position: Vector2) -> Dictionary:
+	var data := super._animal_record(kind, position)
 	data["hunger"] = 0.0
 	data["gone"] = false
 	data["stuck"] = 0.0
@@ -203,6 +209,7 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 	data["fight_with"] = -1
 	data["fight_time"] = 0.0
 	data["fight_cooldown"] = 0.0
+	return data
 
 
 func _is_fighting(id: int) -> bool:
@@ -211,7 +218,11 @@ func _is_fighting(id: int) -> bool:
 
 func _can_start_fight(id: int) -> bool:
 	var data := _animals[id]
-	return data["alive"] and _active_animals.has(id) and data["kind"] in FIGHT_KINDS and data["fight_with"] < 0 		and data["fight_cooldown"] <= 0 and data["stun"] <= 0 and data["shoo"] <= 0 and data["feeding"] <= 0 		and data["aggro"] == AGGRO_NONE and data["state"] != "hunt" and data["catch_target"] < 0
+	if not data["alive"] or not _active_animals.has(id) or data["kind"] not in FIGHT_KINDS or data["fight_with"] >= 0:
+		return false
+	if data["fight_cooldown"] > 0 or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0:
+		return false
+	return data["aggro"] == AGGRO_NONE and data["state"] != "hunt" and data["catch_target"] < 0
 
 
 func _start_fight(a: int, b: int) -> void:
@@ -565,7 +576,10 @@ func _rebase_if_needed() -> void:
 	var p := to_ground(player_position)
 	if maxf(absf(p.x), absf(p.y)) < 456:
 		return
-	var shift_cells := Vector2i(roundi(p.x / 912.0), roundi(p.y / 912.0)) * 512
+	_shift_origin(Vector2i(roundi(p.x / 912.0), roundi(p.y / 912.0)) * 512)
+
+
+func _shift_origin(shift_cells: Vector2i) -> void:
 	if shift_cells == Vector2i.ZERO:
 		return
 	var shift := Vector2(shift_cells) * TILE
@@ -592,6 +606,128 @@ func _rebase_if_needed() -> void:
 	view.position -= Vector3(meters.x, 0, meters.y)
 	landscape.rebase(meters)
 	_loaded_center -= shift_cells
+
+
+func _can_save() -> bool:
+	return true
+
+
+func _absolute_point(point: Vector2) -> Array:
+	var p := absolute_ground(point)
+	return [p.x, p.y]
+
+
+func _local_point(value: Array) -> Vector2:
+	return from_ground(Vector2(value[0], value[1]) - Vector2(origin_cells) * TILE / METRE)
+
+
+## Bounded game state: absolute positions, timers and depleted food only. The
+## world itself regenerates from its seeds; nothing like a world map is stored.
+func save_state() -> Dictionary:
+	var animals := []
+	for data in _animals:
+		var record := {"kind": data["kind"], "alive": data["alive"], "gone": data["gone"], "state": data["state"]}
+		for field in ["position", "home", "target"]:
+			record[field] = _absolute_point(data[field])
+		for field in SAVED_ANIMAL_TIMERS + SAVED_ANIMAL_COUNTERS:
+			record[field] = data[field]
+		animals.append(record)
+	var harvested := []
+	for record in _harvested.values():
+		harvested.append([record["cell"].x, record["cell"].y, record["ready_at"]])
+	return {
+		"format": SAVE_GAME.FORMAT,
+		"version": SAVE_GAME.VERSION,
+		"game": ProjectSettings.get_setting("application/config/version", ""),
+		"world": WORLD_ID,
+		"player": {"ground": _absolute_point(player_position), "stun": player_stun, "shoo_cooldown": shoo_cooldown, "sling_cooldown": sling_cooldown, "active_skill": active_skill},
+		"inventory": {"mushrooms": basket, "berries": berries_basket, "raw_meat": raw_meat},
+		"clock": {"food": _food_clock, "population_tick": _population_tick, "fight_tick": _fight_tick},
+		"harvested": harvested,
+		"animals": animals,
+	}
+
+
+## Applies an already validated save. Game-time timers resume where they were:
+## nothing advances while the game is closed.
+func apply_state(data: Dictionary) -> void:
+	var ground: Array = data["player"]["ground"]
+	var target := Vector2(ground[0], ground[1])
+	_shift_origin(Vector2i(roundi(target.x / 912.0), roundi(target.y / 912.0)) * 512 - origin_cells)
+	for node in _forage_visuals.values():
+		node.queue_free()
+	_forage_visuals.clear()
+	_food_chunks.clear()
+	objects.clear()
+	terrain.clear()
+	_cached_cells.clear()
+	_harvested.clear()
+	for record in data["harvested"]:
+		var cell := Vector2i(int(record[0]), int(record[1]))
+		_harvested[(int(cell.x) << 32) | (int(cell.y) & 0xffffffff)] = {"cell": cell, "ready_at": float(record[2])}
+	for sprite in _active_animals.values():
+		sprite.queue_free()
+	_active_animals.clear()
+	_sync_animal_lifecycle()
+	_animals.clear()
+	for record in data["animals"]:
+		var animal := _animal_record(int(record["kind"]), _local_point(record["position"]))
+		animal["home"] = _local_point(record["home"])
+		animal["target"] = _local_point(record["target"])
+		animal["alive"] = record["alive"]
+		animal["gone"] = record["gone"]
+		for field in SAVED_ANIMAL_TIMERS:
+			animal[field] = float(record[field])
+		for field in SAVED_ANIMAL_COUNTERS:
+			animal[field] = int(record[field])
+		# Encounters in progress restart from calm; their cooldowns persist.
+		animal["state"] = "idle" if record["state"] in ["warn", "charge", "fight", "hunt", "flee"] else record["state"]
+		_animals.append(animal)
+	_stones.clear()
+	selected_target = -1
+	player_position = _local_point(ground)
+	player_stun = float(data["player"]["stun"])
+	shoo_cooldown = float(data["player"]["shoo_cooldown"])
+	sling_cooldown = float(data["player"]["sling_cooldown"])
+	active_skill = int(data["player"]["active_skill"])
+	basket = int(data["inventory"]["mushrooms"])
+	berries_basket = int(data["inventory"]["berries"])
+	raw_meat = int(data["inventory"]["raw_meat"])
+	_food_clock = float(data["clock"]["food"])
+	_population_tick = int(data["clock"]["population_tick"])
+	_fight_tick = int(data["clock"]["fight_tick"])
+	_regrowth_check = 0.0
+	view.position = to_world(player_position) + CAMERA_OFFSET
+	_refresh_visible()
+	_sync_presentation(0.0)
+	_update_hud()
+
+
+func _save_game() -> void:
+	var error: String = SAVE_GAME.write(save_state(), save_path)
+	if error.is_empty():
+		_show_notice("Game saved")
+	else:
+		_show_notice("Save failed: " + error + ". The previous save is unchanged.", 5.0)
+
+
+func _load_game() -> void:
+	var result: Dictionary = SAVE_GAME.read(save_path)
+	var note := "Game loaded"
+	if not result["ok"] and not result["missing"]:
+		# Never discard the slot; offer the previous save if it is intact.
+		var backup: Dictionary = SAVE_GAME.read(save_path + ".bak")
+		if backup["ok"] and backup["data"]["world"] == WORLD_ID:
+			note = "The save was unreadable (%s); loaded the previous save" % result["error"]
+			result = backup
+	if not result["ok"]:
+		_show_notice("Cannot load: " + result["error"], 5.0)
+		return
+	if result["data"]["world"] != WORLD_ID:
+		_show_notice("Cannot load: the save belongs to a different world", 5.0)
+		return
+	apply_state(result["data"])
+	_show_notice(note, 4.0 if note != "Game loaded" else 2.5)
 
 
 func _process(delta: float) -> void:

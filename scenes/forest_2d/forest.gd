@@ -89,6 +89,8 @@ var _skill_bar: Control
 var _map_toggle: Button
 var _instructions_toggle: Button
 var _help_panel: Panel
+var _save_button: Button
+var _load_button: Button
 var _map_visible := false
 var _instructions_visible := false
 var _input_mode := "keyboard"
@@ -107,6 +109,7 @@ var _minimap: Control
 var _hint_label: Label
 var _notice_label: Label
 var _notice_time := 0.0
+var _notice_duration := 2.5
 var _touch_controls: Control
 var _active_props: Dictionary = {}
 var _animals: Array[Dictionary] = []
@@ -190,6 +193,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_use_skill(0)
 		elif event.physical_keycode == KEY_F or event.keycode == KEY_F:
 			_use_skill(1)
+		elif event.keycode == KEY_K and _can_save():
+			_save_game()
+		elif event.keycode == KEY_L and _can_save():
+			_load_game()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -200,6 +207,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_map()
 		elif event.button_index == JOY_BUTTON_START:
 			_toggle_instructions()
+		elif event.button_index == JOY_BUTTON_X and _instructions_visible and _can_save():
+			_save_game() # Only with Help open, so a stray press never saves.
+		elif event.button_index == JOY_BUTTON_B and _instructions_visible and _can_save():
+			_load_game()
 		elif event.is_action_pressed("skill_next"):
 			active_skill = wrapi(active_skill + 1, 0, 2)
 			_update_hud()
@@ -597,6 +608,8 @@ func _build_hud() -> void:
 	canvas.add_child(_notice_label)
 	_map_toggle = _hud_toggle(canvas, _toggle_map)
 	_instructions_toggle = _hud_toggle(canvas, _toggle_instructions)
+	_save_button = _hud_toggle(canvas, func(): _save_game())
+	_load_button = _hud_toggle(canvas, func(): _load_game())
 	_skill_bar = Control.new()
 	_skill_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_skill_bar.size = Vector2(212, 108)
@@ -696,7 +709,11 @@ func _layout_hud() -> void:
 	_instructions_toggle.position = Vector2(18, 16)
 	_instructions_toggle.size = Vector2(180, 32)
 	_help_panel.position = Vector2(18, 60)
-	_help_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 144)
+	_help_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 164)
+	_save_button.position = _help_panel.position + Vector2(0, _help_panel.size.y + 8)
+	_save_button.size = Vector2(124, 32)
+	_load_button.position = _save_button.position + Vector2(132, 0)
+	_load_button.size = Vector2(124, 32)
 	_hint_label.position = _help_panel.position + Vector2(12, 9)
 	_hint_label.size = _help_panel.size - Vector2(24, 18)
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -767,13 +784,18 @@ func _spawn_kind(sample: float) -> int:
 
 func _add_animal(kind: int, cell: Vector2i) -> void:
 	assert(_can_stand(_cell_center(cell), ANIMAL_RADIUS[kind]))
-	_animals.append({
+	_animals.append(_animal_record(kind, _cell_center(cell)))
+
+
+## A fresh animal state; subclasses add their fields so restores share defaults.
+func _animal_record(kind: int, position: Vector2) -> Dictionary:
+	return {
 		"kind": kind,
-		"position": _cell_center(cell),
-		"target": _cell_center(cell),
+		"position": position,
+		"target": position,
 		"timeout": 0.0,
 		"turn": 0,
-		"home": _cell_center(cell),
+		"home": position,
 		"stun": 0.0,
 		"shoo": 0.0,
 		"velocity": Vector2.ZERO,
@@ -788,7 +810,7 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 		"burst_cooldown": 0.0,
 		"catch_target": -1,
 		"catch_time": 0.0
-	})
+	}
 
 
 func _refresh_animals(center: Vector2i) -> void:
@@ -1385,9 +1407,23 @@ func _on_hare_collected(id: int) -> void:
 	_animals[id]["respawn"] = PREY_RESPAWN_TIME
 
 
-func _show_notice(text: String) -> void:
+func _show_notice(text: String, seconds: float = 2.5) -> void:
 	_notice_label.text = text
-	_notice_time = 2.5
+	_notice_time = seconds
+	_notice_duration = seconds
+
+
+## Saving is offered only where a scene supports it (the endless woods).
+func _can_save() -> bool:
+	return false
+
+
+func _save_game() -> void:
+	pass
+
+
+func _load_game() -> void:
+	pass
 
 
 func _update_hud() -> void:
@@ -1407,18 +1443,24 @@ func _update_hud() -> void:
 	_minimap.visible = _map_visible
 	_help_panel.visible = _instructions_visible
 	_hint_label.visible = _instructions_visible
+	_save_button.visible = _instructions_visible and _can_save()
+	_load_button.visible = _save_button.visible
 	var controller := _input_mode == "controller"
 	var touch := _input_mode == "touch"
 	_skill_hint_label.visible = controller
 	_skill_hint_label.text = "LT: Shoo · RT: Sling · LB / RB + Y"
 	_map_toggle.text = ("− Map" if _map_visible else "+ Map") + (" [Select]" if controller else ("" if touch else " [M]"))
 	_instructions_toggle.text = ("− Help" if _instructions_visible else "+ Help") + (" [Start]" if controller else ("" if touch else " [H]"))
+	_save_button.text = "Save game" + (" [X]" if controller else ("" if touch else " [K]"))
+	_load_button.text = "Load game" + (" [B]" if controller else ("" if touch else " [L]"))
 	if controller:
 		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLT / L2: Shoo · RT / R2: Sling\nLB / RB: select skill · Y / Triangle: cast it\nA / Cross: pick up · Select: map · Start: help"
 	elif touch:
 		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap Shoo or Sling on that target\nWalk over mushrooms & berries\nUse the top buttons to hide panels"
 	else:
 		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling target\nSpace: scare selected animal\nM: map · H: instructions"
+	if _can_save():
+		_hint_label.text += "\n" + ("X: save game · B: load game" if controller else ("Save or load with the buttons below" if touch else "K: save game · L: load game"))
 	var target_name: String = ANIMAL_NAMES[_animals[selected_target]["kind"]] if _valid_sling_target(selected_target) else ""
 	_sling_label.text = "Right stick: select target" if controller else ("Tap animal to target" if touch else "Click animal to target")
 	if not target_name.is_empty():

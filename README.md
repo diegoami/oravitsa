@@ -71,7 +71,12 @@ wait outside the actual camera view, including its smoothing lag.
 
 Terrain, trees, food and nearby animal models stream around the camera. Gathered
 food and wildlife state survive leaving and returning to an area during the
-session. Progress is **not saved** across quitting or reloading.
+session. **The endless woods can be saved and resumed**: press **K** to save
+and **L** to load, use the Save/Load buttons under Help, or press **X**/**B** on
+a controller while Help is open. There is one manual save slot and no autosave.
+The save restores Oravitsa's absolute location, inventory, cooldowns, depleted
+food with its regrowth deadlines, and wildlife state. Game time is paused while
+the game is closed. Finite scenes are not saved.
 Berries can regrow after **3–6 minutes** and mushrooms after **5–9 minutes**,
 with staggered timers. Due patches wait until offscreen before reappearing;
 leaving/revisiting a region does not reset their countdown.

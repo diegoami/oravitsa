@@ -43,7 +43,34 @@ render nodes. Absolute cell identities and deadlines survive chunk unloading
 and origin rebasing, and revisiting never restarts the timer. Depletion records
 are discarded when the patch recovers; full terrain history is regenerated.
 Regrowth adds no inventory, and a recovered patch must be collected again.
-There is no save to disk, and quitting/reloading starts a fresh session.
+Without loading a save, quitting/reloading starts a fresh session.
+
+## Saving
+
+One manual slot, `user://oravitsa_save.json`, with no autosave. **K** or the
+Help panel's *Save game* button saves; **L** or *Load game* loads; with Help
+open a controller uses **X**/**B**. (F5 would reload a browser tab, so it is not
+used.) A notice reports every success or failure.
+
+The save is versioned JSON holding only bounded state: the world identity,
+Oravitsa's absolute ground position, stun, both cooldowns, the selected skill,
+inventory (berries, mushrooms, raw meat), the food clock, depleted food records
+(absolute cell and deadline) and at most 208 animal records (absolute
+position/home/target plus status, hunger and cooldown timers). Terrain, trees and
+undepleted food are regenerated from the seeds, never stored. On loading, the
+floating origin is rebased near the saved position. Timers continue from their saved values,
+so game time is paused while the game is closed. Stones in flight, the target
+selection, route plans and in-progress warnings, charges, fights and hunts
+restart from calm, while their cooldowns persist.
+
+A save is written to a temporary file and read back and validated. Only then
+does it replace the slot; the replaced save is kept as `.bak`. Loading validates
+every field before anything changes. A missing, unreadable, incompatible
+(other version) or foreign-world save is reported and left untouched. If the
+slot is unreadable but the backup is intact, the backup is loaded and the
+notice says so. Desktop builds store the file in Godot's per-user data folder.
+The Web build uses the browser's persistent storage (IndexedDB), which private
+browsing or clearing site data can discard. The browser save path is untested.
 
 ## Wildlife
 
