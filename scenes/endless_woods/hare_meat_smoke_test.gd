@@ -49,6 +49,18 @@ func _run() -> void:
 	deer["position"] = world.player_position + Vector2(-60, 0)
 	world._collect_nearby()
 	assert(deer["alive"] and world.raw_meat == 0)
+	# Oravitsa walks straight through the stunned deer, and nobody is stunned.
+	assert(world._active_animals.has(1))
+	var walk_start: Vector2 = world.player_position
+	for step in 12:
+		assert(world._try_move(Vector2(-10, 0)), "A stunned animal never blocks Oravitsa")
+	assert(world.player_stun == 0.0 and deer["stun"] == 3.0)
+	# Once it is awake, walking into it is a bump again.
+	world.player_position = walk_start
+	deer["stun"] = 0.0
+	deer["position"] = walk_start + Vector2(-40, 0)
+	assert(not world._try_move(Vector2(-10, 0)) and world.player_stun == world.CONTACT_STUN_TIME)
+	world.player_stun = 0.0
 	deer["position"] = world.player_position + Vector2(0, 1500)
 	# Oravitsa cannot take it while she is stunned herself.
 	hare["position"] = world.player_position + Vector2(60, 0)
@@ -96,5 +108,5 @@ func _run() -> void:
 	assert(world.raw_meat == 2 and not other["alive"])
 	# Collection never touches other inventory.
 	assert(world.basket == 0 and world.berries_basket == 0)
-	print("Hare meat smoke test passed: alert/out-of-reach/deer/self-stunned rejection, prompts, controller A and walk-over pickup, single removal, raw meat inventory and notice, no respawn or streaming revival")
+	print("Hare meat smoke test passed: alert/out-of-reach/deer/self-stunned rejection, walking through stunned animals, prompts, controller A and walk-over pickup, single removal, raw meat inventory and notice, no respawn or streaming revival")
 	quit()

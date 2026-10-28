@@ -230,13 +230,8 @@ func _try_move(step: Vector2) -> bool:
 	var candidate := player_position + step
 	if not _can_stand(candidate, PLAYER_RADIUS):
 		return false
-	for id in _active_animals:
-		var animal: Dictionary = _animals[id]
-		if animal["alive"] and candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
-			player_stun = CONTACT_STUN_TIME
-			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
-			animal["velocity"] = Vector2.ZERO
-			return false
+	if _bump_animal(candidate):
+		return false
 	player_position = candidate
 	return true
 

@@ -187,9 +187,10 @@ when the limit is reached.
 Its slot has a 45-second reuse delay and does not use the prey respawn path.
 The population system may later introduce a different arriving animal.
 Wolves use a rigged Quaternius CC0 model with Idle/Walk/Eating/Gallop clips; there are
-no attack or death animation calls. Oravitsa still cannot kill any animal:
-Sling stuns and Shoo repels, with the existing keyboard/touch/controller inputs.
-A hare that is currently stunned and within 75 px can be collected by walking
+no attack or death animation calls. Oravitsa injures no animal and kills only
+hares, which would otherwise multiply out of control: Sling stuns and Shoo
+repels, with the existing keyboard/touch/controller inputs. Stunned animals
+can be walked through without a bump. A hare that is currently stunned and within 75 px can be collected by walking
 to it or pressing A. It is removed once and becomes one raw meat. Its slot is
 marked gone with the 45-second reuse delay, so it never takes the prey respawn
 path; ordinary replenishment restores the hare population.

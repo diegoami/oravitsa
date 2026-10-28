@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Oravitsa walks through stunned animals with no bump. Stepping out of an
+  animal that woke up under her is never a bump either, and it can step away.
+- The hare exception is now stated with its reason: hares are the only
+  animals Oravitsa kills, because unchecked they would multiply out of control.
+
 - Empty hamlets at one road crossing in six: 3–6 closed, weathered cottages, a
   well and a bare clearing. Exterior cave mouths on high ground in about one
   landmark region in three. Both are seeded and solid, with walkable trails,

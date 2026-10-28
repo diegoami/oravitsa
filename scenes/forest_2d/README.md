@@ -24,8 +24,9 @@ ground beneath trees and bushes marks blocked vegetation; bright grass and dirt
 remain passable. Tree, bush, stone, and log collision follows their small base
 footprints instead of filling their whole tile, so a visible diagonal gap
 between two props can be crossed. Animals and Oravitsa have solid circular
-footprints. A bump
-stuns both for 1.2 seconds. Select an animal, then Space scares that target
+footprints. Walking into an awake animal
+stuns both for 1.2 seconds; Oravitsa walks through stunned animals, and
+stepping out of one that woke up under her is not a bump. Select an animal, then Space scares that target
 within 600 px for five seconds, with a seven-second cooldown. A visible SCARED
 countdown marks its fast escape away from Oravitsa. Invalid casts spend no
 cooldown. Boars move slowly, forage for mushrooms and berries,
@@ -57,8 +58,8 @@ beneath it; Oravitsa is the bright outlined marker.
 Click or tap an animal to select it, then right-click, press F, or use Sling to fire. The range
 is 600 px, the cooldown is four seconds, and a hit stuns for 4.5 seconds
 without injury or removal. A hit never extends an existing stun, which
-prevents stun-locking with the shorter cooldown. Bumping a stunned animal
-preserves the longer stun. A `STUNNED` countdown is shown above the animal.
+prevents stun-locking with the shorter cooldown. Oravitsa can walk through a
+stunned animal without bumping it, so its longer stun is never replaced. A `STUNNED` countdown is shown above the animal.
 The selection ring, flying stone, and circling stun stars are drawn effects;
 Oravitsa currently keeps her walking or idle pose rather than a sling animation.
 Controllers use the left stick or D-pad to walk and right-stick flicks to cycle

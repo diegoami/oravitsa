@@ -29,8 +29,10 @@ target; the ring turns red when it is too far away. Stones stun on impact for
 A hit on an animal that is already stunned does not extend the stun, so an
 animal always gets to recover. Stunned animals stop moving and show a
 `STUNNED` countdown, then recover. The sling
-does not injure or remove animals. **A stunned hare can be collected for raw
-meat**: walk up to it (or press A on a controller) while it is still stunned.
+does not injure or remove animals. Oravitsa can walk straight through a
+stunned animal without bumping it. **Hares are the one exception to the
+no-killing rule**: unchecked, they would multiply out of control, so **a
+stunned hare can be collected for raw meat**: walk up to it (or press A on a controller) while it is still stunned.
 It is removed once and adds one raw meat to the inventory's third slot, with a
 `+1 raw meat` notice. Alert hares, other species and a stunned Oravitsa cannot
 collect. In the endless woods a collected hare does not respawn; the sparse
@@ -53,8 +55,8 @@ In the endless woods, lingering close to a wolf, lynx or boar for a few seconds
 may make it angry: after a red `!! ANGRY` warning it charges, and if it reaches
 Oravitsa she is stunned for two seconds. Back away or Shoo it to avoid the
 charge. Afterwards it loses interest. Wolves, lynxes and boars of different
-species occasionally fight each other; the loser is stunned, never hurt. Bumping an animal
-stuns both of them for **1.2 seconds**; the skill bar shows Oravitsa's
+species occasionally fight each other; the loser is stunned, never hurt. Bumping an awake animal
+stuns both of them for **1.2 seconds** (stunned animals can be walked through); the skill bar shows Oravitsa's
 recovery countdown.
 
 Oravitsa now uses the approved eight-pose walk in all eight directions, with

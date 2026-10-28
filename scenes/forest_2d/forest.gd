@@ -933,7 +933,10 @@ func _can_animal_move(id: int, candidate: Vector2) -> bool:
 	var kind: int = _animals[id]["kind"]
 	if not _can_stand(candidate, ANIMAL_RADIUS[kind]):
 		return false
-	if candidate.distance_to(player_position) < ANIMAL_RADIUS[kind] + PLAYER_RADIUS:
+	# Oravitsa may stand over an animal that was stunned; once awake it can
+	# still step away from her, never further in.
+	var distance := candidate.distance_to(player_position)
+	if distance < ANIMAL_RADIUS[kind] + PLAYER_RADIUS and distance < _animals[id]["position"].distance_to(player_position):
 		return false
 	for other_id in _active_animals.keys():
 		if other_id == id or not _animals[other_id]["alive"]:
@@ -1332,17 +1335,27 @@ func _try_move(step: Vector2) -> bool:
 	candidate.y = clampf(candidate.y, 12.0, MAP_SIZE * TILE - 12.0)
 	if not _can_stand(candidate, PLAYER_RADIUS):
 		return false
+	if _bump_animal(candidate):
+		return false
+	player_position = candidate
+	return true
+
+
+## Moving into an awake animal stuns both briefly and blocks the step.
+## Oravitsa walks straight through stunned animals, and stepping away from one
+## she already overlaps (such as one that woke up under her) is never a bump.
+func _bump_animal(candidate: Vector2) -> bool:
 	for id in _active_animals.keys():
 		var animal := _animals[id]
-		if not animal["alive"]:
+		if not animal["alive"] or animal["stun"] > 0.0:
 			continue
-		if candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
+		var distance := candidate.distance_to(animal["position"])
+		if distance < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]] and distance < player_position.distance_to(animal["position"]):
 			player_stun = CONTACT_STUN_TIME
 			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
 			animal["velocity"] = Vector2.ZERO
-			return false
-	player_position = candidate
-	return true
+			return true
+	return false
 
 
 func _can_stand(point: Vector2, actor_radius: float = PLAYER_RADIUS) -> bool:
