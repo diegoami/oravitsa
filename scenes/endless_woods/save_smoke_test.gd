@@ -36,8 +36,23 @@ func _write(path: String, text: String) -> void:
 
 func _clean() -> void:
 	for path in [PATH, PATH + ".bak", PATH + ".tmp"]:
-		if FileAccess.file_exists(path):
+		if FileAccess.file_exists(path + "/blocker"):
+			DirAccess.remove_absolute(path + "/blocker")
+		if FileAccess.file_exists(path) or DirAccess.dir_exists_absolute(path):
 			DirAccess.remove_absolute(path)
+
+
+## A non-empty directory at a save path makes renames onto it fail for real.
+func _block(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+	DirAccess.make_dir_absolute(path)
+	_write(path + "/blocker", "x")
+
+
+func _meat(world, path: String) -> int:
+	var result: Dictionary = world.SAVE_GAME.read(path)
+	return int(result["data"]["inventory"]["raw_meat"]) if result["ok"] else -1
 
 
 func _run() -> void:
@@ -145,8 +160,39 @@ func _run() -> void:
 	_write(PATH, JSON.stringify(broken))
 	world._load_game()
 	assert(world.raw_meat == 9 and world._notice_label.text.begins_with("Cannot load"), "Invalid fields are rejected before anything is applied")
+	# Failure injection (#29): no failed save may lose the last readable save.
+	_clean()
+	for meat in [5, 6]:
+		world.raw_meat = meat
+		assert(world.SAVE_GAME.write(world.save_state(), PATH).is_empty())
+	assert(_meat(world, PATH) == 6 and _meat(world, PATH + ".bak") == 5)
+	# A corrupt slot is never rotated over the valid backup.
+	_write(PATH, "{corrupt")
+	world.raw_meat = 7
+	assert(world.SAVE_GAME.write(world.save_state(), PATH).is_empty())
+	assert(_meat(world, PATH) == 7 and _meat(world, PATH + ".bak") == 5, "A corrupt slot must not displace the valid backup")
+	# The slot cannot be replaced: the backup survives and is offered on load.
+	_block(PATH)
+	world.raw_meat = 8
+	var failed: String = world.SAVE_GAME.write(world.save_state(), PATH)
+	assert(not failed.is_empty() and _meat(world, PATH + ".bak") == 5 and not FileAccess.file_exists(PATH + ".tmp"))
+	world._save_game()
+	assert("previous save is unchanged" in world._notice_label.text and _meat(world, PATH + ".bak") == 5)
+	world.raw_meat = 0
+	world._load_game()
+	assert(world.raw_meat == 5 and "previous save" in world._notice_label.text, "An unusable slot falls back to the backup")
+	# A readable slot that cannot be rotated stays exactly as it was.
+	_clean()
+	world.raw_meat = 9
+	assert(world.SAVE_GAME.write(world.save_state(), PATH).is_empty())
+	var before := FileAccess.get_file_as_string(PATH)
+	_block(PATH + ".bak")
+	world.raw_meat = 10
+	failed = world.SAVE_GAME.write(world.save_state(), PATH)
+	assert(not failed.is_empty() and FileAccess.get_file_as_string(PATH) == before and not FileAccess.file_exists(PATH + ".tmp"))
 	# Controller X/B save and load only while Help is open; keys K/L always.
 	_clean()
+	world.raw_meat = 9
 	var press := InputEventJoypadButton.new()
 	press.button_index = JOY_BUTTON_X
 	press.pressed = true
@@ -161,5 +207,5 @@ func _run() -> void:
 	world._unhandled_input(press)
 	assert(world.raw_meat == 9)
 	_clean()
-	print("Save smoke test passed: missing-save feedback, long-distance rebased round trip, inventory/cooldowns/stun, harvest deadlines, animal states, paused timers, streaming after load, backup on replace, corrupt/incompatible/foreign/invalid rejection without loss, controller and HUD access")
+	print("Save smoke test passed: missing-save feedback, long-distance rebased round trip, inventory/cooldowns/stun, harvest deadlines, animal states, paused timers, streaming after load, backup on replace, corrupt/incompatible/foreign/invalid rejection without loss, rename-failure injection keeping the last readable save, controller and HUD access")
 	quit()

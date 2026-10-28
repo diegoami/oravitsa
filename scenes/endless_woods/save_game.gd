@@ -21,17 +21,21 @@ static func write(data: Dictionary, path: String = PATH) -> String:
 	if not check["ok"]:
 		DirAccess.remove_absolute(temp)
 		return "verification failed: " + check["error"]
-	if FileAccess.file_exists(path):
-		if FileAccess.file_exists(backup):
-			DirAccess.remove_absolute(backup)
+	# Renames replace their destination in one step, and a failed rename leaves
+	# both files as they were. Only a readable slot is rotated into the backup,
+	# so a corrupt slot never displaces a valid backup.
+	var rotated := false
+	if read(path)["ok"]:
 		var moved := DirAccess.rename_absolute(path, backup)
 		if moved != OK:
 			DirAccess.remove_absolute(temp)
 			return "could not keep the previous save (%s)" % error_string(moved)
+		rotated = true
 	var replaced := DirAccess.rename_absolute(temp, path)
 	if replaced != OK:
-		# Put the previous save back rather than leaving the slot empty.
-		if FileAccess.file_exists(backup):
+		DirAccess.remove_absolute(temp)
+		if rotated:
+			# Put the previous save back in the slot it came from.
 			DirAccess.rename_absolute(backup, path)
 		return "could not replace the save (%s)" % error_string(replaced)
 	return ""

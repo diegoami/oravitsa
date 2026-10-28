@@ -770,11 +770,11 @@ func _save_game() -> void:
 func _load_game() -> void:
 	var result: Dictionary = SAVE_GAME.read(save_path)
 	var note := "Game loaded"
-	if not result["ok"] and not result["missing"]:
+	if not result["ok"]:
 		# Never discard the slot; offer the previous save if it is intact.
 		var backup: Dictionary = SAVE_GAME.read(save_path + ".bak")
 		if backup["ok"] and backup["data"]["world"] == WORLD_ID:
-			note = "The save was unreadable (%s); loaded the previous save" % result["error"]
+			note = "The save was %s; loaded the previous save" % ("missing" if result["missing"] else "unreadable (%s)" % result["error"])
 			result = backup
 	if not result["ok"]:
 		_show_notice("Cannot load: " + result["error"], 5.0)

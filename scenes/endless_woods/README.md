@@ -88,11 +88,15 @@ selection, route plans and in-progress warnings, charges, fights and hunts
 restart from calm, while their cooldowns persist.
 
 A save is written to a temporary file and read back and validated. Only then
-does it replace the slot; the replaced save is kept as `.bak`. Loading validates
+does it replace the slot, using renames that replace their destination in one
+step. A readable replaced save is kept as `.bak`; a corrupt slot is never
+rotated over a valid backup. If the final replacement fails, the previous save
+is moved back into the slot, so a failed save always leaves the last readable
+save recoverable (the save test injects real rename failures). Loading validates
 every field before anything changes. A missing, unreadable, incompatible
 (other version) or foreign-world save is reported and left untouched. If the
-slot is unreadable but the backup is intact, the backup is loaded and the
-notice says so. Desktop builds store the file in Godot's per-user data folder.
+slot is missing or unreadable but the backup is intact, the backup is loaded
+and the notice says so. Desktop builds store the file in Godot's per-user data folder.
 The Web build uses the browser's persistent storage (IndexedDB), which private
 browsing or clearing site data can discard. The browser save path is untested.
 
@@ -166,7 +170,8 @@ not fight. Both square off in place for 2.5 s under an orange `!! FIGHTING`
 marker. Wolves win slightly more often (strength 1.2 against 1.0). The loser
 is stunned for four seconds (with the normal `STUNNED` countdown); nobody is
 hurt or removed. Both then avoid fights for 45 s. An animal that is stunned,
-scared, feeding, hunting or provoked by Oravitsa never starts a fight. Shoo, a
+scared, feeding (including a forager in the middle of eating a patch), hunting
+or provoked by Oravitsa never starts a fight. Shoo, a
 stun or leaving the active area ends a fight for both with no winner and a
 20 s cooldown. A fighting animal ignores prey and Oravitsa.
 
