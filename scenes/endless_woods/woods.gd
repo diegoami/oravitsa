@@ -272,7 +272,8 @@ func _can_start_fight(id: int) -> bool:
 	var data := _animals[id]
 	if not data["alive"] or not _active_animals.has(id) or data["kind"] not in FIGHT_KINDS or data["fight_with"] >= 0:
 		return false
-	if data["fight_cooldown"] > 0 or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0:
+	# Both a predator's post-catch meal and a forager's eating count as feeding.
+	if data["fight_cooldown"] > 0 or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0 or data["eat_time"] > 0:
 		return false
 	return data["aggro"] == AGGRO_NONE and data["state"] != "hunt" and data["catch_target"] < 0
 

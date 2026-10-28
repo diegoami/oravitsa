@@ -132,5 +132,21 @@ func _run() -> void:
 	world._active_animals.erase(4)
 	world._update_fights(0.1)
 	assert(not world._is_fighting(0) and not world._is_fighting(4))
+	# A boar actually eating a food patch (#30) is feeding too: no fight starts.
+	var cell: Vector2i = world._forage_visuals.keys()[0]
+	world.objects[world._index(cell)] = world.BERRIES
+	_calm(world, 1, world._cell_center(cell))
+	world._animals[1]["target"] = world._cell_center(cell)
+	world._animals[1]["food_cell"] = cell
+	_calm(world, 0, world._cell_center(cell) + Vector2(90, 0))
+	world.player_position = world._cell_center(cell) + Vector2(0, 2000)
+	world._refresh_visible()
+	for id in [0, 1]:
+		if not world._active_animals.has(id):
+			world._active_animals[id] = world._make_animal_sprite(id)
+	world._move_animals(0.3)
+	assert(world._animals[1]["state"] == "forage" and world._animals[1]["eat_time"] > 0, "The boar must really be eating")
+	assert(not world._can_start_fight(1), "An eating boar must not start a fight")
+	assert(not _until_fight(world, 0, 1, 0.25 * 3), "No fight interrupts the meal")
 	print("Fight smoke test passed: cross-species only, occasional start, in-place standoff with marker, nonlethal stunned loser, cooldown, no start while stunned/scared/feeding/hunting/provoked, Shoo/Sling/deactivation interruption")
 	quit()
