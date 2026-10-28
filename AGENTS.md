@@ -68,9 +68,11 @@ Record unavailable checks as untested, never as passed.
   status and fast escape, with a seven-second cooldown; invalid casts do not
   spend cooldown. It interrupts feeding/hunting and existing animal stun.
   Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
-- In the endless world wolves/lynxes are more frequent, hunt both prey species
-  and despawn after 180 hungry seconds. The finite scenes retain rare lynxes.
-  Hares remain most frequent, with deer/foxes less and boars uncommon.
+- In the endless world wolves/lynxes are more frequent, sprint in longer and
+  faster spurts, hunt both prey species and despawn after 180 hungry seconds.
+  Endless foxes also hunt hares but rarely catch them. The finite scenes
+  retain rare lynxes. Hares remain most frequent, with deer/foxes less and
+  boars uncommon; endless food and wildlife are about a third of v0.1 density.
 - Controller: left stick/D-pad moves, right-stick flicks cycle targets,
   LB/RB select the active skill, Y always casts it, A collects food.
   LT/RT do not select skills. Map/Help start hidden (M/H; Select/Start).

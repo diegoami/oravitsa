@@ -90,5 +90,30 @@ func _run() -> void:
 		if wolf["position"].distance_to(target) < 40:
 			break
 	assert(visited_side and wolf["position"].distance_to(target) < 40, "Stuck animal must physically recover and reach the doorway")
-	print("Endless wildlife smoke test passed: rigged wolf, wolf/deer pursuit, lynx/hare catch, non-lethal sling, feeding resets hunger, visible starvation deferral/offscreen removal, no predator auto-respawn and collision-safe stuck recovery")
+	# Chase tuning (#16): endless wolves/lynxes spurt longer and faster than the
+	# finite scenes; foxes hunt hares with weak spurts and rare catches.
+	assert(world._burst_profile(world.WOLF).x > world.LYNX_BURST_SPEED and world._burst_profile(world.LYNX).y > world.LYNX_BURST_TIME)
+	assert(world._burst_profile(world.FOX).x < world._burst_profile(world.WOLF).x)
+	assert(world._prey_kinds(world.FOX) == [world.HARE] and world.FOX in world._threat_kinds(world.HARE))
+	assert(world.HARE not in world._threat_kinds(world.FOX), "Endless foxes must not flee their prey")
+	world._add_animal(world.FOX, world.START + Vector2i(4, 0))
+	world._add_animal(world.HARE, world.START + Vector2i(4, 0))
+	var fox: int = world._animals.size() - 2
+	var hare: int = fox + 1
+	var fox_catches := 0
+	for attempt in 40:
+		world._animals[fox]["hunt_rest"] = 0.0
+		world._animals[hare]["alive"] = true
+		assert(world._wants_to_hunt(fox))
+		if world._catch_prey(fox, hare):
+			fox_catches += 1
+		else:
+			assert(world._animals[hare]["alive"] and world._animals[fox]["hunt_rest"] == world.FOX_HUNT_REST)
+			assert(not world._wants_to_hunt(fox), "A fox rests after a missed lunge")
+	assert(fox_catches > 0 and fox_catches < 20, "Foxes catch hares rarely but not never")
+	assert(not world._catch_prey(fox, 2) and world._animals[2]["kind"] == world.DEER, "Foxes never catch deer")
+	world._animals[fox]["hunt_rest"] = 1.0
+	world._move_animals(1.1)
+	assert(world._animals[fox]["hunt_rest"] == 0.0, "Fox hunt rest recovers even offscreen")
+	print("Endless wildlife smoke test passed: rigged wolf, wolf/deer pursuit, lynx/hare catch, non-lethal sling, feeding resets hunger, visible starvation deferral/offscreen removal, no predator auto-respawn, collision-safe stuck recovery, stronger predator spurts and rare fox hare catches")
 	quit()

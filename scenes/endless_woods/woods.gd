@@ -6,6 +6,13 @@ const WILDLIFE_TARGETS := {HARE: 6, DEER: 3, FOX: 1, BOAR: 1, WOLF: 1, LYNX: 1}
 const SEEDED_ANIMALS := 33
 const FOOD_CHANCE := Vector2(0.043, 0.027) # Birch biome, other biomes.
 const WILDLIFE_CHANCE := {HARE: 1.0, DEER: 0.65, FOX: 0.35, BOAR: 0.25, WOLF: 0.32, LYNX: 0.22}
+# Wolves and lynxes sustain longer, faster spurts than in the finite scenes
+# (speed px/s, duration s, recovery from spurt start s). Foxes chase hares in
+# short, weak spurts and usually lose them at the last moment.
+const PREDATOR_BURST := Vector3(240, 2.2, 3.4)
+const FOX_BURST := Vector3(195, 1.4, 4.0)
+const FOX_CATCH_CHANCE := 0.3
+const FOX_HUNT_REST := 9.0
 const PREDATOR_HUNGER_LIMIT := 180.0
 const PREDATOR_RETURN_DELAY := 45.0
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
@@ -159,6 +166,28 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 	data["route"] = PackedVector2Array()
 	data["route_goal"] = data["position"]
 	data["nav_cooldown"] = 0.0
+	data["hunt_rest"] = 0.0
+	data["hunt_attempts"] = 0
+
+
+func _prey_kinds(kind: int) -> Array:
+	return [HARE] if kind == FOX else super._prey_kinds(kind)
+
+
+func _threat_kinds(kind: int) -> Array:
+	# Endless foxes hunt hares, so they only flee larger animals; hares watch
+	# for foxes as well as wolves and lynxes.
+	if kind == FOX:
+		return [BOAR, WOLF, LYNX]
+	return [LYNX, WOLF, FOX] if kind == HARE else super._threat_kinds(kind)
+
+
+func _wants_to_hunt(id: int) -> bool:
+	return super._wants_to_hunt(id) and _animals[id]["hunt_rest"] <= 0
+
+
+func _burst_profile(kind: int) -> Vector3:
+	return FOX_BURST if kind == FOX else PREDATOR_BURST
 
 
 func _seed_animals() -> void:
@@ -207,9 +236,19 @@ func _should_respawn(id: int) -> bool:
 
 
 func _catch_prey(predator: int, prey: int, delta: float = 0.0) -> bool:
+	var hunter := _animals[predator]
+	if hunter["kind"] == FOX and _animals[prey]["alive"] and _animals[prey]["kind"] == HARE:
+		# Most fox lunges miss; the fox then rests before hunting again.
+		hunter["hunt_attempts"] += 1
+		if _hash(predator, hunter["hunt_attempts"], 1601) >= FOX_CATCH_CHANCE:
+			hunter["hunt_rest"] = FOX_HUNT_REST
+			hunter["burst"] = 0.0
+			hunter["state"] = "idle"
+			hunter["timeout"] = 0.0
+			return false
 	var caught := super._catch_prey(predator, prey, delta)
 	if caught:
-		_animals[predator]["hunger"] = 0.0
+		hunter["hunger"] = 0.0
 	return caught
 
 
@@ -250,6 +289,7 @@ func _move_animals(delta: float) -> void:
 	for id in _animals.size():
 		var data := _animals[id]
 		data["nav_cooldown"] = maxf(0, data["nav_cooldown"] - delta)
+		data["hunt_rest"] = maxf(0, data["hunt_rest"] - delta)
 		if data["gone"]:
 			data["respawn"] = maxf(0, data["respawn"] - delta)
 		elif data["alive"] and _is_predator(data["kind"]):

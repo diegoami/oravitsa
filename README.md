@@ -196,7 +196,8 @@ painted animated billboards. Their sources and the tree assets are recorded in
 tile/prop bitmap generation used no Tripo, fal.ai or OpenRouter credits; that
 statement does not apply to the heroine's paid 3D-to-sprite pipeline.
 
-Wolves and lynxes sprint in short bursts and catch hares quickly. Deer take
+Wolves and lynxes sprint in long bursts and catch hares quickly; foxes also
+chase hares but usually miss and then rest. Deer take
 three seconds of continuous close pursuit to catch; both prey species return
 later away from the player. A catch resets the predator's hunger; after 180 s
 without a catch it despawns, including offscreen. Stuck animals can plan a local

@@ -61,7 +61,15 @@ New arrivals and prey respawns stay outside the actual smoothed camera view.
 
 Both wolves and lynxes hunt hares and deer. Hares are caught on contact; deer
 require three seconds of continuous close pursuit, interrupted by losing
-contact or stun. A successful catch resets the predator's hunger. After
+contact or stun. Endless wolves and lynxes chase in longer, faster spurts than
+the finite scenes: 240 px/s for 2.2 s, restarting 3.4 s after each spurt
+begins (finite scenes: 220 px/s for 1.5 s). Foxes hunt hares too, with weak
+195 px/s, 1.4 s spurts. They avoid only boars, wolves and lynxes, and hares
+now flee foxes. Seven of ten fox lunges miss, after which the fox rests for
+nine seconds before hunting again. In isolated 20-second chases from 6 m
+(`ecology_sample.gd`, 24 trials each), catches rose from wolf→hare 4 to 15,
+lynx→hare 3 to 11, wolf→deer 0 to 4 and lynx→deer 1 to 7; foxes catch 2 hares
+(previously they never hunted). A successful catch resets the predator's hunger. After
 **180 seconds without a catch**, a predator despawns once outside the camera
 view. Hunger keeps counting while visible; offscreen predators leave immediately
 when the limit is reached.

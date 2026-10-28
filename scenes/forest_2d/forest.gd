@@ -911,7 +911,7 @@ func _shoo_ready() -> bool:
 func _catch_prey(lynx_id: int, prey_id: int, delta: float = 0.0) -> bool:
 	var lynx := _animals[lynx_id]
 	var prey := _animals[prey_id]
-	if not prey["alive"] or not _is_predator(lynx["kind"]) or prey["kind"] not in [DEER, HARE]:
+	if not prey["alive"] or prey["kind"] not in _prey_kinds(lynx["kind"]):
 		return false
 	if prey["kind"] == DEER:
 		if lynx["catch_target"] != prey_id:
@@ -941,6 +941,27 @@ func _catch_prey(lynx_id: int, prey_id: int, delta: float = 0.0) -> bool:
 
 func _is_predator(kind: int) -> bool:
 	return kind in [LYNX, WOLF]
+
+
+## Prey species a hunter pursues; empty for animals that never hunt.
+func _prey_kinds(kind: int) -> Array:
+	return [DEER, HARE] if _is_predator(kind) else []
+
+
+## Species an animal flees from on sight.
+func _threat_kinds(kind: int) -> Array:
+	if kind == FOX:
+		return [BOAR, DEER, FOX, LYNX, HARE, WOLF]
+	return [LYNX, WOLF] if kind in [DEER, HARE] else []
+
+
+func _wants_to_hunt(id: int) -> bool:
+	return not _prey_kinds(_animals[id]["kind"]).is_empty()
+
+
+## Chase spurt speed, duration and recovery (measured from the spurt's start).
+func _burst_profile(_kind: int) -> Vector3:
+	return Vector3(LYNX_BURST_SPEED, LYNX_BURST_TIME, LYNX_BURST_RECOVERY)
 
 
 func _update_respawns(delta: float) -> void:
@@ -1091,10 +1112,11 @@ func _move_animals(delta: float) -> void:
 		var target: Vector2 = data["target"]
 		var speed: float = ANIMAL_SPEEDS[kind]
 		var threat := -1
-		if kind == FOX:
-			threat = _nearest_animal(position, [BOAR, DEER, FOX, LYNX, HARE, WOLF], id, 310.0)
-		elif kind in [DEER, HARE]:
-			threat = _nearest_animal(position, [LYNX, WOLF], id, 340.0)
+		var threats := _threat_kinds(kind)
+		if not threats.is_empty():
+			threat = _nearest_animal(position, threats, id, 310.0 if kind == FOX else 340.0)
+		# Hunters with no prey in reach fall through to foraging or roaming.
+		var prey := _nearest_animal(position, _prey_kinds(kind), id, 650.0) if _wants_to_hunt(id) else -1
 		var player_distance := position.distance_to(player_position)
 		var avoid_player := player_distance < (135.0 if kind == BOAR else 235.0)
 		if kind == BOAR and _hash(id, 0, 451) < 0.45 and player_distance > 80.0:
@@ -1119,23 +1141,22 @@ func _move_animals(delta: float) -> void:
 		elif position.distance_to(data["home"]) > 850.0:
 			target = data["home"]
 			data["state"] = "return"
-		elif _is_predator(kind):
-			var prey := _nearest_animal(position, [DEER, HARE], id, 650.0)
-			if prey >= 0:
-				var prey_position: Vector2 = _animals[prey]["position"]
-				if position.distance_to(prey_position) <= ANIMAL_RADIUS[kind] + ANIMAL_RADIUS[_animals[prey]["kind"]] + 8.0:
-					if previous_catch_target == prey:
-						data["catch_target"] = previous_catch_target
-						data["catch_time"] = previous_catch_time
-					if _catch_prey(id, prey, delta):
-						sprite.stop()
-						continue
-				target = prey_position
-				data["state"] = "hunt"
-				if data["burst_cooldown"] <= 0.0 and position.distance_to(prey_position) < 410.0:
-					data["burst"] = LYNX_BURST_TIME
-					data["burst_cooldown"] = LYNX_BURST_RECOVERY
-				speed = LYNX_BURST_SPEED if data["burst"] > 0.0 or data["catch_target"] == prey else ANIMAL_SPEEDS[kind]
+		elif prey >= 0:
+			var prey_position: Vector2 = _animals[prey]["position"]
+			if position.distance_to(prey_position) <= ANIMAL_RADIUS[kind] + ANIMAL_RADIUS[_animals[prey]["kind"]] + 8.0:
+				if previous_catch_target == prey:
+					data["catch_target"] = previous_catch_target
+					data["catch_time"] = previous_catch_time
+				if _catch_prey(id, prey, delta):
+					sprite.stop()
+					continue
+			target = prey_position
+			data["state"] = "hunt"
+			var burst := _burst_profile(kind)
+			if data["burst_cooldown"] <= 0.0 and position.distance_to(prey_position) < 410.0:
+				data["burst"] = burst.y
+				data["burst_cooldown"] = burst.z
+			speed = burst.x if data["burst"] > 0.0 or data["catch_target"] == prey else ANIMAL_SPEEDS[kind]
 		elif kind in [BOAR, DEER, HARE]:
 			var food_cell: Vector2i = data["food_cell"]
 			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in [BERRIES, MUSHROOM] or (kind in [DEER, HARE] and objects[_index(food_cell)] != BERRIES):
@@ -1163,7 +1184,7 @@ func _move_animals(delta: float) -> void:
 			target = data["target"]
 		var heading := _steer_animal(id, position.direction_to(target), target, delta)
 		var velocity: Vector2 = data["velocity"]
-		velocity = velocity.move_toward(heading * speed, (520.0 if _is_predator(kind) and data["burst"] > 0.0 else 290.0) * delta)
+		velocity = velocity.move_toward(heading * speed, (520.0 if data["burst"] > 0.0 else 290.0) * delta)
 		data["velocity"] = velocity
 		var step: Vector2 = velocity * delta
 		var candidate := position
