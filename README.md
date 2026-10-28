@@ -83,6 +83,12 @@ leaving/revisiting a region does not reset their countdown.
 Rendering rebases its local origin during long walks; generated world data has
 no fixed playable border. Only nearby terrain and animal visuals stay loaded.
 
+The endless woods have a quiet looping forest ambience, and nearby animals
+occasionally call (wolves howl, boars grunt, foxes yip…). Distant ones stay
+silent. Press **9**/**0** or use the Help panel buttons to cycle forest and
+animal volume (100/60/30%/Off). In a browser, sound starts after your first
+click, key or touch. The sounds are original synthesized CC0 audio.
+
 The earlier **192 × 192 m clearing** remains playable at
 `res://scenes/forest_25d/clearing.tscn`, with its three lakes, four bridges and
 five abandoned sites. Its [guide](scenes/forest_25d/README.md) describes that

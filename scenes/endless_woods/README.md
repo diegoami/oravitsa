@@ -45,6 +45,30 @@ are discarded when the patch recovers; full terrain history is regenerated.
 Regrowth adds no inventory, and a recovered patch must be collected again.
 Without loading a save, quitting/reloading starts a fresh session.
 
+## Sound
+
+A quiet forest ambience plays two looping layers of different lengths: 23 s of
+wind and leaves and 19 s of birdsong. Their combined pattern only repeats
+every 437 s. Animals within 14 m of Oravitsa occasionally call: wolves howl,
+lynxes growl, boars grunt, deer bark, foxes yip and hares thump. Each animal waits
+12–60 s (by species) between calls, at most two calls play at once, and calls
+start at least 1.2 s apart, so crowds stay comfortable. Distant and offscreen
+animals are silent. Calls are 3D sounds heard from Oravitsa's position (not the
+camera's), attenuated with distance and panned to match the fixed view. An
+animal that turns angry calls immediately, and so does an animal starting a
+fight. A call stops if its animal despawns or leaves the active area. The
+ambience is never restarted by streaming or origin rebasing.
+
+Volume levels cycle 100% → 60% → 30% → Off separately for the forest and the
+animals: press **9**/**0**, or use the *Forest*/*Animals* buttons under Help.
+The levels persist in `user://settings.cfg`. Browsers only start audio after
+the first click, key or touch on the page; the woods are silent until then.
+Headless runs use Godot's silent driver, where the same scheduling runs without
+playback. Every sound is synthesized by `tools/synth_audio.py` (CC0, no
+recordings or services; see [audio provenance](audio/PROVENANCE.md)).
+Listening quality, and browser and native playback, have not yet been checked
+by ear.
+
 ## Saving
 
 One manual slot, `user://oravitsa_save.json`, with no autosave. **K** or the

@@ -58,12 +58,63 @@ var _regrowth_check := 0.0
 var _fight_check := FIGHT_CHECK
 var _fight_tick := 0
 var save_path: String = SAVE_GAME.PATH
+var audio: Node
+var _ambience_button: Button
+var _animal_sound_button: Button
 
 
 func _generate_map() -> void:
 	objects = {}
 	terrain = {}
 	_animal_heights[WOLF] = 0.95
+
+
+func _build_world() -> void:
+	super._build_world()
+	audio = load("res://scenes/endless_woods/forest_audio.gd").new()
+	add_child(audio)
+	audio.setup(self)
+	var canvas: CanvasLayer = get_node("HUD")
+	_ambience_button = _hud_toggle(canvas, func():
+		audio.cycle_ambience()
+		_update_hud())
+	_animal_sound_button = _hud_toggle(canvas, func():
+		audio.cycle_animals()
+		_update_hud())
+	_layout_hud()
+
+
+func _layout_hud() -> void:
+	super._layout_hud()
+	if is_instance_valid(_ambience_button):
+		_ambience_button.position = _save_button.position + Vector2(0, 40)
+		_ambience_button.size = Vector2(124, 32)
+		_animal_sound_button.position = _ambience_button.position + Vector2(132, 0)
+		_animal_sound_button.size = Vector2(124, 32)
+
+
+func _update_hud() -> void:
+	super._update_hud()
+	if not is_instance_valid(_ambience_button) or audio == null:
+		return
+	_ambience_button.visible = _instructions_visible
+	_animal_sound_button.visible = _instructions_visible
+	var keys := _input_mode != "controller" and _input_mode != "touch"
+	_ambience_button.text = "Forest " + audio.level_text(audio.ambience_level) + (" [9]" if keys else "")
+	_animal_sound_button.text = "Animals " + audio.level_text(audio.animal_level) + (" [0]" if keys else "")
+	if keys:
+		_hint_label.text += "\n9 / 0: forest / animal volume"
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_9, KEY_0]:
+		if event.keycode == KEY_9:
+			audio.cycle_ambience()
+		else:
+			audio.cycle_animals()
+		_update_hud()
+	else:
+		super._unhandled_key_input(event)
 
 
 func _make_landscape() -> Node3D:
@@ -296,6 +347,8 @@ func _update_fights(delta: float) -> void:
 			_fight_tick += 1
 			if _hash(a * 977 + b, _fight_tick, 1802) < FIGHT_CHANCE:
 				_start_fight(a, b)
+				if audio != null:
+					audio.call_now(a)
 
 
 func _aggression(id: int) -> int:
@@ -348,6 +401,8 @@ func _update_aggression(delta: float) -> void:
 			data["catch_time"] = 0.0
 			data["burst"] = 0.0
 			_show_notice("The %s is angry — back away!" % ANIMAL_NAMES[data["kind"]].to_lower())
+			if audio != null:
+				audio.call_now(id)
 		elif data["aggro"] == AGGRO_WARN:
 			data["aggro_time"] -= delta
 			if data["aggro_time"] <= 0:
@@ -738,6 +793,8 @@ func _process(delta: float) -> void:
 
 func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
+	if audio != null:
+		audio.update(delta)
 	for id in _animal_stars:
 		var data: Dictionary = _animals[id]
 		if data["fight_with"] >= 0:
