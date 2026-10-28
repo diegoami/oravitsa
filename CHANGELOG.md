@@ -1,6 +1,33 @@
 # Changes
 
-## Unreleased — endless woods
+## 0.2.0-alpha.1 — living woods (candidate)
+
+- Sparser endless woods: food and wildlife at about a third of v0.1 density
+  (#21); finite scenes unchanged.
+- Longer stuns with visible countdowns: Sling 4.5 s, bumps 1.2 s; a hit never
+  extends an existing stun, so animals cannot be stun-locked (#26).
+- Endless wolves and lynxes chase in longer, faster spurts and catch more
+  often; foxes hunt hares but rarely catch them (#16) and eat berries between
+  hunts (#24).
+- Controller LT casts Shoo and RT casts Sling once per pull; LB/RB + Y remain
+  (#18).
+- A stunned hare can be collected once as raw meat, a new inventory slot; the
+  only exception to the no-killing rule (#19).
+- Lingering near a wolf, lynx or boar can provoke a warned, bounded charge that
+  stuns Oravitsa, followed by a cooldown (#20). Occasional nonlethal
+  cross-species fights leave the loser stunned (#25).
+- One manual, versioned save slot for the endless woods with verified safe
+  replacement, a backup and rejection of bad saves without data loss (#17).
+- Synthesized CC0 forest ambience and nearby animal calls with forest/animal
+  volume controls (#23).
+- Design proposal for empty caves and villages, not implemented (#22).
+- Seven new smoke scripts (twenty in total) and an ecology sampling tool.
+
+Untested in this candidate: listening quality, browser and native audio
+playback, browser save persistence, physical controller triggers and
+touch-device play.
+
+## Endless woods (merged after 0.1.0-alpha.1)
 
 - Targeted, stronger Shoo: select an animal, then scare it into a five-second
   fast escape with a visible SCARED countdown; no cooldown spent on invalid casts.
