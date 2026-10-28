@@ -334,6 +334,7 @@ func _update_sling(delta: float) -> void:
 			# cooldown, so refreshing it would let Oravitsa stun-lock an animal.
 			if _animals[id]["stun"] <= 0.0:
 				_animals[id]["stun"] = SLING_STUN_TIME
+			_animals[id]["eat_time"] = 0.0 # A stun interrupts eating, like fear.
 			_animals[id]["velocity"] = Vector2.ZERO
 			_animals[id]["burst"] = 0.0
 			_animals[id]["timeout"] = 0.0
@@ -844,8 +845,7 @@ func _nearest_food(position: Vector2, kind: int) -> Vector2i:
 			var cell := Vector2i(x, y)
 			if not _in_bounds(cell):
 				continue
-			var item: int = objects[_index(cell)]
-			if item != BERRIES and not (kind == BOAR and item == MUSHROOM):
+			if objects[_index(cell)] not in _food_kinds(kind):
 				continue
 			var distance := position.distance_squared_to(_cell_center(cell))
 			if distance < best:
@@ -953,6 +953,13 @@ func _threat_kinds(kind: int) -> Array:
 	if kind == FOX:
 		return [BOAR, DEER, FOX, LYNX, HARE, WOLF]
 	return [LYNX, WOLF] if kind in [DEER, HARE] else []
+
+
+## Food an animal forages for; hunting nearby prey takes priority over it.
+func _food_kinds(kind: int) -> Array:
+	if kind == BOAR:
+		return [BERRIES, MUSHROOM]
+	return [BERRIES] if kind in [DEER, HARE] else []
 
 
 func _wants_to_hunt(id: int) -> bool:
@@ -1157,9 +1164,9 @@ func _move_animals(delta: float) -> void:
 				data["burst"] = burst.y
 				data["burst_cooldown"] = burst.z
 			speed = burst.x if data["burst"] > 0.0 or data["catch_target"] == prey else ANIMAL_SPEEDS[kind]
-		elif kind in [BOAR, DEER, HARE]:
+		elif not _food_kinds(kind).is_empty():
 			var food_cell: Vector2i = data["food_cell"]
-			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in [BERRIES, MUSHROOM] or (kind in [DEER, HARE] and objects[_index(food_cell)] != BERRIES):
+			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in _food_kinds(kind):
 				food_cell = _nearest_food(position, kind)
 				data["food_cell"] = food_cell
 			if _in_bounds(food_cell):

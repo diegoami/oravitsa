@@ -69,7 +69,12 @@ now flee foxes. Seven of ten fox lunges miss, after which the fox rests for
 nine seconds before hunting again. In isolated 20-second chases from 6 m
 (`ecology_sample.gd`, 24 trials each), catches rose from wolf→hare 4 to 15,
 lynx→hare 3 to 11, wolf→deer 0 to 4 and lynx→deer 1 to 7; foxes catch 2 hares
-(previously they never hunted). A successful catch resets the predator's hunger. After
+(previously they never hunted). Foxes also eat berries (never mushrooms) when no
+hare is within reach or while resting after a missed lunge; hunting a nearby
+hare takes priority. They use the shared foraging path: 0.7 s of eating
+consumes a patch once, starts its normal 3–6 minute berry regrowth deadline and
+grants no inventory. Fear or a stun resets eating progress, and a fox abandons
+a patch that someone else emptied. A successful catch resets the predator's hunger. After
 **180 seconds without a catch**, a predator despawns once outside the camera
 view. Hunger keeps counting while visible; offscreen predators leave immediately
 when the limit is reached.

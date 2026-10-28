@@ -174,6 +174,11 @@ func _prey_kinds(kind: int) -> Array:
 	return [HARE] if kind == FOX else super._prey_kinds(kind)
 
 
+func _food_kinds(kind: int) -> Array:
+	# Foxes also eat berries when no hare is in reach or after a missed lunge.
+	return [BERRIES] if kind == FOX else super._food_kinds(kind)
+
+
 func _threat_kinds(kind: int) -> Array:
 	# Endless foxes hunt hares, so they only flee larger animals; hares watch
 	# for foxes as well as wolves and lynxes.
