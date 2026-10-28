@@ -53,7 +53,9 @@ const SHOO_FEAR_TIME := 5.0
 const SHOO_FLEE_SPEED := SPEED * 1.8
 const SLING_RANGE := 600.0
 const SLING_COOLDOWN := 4.0
-const SLING_STUN_TIME := 3.0
+const SLING_STUN_TIME := 4.5
+# Bumping an animal stuns both; Oravitsa then recovers before it can recur.
+const CONTACT_STUN_TIME := 1.2
 const STONE_SPEED := 1050.0
 
 var terrain = PackedByteArray()
@@ -328,7 +330,10 @@ func _update_sling(delta: float) -> void:
 		var position: Vector2 = stone["position"]
 		var step := STONE_SPEED * delta
 		if position.distance_to(destination) <= step + ANIMAL_RADIUS[_animals[id]["kind"]]:
-			_animals[id]["stun"] = maxf(_animals[id]["stun"], SLING_STUN_TIME)
+			# A hit never extends an existing stun: the stun outlasts the sling
+			# cooldown, so refreshing it would let Oravitsa stun-lock an animal.
+			if _animals[id]["stun"] <= 0.0:
+				_animals[id]["stun"] = SLING_STUN_TIME
 			_animals[id]["velocity"] = Vector2.ZERO
 			_animals[id]["burst"] = 0.0
 			_animals[id]["timeout"] = 0.0
@@ -1204,8 +1209,8 @@ func _try_move(step: Vector2) -> bool:
 		if not animal["alive"]:
 			continue
 		if candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
-			player_stun = 0.85
-			animal["stun"] = maxf(animal["stun"], 0.85)
+			player_stun = CONTACT_STUN_TIME
+			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
 			animal["velocity"] = Vector2.ZERO
 			return false
 	player_position = candidate
@@ -1268,7 +1273,7 @@ func _update_hud() -> void:
 	if not target_name.is_empty():
 		_sling_label.text = target_name + (" · Out of range" if player_position.distance_to(_animals[selected_target]["position"]) > SLING_RANGE else " · Selected")
 	if player_stun > 0:
-		_sling_label.text = "Recovering"
+		_sling_label.text = "Recovering %.1fs" % player_stun
 	_shoo_button.disabled = not _shoo_ready()
 	_sling_button.disabled = not _sling_ready()
 	_shoo_button.set("cooldown", shoo_cooldown)

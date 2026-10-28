@@ -57,12 +57,22 @@ func _run() -> void:
 	forest.player_position = target["position"] - Vector2(50, 0)
 	assert(not forest._try_move(Vector2(10, 0)))
 	assert(target["stun"] == forest.SLING_STUN_TIME)
+	assert(forest.player_stun == forest.CONTACT_STUN_TIME and forest.CONTACT_STUN_TIME > 0.85)
+	assert(forest.SLING_STUN_TIME > 3.0, "Stuns are longer than v0.1 (#26)")
 	forest.player_position = original_player
 	forest.player_stun = 0.0
 	var before: Vector2 = target["position"]
 	forest._move_animals(0.1)
 	assert(target["position"] == before)
 	assert(target["stun"] > 0.0)
+	# The stun outlasts the sling cooldown; a hit on a stunned animal must not
+	# refresh it, otherwise the player could stun-lock an animal forever.
+	var remaining: float = target["stun"]
+	forest.sling_cooldown = 0.0
+	forest._fire_sling()
+	for frame in 20:
+		forest._update_sling(0.05)
+	assert(forest._stones.is_empty() and target["stun"] == remaining, "Sling must not extend an existing stun")
 	forest._move_animals(forest.SLING_STUN_TIME)
 	assert(target["stun"] == 0.0)
 	assert(sprite.modulate == Color.WHITE)

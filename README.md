@@ -25,8 +25,10 @@ roof cuts away inside. Select an animal, then press **Space** to Shoo it.
 select it, then **right-click**, press **F**, or click **Sling** to throw a stone. On phones,
 tap the animal and then the **Sling** button. A gold ring marks the selected
 target; the ring turns red when it is too far away. Stones stun on impact for
-**3 seconds**, with a **4-second cooldown** and a **600 px** firing range.
-Stunned animals stop moving and show circling stars, then recover. The sling
+**4.5 seconds**, with a **4-second cooldown** and a **600 px** firing range.
+A hit on an animal that is already stunned does not extend the stun, so an
+animal always gets to recover. Stunned animals stop moving and show a
+`STUNNED` countdown, then recover. The sling
 does not injure or remove animals. Clicking or tapping empty ground clears
 the selection. Movement and Shoo remain available while using the sling.
 
@@ -40,8 +42,9 @@ prevents the cast without wasting its seven-second cooldown. Other animals
 are unaffected; normal behavior returns after fear expires. Both skills remain
 non-lethal.
 
-Animals avoid each other and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
-stuns both of them.
+Animals avoid each other and Oravitsa, forage, or hunt according to species. Bumping an animal
+stuns both of them for **1.2 seconds**; the skill bar shows Oravitsa's
+recovery countdown.
 
 Oravitsa now uses the approved eight-pose walk in all eight directions, with
 separate westward views. Her gait follows actual movement and keeps its phase

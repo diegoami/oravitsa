@@ -140,8 +140,8 @@ func _try_move(step: Vector2) -> bool:
 	for id in _active_animals:
 		var animal: Dictionary = _animals[id]
 		if animal["alive"] and candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
-			player_stun = 0.85
-			animal["stun"] = maxf(animal["stun"], 0.85)
+			player_stun = CONTACT_STUN_TIME
+			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
 			animal["velocity"] = Vector2.ZERO
 			return false
 	player_position = candidate

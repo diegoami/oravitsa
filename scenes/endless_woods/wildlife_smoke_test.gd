@@ -32,6 +32,8 @@ func _run() -> void:
 	world._use_skill(1)
 	world._update_sling(1.0)
 	assert(world._animals[0]["alive"] and world._animals[0]["stun"] > 0, "Sling must remain non-lethal to wolves")
+	world._sync_presentation(0.0)
+	assert(world._animal_stars[0].visible and "STUNNED 4." in world._animal_stars[0].text, "A stun shows its countdown")
 	for id in [0, 1]:
 		world._animals[id]["hunger"] = world.PREDATOR_HUNGER_LIMIT - 0.01
 	world._move_animals(0.02)
