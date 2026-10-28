@@ -683,9 +683,10 @@ func _local_point(value: Array) -> Vector2:
 
 
 ## A save may predate world features added since (such as a hamlet house over
-## a saved spot), so loaded positions move to the nearest open ground; homes
-## also leave hamlet clearings. Spots that are already valid stay unchanged.
-func _open_ground_near(point: Vector2, actor_radius: float, outside_settlements: bool = false) -> Vector2:
+## a saved spot), so loaded positions move to the nearest open ground, clear of
+## the `occupied` actor footprints (Vector3: position, radius); homes also
+## leave hamlet clearings. Spots that are already valid stay unchanged.
+func _open_ground_near(point: Vector2, actor_radius: float, outside_settlements: bool = false, occupied: Array[Vector3] = []) -> Vector2:
 	var start := to_ground(point)
 	var radius := actor_radius / METRE
 	var settled: bool = outside_settlements and landscape.in_settlement(start)
@@ -700,7 +701,12 @@ func _open_ground_near(point: Vector2, actor_radius: float, outside_settlements:
 		for i in count:
 			var q := start + Vector2.from_angle(i * TAU / count) * ring * 0.25
 			if landscape.can_walk(q, radius) and not (outside_settlements and landscape.in_settlement(q)):
-				return from_ground(q)
+				var landing := from_ground(q)
+				var clear := true
+				for other in occupied:
+					clear = clear and landing.distance_to(Vector2(other.x, other.y)) >= actor_radius + other.z
+				if clear:
+					return landing
 	return point
 
 
@@ -766,14 +772,34 @@ func apply_state(data: Dictionary) -> void:
 		# Encounters in progress restart from calm; their cooldowns persist.
 		animal["state"] = "idle" if record["state"] in ["warn", "charge", "fight", "hunt", "flee"] else record["state"]
 		var radius: float = ANIMAL_RADIUS[animal["kind"]]
-		animal["position"] = _open_ground_near(animal["position"], radius)
 		animal["home"] = _open_ground_near(animal["home"], radius, true)
-		if not _can_stand(animal["target"], radius):
-			animal["target"] = animal["position"]
 		_animals.append(animal)
+	# Actors on valid ground keep their spots and reserve them; displaced actors
+	# then land clear of those and of each other, so nobody is stuck in contact.
+	player_position = _local_point(ground)
+	var occupied: Array[Vector3] = []
+	var displaced: Array[Dictionary] = []
+	if _can_stand(player_position):
+		occupied.append(Vector3(player_position.x, player_position.y, PLAYER_RADIUS))
+	for animal in _animals:
+		var radius: float = ANIMAL_RADIUS[animal["kind"]]
+		if not animal["alive"] or animal["gone"]:
+			animal["position"] = _open_ground_near(animal["position"], radius) # Collides with nobody.
+		elif _can_stand(animal["position"], radius):
+			occupied.append(Vector3(animal["position"].x, animal["position"].y, radius))
+		else:
+			displaced.append(animal)
+	for animal in displaced:
+		var radius: float = ANIMAL_RADIUS[animal["kind"]]
+		animal["position"] = _open_ground_near(animal["position"], radius, false, occupied)
+		occupied.append(Vector3(animal["position"].x, animal["position"].y, radius))
+	for animal in _animals:
+		if not _can_stand(animal["target"], ANIMAL_RADIUS[animal["kind"]]):
+			animal["target"] = animal["position"]
+	if not _can_stand(player_position):
+		player_position = _open_ground_near(player_position, PLAYER_RADIUS, false, occupied)
 	_stones.clear()
 	selected_target = -1
-	player_position = _open_ground_near(_local_point(ground), PLAYER_RADIUS)
 	player_stun = float(data["player"]["stun"])
 	shoo_cooldown = float(data["player"]["shoo_cooldown"])
 	sling_cooldown = float(data["player"]["sling_cooldown"])

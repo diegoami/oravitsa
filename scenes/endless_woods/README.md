@@ -89,7 +89,8 @@ restart from calm, while their cooldowns persist. A save made before a world
 feature existed (such as a hamlet house built over the saved spot) still
 loads in the same world. Oravitsa and every animal are moved to the nearest
 open ground, and animal homes leave hamlet clearings. Positions that are
-already valid stay exactly as saved.
+already valid stay exactly as saved, and moved actors land clear of every
+other actor, so nobody starts stuck in contact.
 
 A save is written to a temporary file and read back and validated. Only then
 does it replace the slot, using renames that replace their destination in one
@@ -148,7 +149,7 @@ negative ones. Its checks:
 - Bare clearings with no spawns inside, and identical regeneration.
 - Bounded caches and the labels.
 - Old saves positioned inside a house or homed in a clearing being moved
-  to open ground on load.
+  to open ground on load, clear of a validly saved boar right beside it.
 
 ## Wildlife
 

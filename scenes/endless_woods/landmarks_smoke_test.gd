@@ -188,7 +188,7 @@ func _run() -> void:
 	save["player"]["ground"] = [house.get_center().x, house.get_center().y]
 	save["player"]["stun"] = 0.0
 	var other: Vector2 = hamlet["houses"][1].get_center()
-	save["animals"][0]["position"] = [other.x, other.y]
+	save["animals"][0].merge({"alive": true, "gone": false, "position": [other.x, other.y]}, true)
 	save["animals"][0]["home"] = [hamlet["center"].x, hamlet["center"].y]
 	var untouched: Array = save["animals"][1]["position"]
 	world.apply_state(save)
@@ -206,5 +206,34 @@ func _run() -> void:
 	assert(not land.in_settlement(world.to_ground(moved["home"])), "A saved home leaves the hamlet clearing")
 	var kept: Vector2 = world.absolute_ground(world._animals[1]["position"])
 	assert(kept.distance_to(Vector2(untouched[0], untouched[1])) < 0.001, "Valid saved positions are unchanged")
+	# A living boar saved, validly, right where Oravitsa would otherwise land:
+	# it keeps its spot and Oravitsa lands clear of it, free to move.
+	var landing: Vector2 = world.absolute_ground(world.player_position)
+	var boar_at := Vector2.INF
+	for step in 40:
+		var spot: Vector2 = landing + Vector2.from_angle(step * TAU / 8) * (0.2 + step / 8 * 0.15)
+		if world._can_stand(world._local_point([spot.x, spot.y]), world.ANIMAL_RADIUS[world.BOAR]):
+			boar_at = spot
+			break
+	assert(boar_at != Vector2.INF, "A valid boar spot overlaps the first landing")
+	var boar: Dictionary = save["animals"][2]
+	boar.merge({"kind": world.BOAR, "alive": true, "gone": false, "state": "idle", "position": [boar_at.x, boar_at.y], "home": [boar_at.x, boar_at.y], "target": [boar_at.x, boar_at.y]}, true)
+	world.apply_state(save)
+	var resting: Dictionary = world._animals[2]
+	assert(world.absolute_ground(resting["position"]).distance_to(boar_at) < 0.001, "The validly saved boar keeps its spot")
+	assert(world.player_position.distance_to(resting["position"]) >= world.PLAYER_RADIUS + world.ANIMAL_RADIUS[world.BOAR], "Oravitsa never lands in contact with an animal")
+	var displaced: Dictionary = world._animals[0]
+	for i in range(1, world._animals.size()):
+		var data: Dictionary = world._animals[i]
+		if data["alive"] and not data["gone"]:
+			assert(displaced["position"].distance_to(data["position"]) >= world.ANIMAL_RADIUS[displaced["kind"]] + world.ANIMAL_RADIUS[data["kind"]], "A displaced animal lands clear of the others")
+	moves = 0
+	for i in 8:
+		var start: Vector2 = world.player_position
+		world.player_stun = 0.0
+		if world._try_move(Vector2.from_angle(i * TAU / 8) * 3.5):
+			moves += 1
+		world.player_position = start
+	assert(moves >= 3, "Oravitsa can walk away beside the boar")
 	print("Landmarks smoke test passed: ", hamlets.size(), " hamlets (", houses, " closed houses) and ", caves.size(), " cave mouths; solid houses/wells/rock matching their drawn meshes (", open_samples, " open samples beside rock), open entrances and crossings, passable door and cave trails, bare clearings, no spawns inside, deterministic after rebasing, bounded caches, labels and old saves moved out of new houses")
 	quit()
