@@ -69,6 +69,14 @@ func _run() -> void:
 		assert(Rect2(Vector2.ZERO, viewport_size).encloses(inventory))
 		assert(not skills.intersects(inventory))
 		assert(controls._stick_center.y + controls._radius < inventory.position.y)
+		# Long notices wrap on screen, clear of the bag, skills and thumb stick (#31).
+		forest._show_notice("The save was unreadable (the save file is unreadable); loaded the previous save", 4.0)
+		forest._update_hud()
+		await process_frame
+		var notice: Rect2 = forest._notice_label.get_rect()
+		assert(Rect2(Vector2.ZERO, viewport_size).encloses(notice), "Notice must stay inside the viewport")
+		assert(not notice.intersects(inventory) and not notice.intersects(skills))
+		assert(notice.end.y < controls._stick_center.y - controls._radius, "Notice must not cover the thumb stick")
 		assert(controls.direction == Vector2.ZERO)
 	# Both panels start hidden; toggle buttons open them and can collapse again.
 	assert(not forest._minimap.visible and not forest._hint_label.visible)

@@ -139,6 +139,10 @@ func _run() -> void:
 	world.raw_meat = 0
 	world._load_game()
 	assert(world.raw_meat == 3 and "previous save" in world._notice_label.text)
+	# The long recovery notice must stay readable on screen (#31).
+	await process_frame
+	assert(Rect2(Vector2.ZERO, world.get_viewport_rect().size).encloses(world._notice_label.get_rect()), "Recovery notice must stay on screen")
+	assert(world._notice_label.get_rect().end.y < world._inventory.position.y)
 	assert(FileAccess.get_file_as_string(PATH) == "{not json", "A corrupt save must not be deleted or rewritten")
 	# Incompatible or foreign saves are rejected without changing the game.
 	DirAccess.remove_absolute(PATH + ".bak")

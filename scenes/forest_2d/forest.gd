@@ -605,6 +605,9 @@ func _build_hud() -> void:
 	_notice_label.add_theme_constant_override("shadow_offset_x", 1)
 	_notice_label.add_theme_constant_override("shadow_offset_y", 2)
 	_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Long notices wrap and grow upward, so they stay on screen above the bag.
+	_notice_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_notice_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	canvas.add_child(_notice_label)
 	_map_toggle = _hud_toggle(canvas, _toggle_map)
 	_instructions_toggle = _hud_toggle(canvas, _toggle_instructions)
@@ -704,8 +707,13 @@ func _layout_hud() -> void:
 	_map_toggle.position = Vector2(_minimap.position.x, 16)
 	_map_toggle.size = Vector2(244.0 * map_scale, 32)
 	_inventory.position = Vector2(viewport_size.x - 262, viewport_size.y - 104)
-	_notice_label.position = _inventory.position + Vector2(-60, -52)
-	_notice_label.size = Vector2(_inventory.size.x + 60, 24)
+	var notice_width := minf(420.0, viewport_size.x - 36.0)
+	_notice_label.size = Vector2(notice_width, 72)
+	var notice_bottom := _inventory.position.y - 28.0
+	if touch:
+		# On phones the thumb stick sits above the bag; keep notices above it.
+		notice_bottom = minf(notice_bottom, _touch_controls._stick_center.y - _touch_controls._radius - 8.0)
+	_notice_label.position = Vector2(viewport_size.x - 18.0 - notice_width, notice_bottom - 72.0)
 	_instructions_toggle.position = Vector2(18, 16)
 	_instructions_toggle.size = Vector2(180, 32)
 	_help_panel.position = Vector2(18, 60)
