@@ -10,6 +10,9 @@ const CHARACTER_ART := "res://prototypes/foraging_2d/art/"
 const PLAYER_WALK: SpriteFrames = preload("res://scenes/forest_2d/art/oravitsa/walk.tres")
 const SPEED := 210.0
 const PICKUP_RADIUS := 40.0
+# Bodies touch at 43 px, so a stunned hare is reachable before a bump.
+const HARE_PICKUP_RADIUS := 75.0
+const HARE_NOTICE_RADIUS := 260.0
 const START := Vector2i(208, 208)
 const GRASS := 0
 const DIRT := 1
@@ -53,14 +56,23 @@ const SHOO_FEAR_TIME := 5.0
 const SHOO_FLEE_SPEED := SPEED * 1.8
 const SLING_RANGE := 600.0
 const SLING_COOLDOWN := 4.0
-const SLING_STUN_TIME := 3.0
+const SLING_STUN_TIME := 4.5
+# Bumping an animal stuns both; Oravitsa then recovers before it can recur.
+const CONTACT_STUN_TIME := 1.2
 const STONE_SPEED := 1050.0
+const AGGRO_NONE := 0
+const AGGRO_WARN := 1
+const AGGRO_CHARGE := 2
+# Analog triggers cast once per pull: fire past PRESS, re-arm below RELEASE.
+const TRIGGER_PRESS := 0.6
+const TRIGGER_RELEASE := 0.3
 
 var terrain = PackedByteArray()
 var objects = PackedByteArray()
 var player_position := Vector2.ZERO
 var basket := 0
 var berries_basket := 0
+var raw_meat := 0
 var deer_caught := 0
 var hares_caught := 0
 var player_stun := 0.0
@@ -77,12 +89,15 @@ var _skill_bar: Control
 var _map_toggle: Button
 var _instructions_toggle: Button
 var _help_panel: Panel
+var _save_button: Button
+var _load_button: Button
 var _map_visible := false
 var _instructions_visible := false
 var _input_mode := "keyboard"
 var active_skill := 0 # Shoo, Sling.
 var _right_stick := Vector2.ZERO
 var _target_stick_latched := false
+var _trigger_latched := [false, false] # LT casts Shoo, RT casts Sling.
 var _inventory: Control
 var _ground: TileMapLayer
 var _dirt: TileMapLayer
@@ -92,6 +107,9 @@ var _player: AnimatedSprite2D
 var _camera: Camera2D
 var _minimap: Control
 var _hint_label: Label
+var _notice_label: Label
+var _notice_time := 0.0
+var _notice_duration := 2.5
 var _touch_controls: Control
 var _active_props: Dictionary = {}
 var _animals: Array[Dictionary] = []
@@ -120,6 +138,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	player_stun = maxf(0.0, player_stun - delta)
 	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
+	_notice_time = maxf(0.0, _notice_time - delta)
 	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	direction = (direction + _touch_controls.direction).limit_length()
 	var before_move := player_position
@@ -174,6 +193,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_use_skill(0)
 		elif event.physical_keycode == KEY_F or event.keycode == KEY_F:
 			_use_skill(1)
+		elif event.keycode == KEY_K and _can_save():
+			_save_game()
+		elif event.keycode == KEY_L and _can_save():
+			_load_game()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -184,6 +207,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_map()
 		elif event.button_index == JOY_BUTTON_START:
 			_toggle_instructions()
+		elif event.button_index == JOY_BUTTON_X and _instructions_visible and _can_save():
+			_save_game() # Only with Help open, so a stray press never saves.
+		elif event.button_index == JOY_BUTTON_B and _instructions_visible and _can_save():
+			_load_game()
 		elif event.is_action_pressed("skill_next"):
 			active_skill = wrapi(active_skill + 1, 0, 2)
 			_update_hud()
@@ -214,10 +241,22 @@ func _controller_axis(event: InputEventJoypadMotion) -> void:
 			var value := _right_stick.x if absf(_right_stick.x) >= absf(_right_stick.y) else _right_stick.y
 			_cycle_sling_target(1 if value > 0.0 else -1)
 			_target_stick_latched = true
+	elif event.axis in [JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]:
+		var skill := 0 if event.axis == JOY_AXIS_TRIGGER_LEFT else 1
+		if event.axis_value < TRIGGER_RELEASE:
+			_trigger_latched[skill] = false
+		elif event.axis_value >= TRIGGER_PRESS and not _trigger_latched[skill]:
+			_trigger_latched[skill] = true
+			# Direct casts leave the LB/RB selection for Y unchanged.
+			_cast_skill(skill)
 
 
 func _use_skill(skill: int) -> void:
 	active_skill = skill
+	_cast_skill(skill)
+
+
+func _cast_skill(skill: int) -> void:
 	if skill == 0:
 		_shoo()
 	else:
@@ -229,6 +268,7 @@ func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_WINDOW_FOCUS_OUT]:
 		_right_stick = Vector2.ZERO
 		_target_stick_latched = false
+		_trigger_latched = [false, false]
 
 
 func _input(event: InputEvent) -> void:
@@ -328,7 +368,11 @@ func _update_sling(delta: float) -> void:
 		var position: Vector2 = stone["position"]
 		var step := STONE_SPEED * delta
 		if position.distance_to(destination) <= step + ANIMAL_RADIUS[_animals[id]["kind"]]:
-			_animals[id]["stun"] = maxf(_animals[id]["stun"], SLING_STUN_TIME)
+			# A hit never extends an existing stun: the stun outlasts the sling
+			# cooldown, so refreshing it would let Oravitsa stun-lock an animal.
+			if _animals[id]["stun"] <= 0.0:
+				_animals[id]["stun"] = SLING_STUN_TIME
+			_animals[id]["eat_time"] = 0.0 # A stun interrupts eating, like fear.
 			_animals[id]["velocity"] = Vector2.ZERO
 			_animals[id]["burst"] = 0.0
 			_animals[id]["timeout"] = 0.0
@@ -553,8 +597,22 @@ func _build_hud() -> void:
 	_hint_label.add_theme_font_size_override("font_size", 14)
 	_hint_label.add_theme_color_override("font_color", Color("e9dfbb"))
 	canvas.add_child(_hint_label)
+	_notice_label = Label.new()
+	_notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_notice_label.add_theme_font_size_override("font_size", 16)
+	_notice_label.add_theme_color_override("font_color", Color("fff1bd"))
+	_notice_label.add_theme_color_override("font_shadow_color", Color("101820"))
+	_notice_label.add_theme_constant_override("shadow_offset_x", 1)
+	_notice_label.add_theme_constant_override("shadow_offset_y", 2)
+	_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Long notices wrap and grow upward, so they stay on screen above the bag.
+	_notice_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_notice_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	canvas.add_child(_notice_label)
 	_map_toggle = _hud_toggle(canvas, _toggle_map)
 	_instructions_toggle = _hud_toggle(canvas, _toggle_instructions)
+	_save_button = _hud_toggle(canvas, func(): _save_game())
+	_load_button = _hud_toggle(canvas, func(): _load_game())
 	_skill_bar = Control.new()
 	_skill_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_skill_bar.size = Vector2(212, 108)
@@ -648,11 +706,20 @@ func _layout_hud() -> void:
 	_minimap.position = Vector2(viewport_size.x - 20.0 - 244.0 * map_scale, 60.0)
 	_map_toggle.position = Vector2(_minimap.position.x, 16)
 	_map_toggle.size = Vector2(244.0 * map_scale, 32)
-	_inventory.position = Vector2(viewport_size.x - 178, viewport_size.y - 104)
+	_inventory.position = Vector2(viewport_size.x - 262, viewport_size.y - 104)
+	var notice_width := minf(420.0, viewport_size.x - 36.0)
+	_notice_label.size = Vector2(notice_width, 72)
+	var notice_bottom := _inventory.position.y - 28.0
+	if touch:
+		# On phones the thumb stick sits above the bag; keep notices above it.
+		notice_bottom = minf(notice_bottom, _touch_controls._stick_center.y - _touch_controls._radius - 8.0)
+	_notice_label.position = Vector2(viewport_size.x - 18.0 - notice_width, notice_bottom - 72.0)
 	_instructions_toggle.position = Vector2(18, 16)
 	_instructions_toggle.size = Vector2(180, 32)
 	_help_panel.position = Vector2(18, 60)
 	_help_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 144)
+	_save_button.size = Vector2(124, 32)
+	_load_button.size = Vector2(124, 32)
 	_hint_label.position = _help_panel.position + Vector2(12, 9)
 	_hint_label.size = _help_panel.size - Vector2(24, 18)
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -723,13 +790,18 @@ func _spawn_kind(sample: float) -> int:
 
 func _add_animal(kind: int, cell: Vector2i) -> void:
 	assert(_can_stand(_cell_center(cell), ANIMAL_RADIUS[kind]))
-	_animals.append({
+	_animals.append(_animal_record(kind, _cell_center(cell)))
+
+
+## A fresh animal state; subclasses add their fields so restores share defaults.
+func _animal_record(kind: int, position: Vector2) -> Dictionary:
+	return {
 		"kind": kind,
-		"position": _cell_center(cell),
-		"target": _cell_center(cell),
+		"position": position,
+		"target": position,
 		"timeout": 0.0,
 		"turn": 0,
-		"home": _cell_center(cell),
+		"home": position,
 		"stun": 0.0,
 		"shoo": 0.0,
 		"velocity": Vector2.ZERO,
@@ -744,7 +816,7 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 		"burst_cooldown": 0.0,
 		"catch_target": -1,
 		"catch_time": 0.0
-	})
+	}
 
 
 func _refresh_animals(center: Vector2i) -> void:
@@ -839,8 +911,7 @@ func _nearest_food(position: Vector2, kind: int) -> Vector2i:
 			var cell := Vector2i(x, y)
 			if not _in_bounds(cell):
 				continue
-			var item: int = objects[_index(cell)]
-			if item != BERRIES and not (kind == BOAR and item == MUSHROOM):
+			if objects[_index(cell)] not in _food_kinds(kind):
 				continue
 			var distance := position.distance_squared_to(_cell_center(cell))
 			if distance < best:
@@ -906,7 +977,7 @@ func _shoo_ready() -> bool:
 func _catch_prey(lynx_id: int, prey_id: int, delta: float = 0.0) -> bool:
 	var lynx := _animals[lynx_id]
 	var prey := _animals[prey_id]
-	if not prey["alive"] or not _is_predator(lynx["kind"]) or prey["kind"] not in [DEER, HARE]:
+	if not prey["alive"] or prey["kind"] not in _prey_kinds(lynx["kind"]):
 		return false
 	if prey["kind"] == DEER:
 		if lynx["catch_target"] != prey_id:
@@ -936,6 +1007,47 @@ func _catch_prey(lynx_id: int, prey_id: int, delta: float = 0.0) -> bool:
 
 func _is_predator(kind: int) -> bool:
 	return kind in [LYNX, WOLF]
+
+
+## Prey species a hunter pursues; empty for animals that never hunt.
+func _prey_kinds(kind: int) -> Array:
+	return [DEER, HARE] if _is_predator(kind) else []
+
+
+## Species an animal flees from on sight.
+func _threat_kinds(kind: int) -> Array:
+	if kind == FOX:
+		return [BOAR, DEER, FOX, LYNX, HARE, WOLF]
+	return [LYNX, WOLF] if kind in [DEER, HARE] else []
+
+
+## Aggression phase toward Oravitsa; only the endless world provokes animals.
+func _aggression(_id: int) -> int:
+	return AGGRO_NONE
+
+
+func _is_fighting(_id: int) -> bool:
+	return false
+
+
+func _charge_speed(kind: int) -> float:
+	return ANIMAL_SPEEDS[kind]
+
+
+## Food an animal forages for; hunting nearby prey takes priority over it.
+func _food_kinds(kind: int) -> Array:
+	if kind == BOAR:
+		return [BERRIES, MUSHROOM]
+	return [BERRIES] if kind in [DEER, HARE] else []
+
+
+func _wants_to_hunt(id: int) -> bool:
+	return not _prey_kinds(_animals[id]["kind"]).is_empty()
+
+
+## Chase spurt speed, duration and recovery (measured from the spurt's start).
+func _burst_profile(_kind: int) -> Vector3:
+	return Vector3(LYNX_BURST_SPEED, LYNX_BURST_TIME, LYNX_BURST_RECOVERY)
 
 
 func _update_respawns(delta: float) -> void:
@@ -1086,10 +1198,11 @@ func _move_animals(delta: float) -> void:
 		var target: Vector2 = data["target"]
 		var speed: float = ANIMAL_SPEEDS[kind]
 		var threat := -1
-		if kind == FOX:
-			threat = _nearest_animal(position, [BOAR, DEER, FOX, LYNX, HARE, WOLF], id, 310.0)
-		elif kind in [DEER, HARE]:
-			threat = _nearest_animal(position, [LYNX, WOLF], id, 340.0)
+		var threats := _threat_kinds(kind)
+		if not threats.is_empty():
+			threat = _nearest_animal(position, threats, id, 310.0 if kind == FOX else 340.0)
+		# Hunters with no prey in reach fall through to foraging or roaming.
+		var prey := _nearest_animal(position, _prey_kinds(kind), id, 650.0) if _wants_to_hunt(id) else -1
 		var player_distance := position.distance_to(player_position)
 		var avoid_player := player_distance < (135.0 if kind == BOAR else 235.0)
 		if kind == BOAR and _hash(id, 0, 451) < 0.45 and player_distance > 80.0:
@@ -1101,6 +1214,22 @@ func _move_animals(delta: float) -> void:
 			target = position + away * 600
 			data["state"] = "scared"
 			speed = maxf(SHOO_FLEE_SPEED, ANIMAL_SPEEDS[kind] * 2.4)
+		elif _is_fighting(id):
+			# Fighting animals square off in place until the fight resolves.
+			data["velocity"] = Vector2.ZERO
+			data["state"] = "fight"
+			sprite.stop()
+			continue
+		elif _aggression(id) == AGGRO_WARN:
+			# A provoked animal stands its ground facing Oravitsa before charging.
+			data["velocity"] = Vector2.ZERO
+			data["state"] = "warn"
+			sprite.stop()
+			continue
+		elif _aggression(id) == AGGRO_CHARGE:
+			target = player_position
+			data["state"] = "charge"
+			speed = _charge_speed(kind)
 		elif threat >= 0 or avoid_player:
 			var away := Vector2.ZERO
 			if avoid_player:
@@ -1114,26 +1243,25 @@ func _move_animals(delta: float) -> void:
 		elif position.distance_to(data["home"]) > 850.0:
 			target = data["home"]
 			data["state"] = "return"
-		elif _is_predator(kind):
-			var prey := _nearest_animal(position, [DEER, HARE], id, 650.0)
-			if prey >= 0:
-				var prey_position: Vector2 = _animals[prey]["position"]
-				if position.distance_to(prey_position) <= ANIMAL_RADIUS[kind] + ANIMAL_RADIUS[_animals[prey]["kind"]] + 8.0:
-					if previous_catch_target == prey:
-						data["catch_target"] = previous_catch_target
-						data["catch_time"] = previous_catch_time
-					if _catch_prey(id, prey, delta):
-						sprite.stop()
-						continue
-				target = prey_position
-				data["state"] = "hunt"
-				if data["burst_cooldown"] <= 0.0 and position.distance_to(prey_position) < 410.0:
-					data["burst"] = LYNX_BURST_TIME
-					data["burst_cooldown"] = LYNX_BURST_RECOVERY
-				speed = LYNX_BURST_SPEED if data["burst"] > 0.0 or data["catch_target"] == prey else ANIMAL_SPEEDS[kind]
-		elif kind in [BOAR, DEER, HARE]:
+		elif prey >= 0:
+			var prey_position: Vector2 = _animals[prey]["position"]
+			if position.distance_to(prey_position) <= ANIMAL_RADIUS[kind] + ANIMAL_RADIUS[_animals[prey]["kind"]] + 8.0:
+				if previous_catch_target == prey:
+					data["catch_target"] = previous_catch_target
+					data["catch_time"] = previous_catch_time
+				if _catch_prey(id, prey, delta):
+					sprite.stop()
+					continue
+			target = prey_position
+			data["state"] = "hunt"
+			var burst := _burst_profile(kind)
+			if data["burst_cooldown"] <= 0.0 and position.distance_to(prey_position) < 410.0:
+				data["burst"] = burst.y
+				data["burst_cooldown"] = burst.z
+			speed = burst.x if data["burst"] > 0.0 or data["catch_target"] == prey else ANIMAL_SPEEDS[kind]
+		elif not _food_kinds(kind).is_empty():
 			var food_cell: Vector2i = data["food_cell"]
-			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in [BERRIES, MUSHROOM] or (kind in [DEER, HARE] and objects[_index(food_cell)] != BERRIES):
+			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in _food_kinds(kind):
 				food_cell = _nearest_food(position, kind)
 				data["food_cell"] = food_cell
 			if _in_bounds(food_cell):
@@ -1158,7 +1286,7 @@ func _move_animals(delta: float) -> void:
 			target = data["target"]
 		var heading := _steer_animal(id, position.direction_to(target), target, delta)
 		var velocity: Vector2 = data["velocity"]
-		velocity = velocity.move_toward(heading * speed, (520.0 if _is_predator(kind) and data["burst"] > 0.0 else 290.0) * delta)
+		velocity = velocity.move_toward(heading * speed, (520.0 if data["burst"] > 0.0 or data["state"] == "charge" else 290.0) * delta)
 		data["velocity"] = velocity
 		var step: Vector2 = velocity * delta
 		var candidate := position
@@ -1204,8 +1332,8 @@ func _try_move(step: Vector2) -> bool:
 		if not animal["alive"]:
 			continue
 		if candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
-			player_stun = 0.85
-			animal["stun"] = maxf(animal["stun"], 0.85)
+			player_stun = CONTACT_STUN_TIME
+			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
 			animal["velocity"] = Vector2.ZERO
 			return false
 	player_position = candidate
@@ -1241,41 +1369,126 @@ func _collect_nearby() -> void:
 					berries_basket += 1
 				_consume_food(cell)
 				_update_hud()
+	var hare := _stunned_hare_near(HARE_PICKUP_RADIUS)
+	if hare >= 0 and player_stun <= 0.0:
+		_collect_hare(hare)
+
+
+## Nearest living, stunned hare within reach; only those can be collected.
+func _stunned_hare_near(radius: float) -> int:
+	var nearest := -1
+	var best := radius
+	for id in _active_animals:
+		var animal := _animals[id]
+		if animal["alive"] and animal["kind"] == HARE and animal["stun"] > 0.0:
+			var distance := player_position.distance_to(animal["position"])
+			if distance <= best:
+				best = distance
+				nearest = id
+	return nearest
+
+
+func _collect_hare(id: int) -> void:
+	var data := _animals[id]
+	if not data["alive"] or data["kind"] != HARE or data["stun"] <= 0.0:
+		return
+	# Removing it from the living set first makes collection happen once.
+	data["alive"] = false
+	data["stun"] = 0.0
+	data["shoo"] = 0.0
+	data["velocity"] = Vector2.ZERO
+	_on_hare_collected(id)
+	raw_meat += 1
+	if _active_animals.has(id):
+		_active_animals[id].queue_free()
+		_active_animals.erase(id)
+	if selected_target == id:
+		selected_target = -1
+	_show_notice("+1 raw meat")
+	_update_hud()
+
+
+## Finite scenes return a collected hare like a caught one, away from view.
+func _on_hare_collected(id: int) -> void:
+	_animals[id]["respawn"] = PREY_RESPAWN_TIME
+
+
+func _show_notice(text: String, seconds: float = 2.5) -> void:
+	_notice_label.text = text
+	_notice_time = seconds
+	_notice_duration = seconds
+
+
+## Grows Help to its line count (23 px per line) and keeps buttons beneath it.
+func _fit_help_panel() -> void:
+	_help_panel.size.y = maxf(144.0, 22.0 + 23.0 * (_hint_label.text.count("\n") + 1))
+	_hint_label.size = _help_panel.size - Vector2(24, 18)
+	_save_button.position = _help_panel.position + Vector2(0, _help_panel.size.y + 8)
+	_load_button.position = _save_button.position + Vector2(132, 0)
+
+
+## Saving is offered only where a scene supports it (the endless woods).
+func _can_save() -> bool:
+	return false
+
+
+func _save_game() -> void:
+	pass
+
+
+func _load_game() -> void:
+	pass
 
 
 func _update_hud() -> void:
 	_inventory.set("mushrooms", basket)
 	_inventory.set("berries", berries_basket)
-	_inventory.set("pickup_prompt", "A / Cross: pick up" if _input_mode == "controller" else "Foraging bag")
+	_inventory.set("meat", raw_meat)
+	var prompt := "A / Cross: pick up" if _input_mode == "controller" else "Foraging bag"
+	if player_stun <= 0.0 and _stunned_hare_near(HARE_NOTICE_RADIUS) >= 0:
+		if _input_mode == "controller":
+			prompt = "A / Cross: take stunned hare" if _stunned_hare_near(HARE_PICKUP_RADIUS) >= 0 else "Get closer to take the hare"
+		else:
+			prompt = "Walk to the stunned hare to take it"
+	_inventory.set("pickup_prompt", prompt)
+	_notice_label.visible = _notice_time > 0.0
+	_notice_label.modulate.a = clampf(_notice_time / 0.6, 0.0, 1.0)
 	_inventory.queue_redraw()
 	_minimap.visible = _map_visible
 	_help_panel.visible = _instructions_visible
 	_hint_label.visible = _instructions_visible
+	_save_button.visible = _instructions_visible and _can_save()
+	_load_button.visible = _save_button.visible
 	var controller := _input_mode == "controller"
 	var touch := _input_mode == "touch"
 	_skill_hint_label.visible = controller
-	_skill_hint_label.text = "LB / RB: select skill · Y: cast"
+	_skill_hint_label.text = "LT: Shoo · RT: Sling · LB / RB + Y"
 	_map_toggle.text = ("− Map" if _map_visible else "+ Map") + (" [Select]" if controller else ("" if touch else " [M]"))
 	_instructions_toggle.text = ("− Help" if _instructions_visible else "+ Help") + (" [Start]" if controller else ("" if touch else " [H]"))
+	_save_button.text = "Save game" + (" [X]" if controller else ("" if touch else " [K]"))
+	_load_button.text = "Load game" + (" [B]" if controller else ("" if touch else " [L]"))
 	if controller:
-		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLB / RB: switch active skill\nY / Triangle: cast · A / Cross: pick up\nSelect: map · Start: help"
+		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLT / L2: Shoo · RT / R2: Sling\nLB / RB: select skill · Y / Triangle: cast it\nA / Cross: pick up · Select: map · Start: help"
 	elif touch:
 		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap Shoo or Sling on that target\nWalk over mushrooms & berries\nUse the top buttons to hide panels"
 	else:
 		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling target\nSpace: scare selected animal\nM: map · H: instructions"
+	if _can_save():
+		_hint_label.text += "\n" + ("X: save game · B: load game" if controller else ("Save or load with the buttons below" if touch else "K: save game · L: load game"))
+	_fit_help_panel()
 	var target_name: String = ANIMAL_NAMES[_animals[selected_target]["kind"]] if _valid_sling_target(selected_target) else ""
 	_sling_label.text = "Right stick: select target" if controller else ("Tap animal to target" if touch else "Click animal to target")
 	if not target_name.is_empty():
 		_sling_label.text = target_name + (" · Out of range" if player_position.distance_to(_animals[selected_target]["position"]) > SLING_RANGE else " · Selected")
 	if player_stun > 0:
-		_sling_label.text = "Recovering"
+		_sling_label.text = "Recovering %.1fs" % player_stun
 	_shoo_button.disabled = not _shoo_ready()
 	_sling_button.disabled = not _sling_ready()
 	_shoo_button.set("cooldown", shoo_cooldown)
 	_sling_button.set("cooldown", sling_cooldown)
 	_sling_button.set("cooldown_duration", SLING_COOLDOWN)
-	_shoo_button.set("prompt", ("Y / Triangle" if active_skill == 0 else "") if controller else ("TAP" if touch else "SPACE"))
-	_sling_button.set("prompt", ("Y / Triangle" if active_skill == 1 else "") if controller else ("TAP" if touch else "RMB / F"))
+	_shoo_button.set("prompt", ("LT · Y" if active_skill == 0 else "LT") if controller else ("TAP" if touch else "SPACE"))
+	_sling_button.set("prompt", ("RT · Y" if active_skill == 1 else "RT") if controller else ("TAP" if touch else "RMB / F"))
 	_shoo_button.set("active", active_skill == 0)
 	_sling_button.set("active", active_skill == 1)
 	_shoo_button.queue_redraw()

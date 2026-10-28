@@ -50,12 +50,16 @@ Web: serve the extracted folder over HTTP (for example python3 -m http.server
 For a public website use an HTTPS static host. No game backend is required.
 
 Move: WASD/arrows, left stick/D-pad, or touch joystick.
-Shoo: Space. Sling: select an animal, then right mouse/F.
-Controller: LB/RB select skill, Y casts, A collects; right-stick flicks cycle
-targets. Map/help: M/H or Select/Start. Both start hidden.
+Shoo: Space. Sling: select an animal, then right mouse/F. A stunned hare can
+be collected for raw meat by walking to it (controller: A).
+Controller: LT casts Shoo, RT casts Sling; LB/RB select a skill and Y casts
+it; A collects; right-stick flicks cycle targets. Map/help: M/H or
+Select/Start. Both start hidden.
+Save/load the endless woods: K/L, the buttons under Help, or X/B on a
+controller while Help is open. Sound volume: 9 (forest) and 0 (animals).
 
-This is an early alpha: progress is not saved across quitting or reloading.
-No quests, swimming, or building loot. Art is still prototype quality.
+This is an early alpha with one manual save slot and no autosave. No quests,
+swimming, or building loot. Art and synthesized sounds are prototype quality.
 Untested browser/device/live-flicker areas are listed in the release notes.
 
 Project and asset provenance: https://github.com/diegoami/oravitsa/tree/{commit}

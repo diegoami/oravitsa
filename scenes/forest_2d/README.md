@@ -25,7 +25,7 @@ remain passable. Tree, bush, stone, and log collision follows their small base
 footprints instead of filling their whole tile, so a visible diagonal gap
 between two props can be crossed. Animals and Oravitsa have solid circular
 footprints. A bump
-stuns both for 0.85 seconds. Select an animal, then Space scares that target
+stuns both for 1.2 seconds. Select an animal, then Space scares that target
 within 600 px for five seconds, with a seven-second cooldown. A visible SCARED
 countdown marks its fast escape away from Oravitsa. Invalid casts spend no
 cooldown. Boars move slowly, forage for mushrooms and berries,
@@ -55,13 +55,17 @@ The minimap shows colored markers for all living animals, with a species key
 beneath it; Oravitsa is the bright outlined marker.
 
 Click or tap an animal to select it, then right-click, press F, or use Sling to fire. The range
-is 600 px, the cooldown is four seconds, and a hit stuns for three seconds
-without injury or removal. Bumping a stunned animal preserves the longer stun.
+is 600 px, the cooldown is four seconds, and a hit stuns for 4.5 seconds
+without injury or removal. A hit never extends an existing stun, which
+prevents stun-locking with the shorter cooldown. Bumping a stunned animal
+preserves the longer stun. A `STUNNED` countdown is shown above the animal.
 The selection ring, flying stone, and circling stun stars are drawn effects;
 Oravitsa currently keeps her walking or idle pose rather than a sling animation.
 Controllers use the left stick or D-pad to walk and right-stick flicks to cycle
-in-range living targets, nearest first. LB/RB (L1/R1) switch the highlighted active
-skill, Y/Triangle casts it, and A/Cross picks up food within 40 px; controller
+in-range living targets, nearest first. LT/L2 casts Shoo and RT/R2 casts Sling
+directly (once per pull past 60%, re-armed below 30%). LB/RB (L1/R1) still switch
+the highlighted active skill and Y/Triangle casts it; trigger casts leave that
+selection unchanged. A/Cross picks up food within 40 px; controller
 walking does not collect automatically. Keyboard and touch retain walk-over pickup.
 Stick targeting requires returning to center between targets; shoulder buttons switch once per press.
 The bottom-left skill slots show icons, cooldowns, and the active input prompts.

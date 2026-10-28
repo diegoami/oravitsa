@@ -41,9 +41,10 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all thirteen smoke scripts, including targeted
-Shoo, endless-world travel/rebasing/ecology/food regrowth, queued streaming, offscreen wildlife spawning and the
-retained foraging prototype. A gate must reject Godot
+`verify.py` imports and runs all nineteen smoke scripts, including targeted
+Shoo, endless-world travel/rebasing/ecology/food regrowth, fox foraging, hare
+collection, aggression, fights, save/load, audio wiring, queued streaming,
+offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
 Logged errors terminate the process immediately; timeouts retain diagnostics.
@@ -63,17 +64,29 @@ Record unavailable checks as untested, never as passed.
 
 ## Gameplay contracts
 
-- Oravitsa cannot kill animals, including hares. Sling stuns; Shoo repels.
+- Oravitsa never kills or injures animals. Sling stuns; Shoo repels. The one
+  exception: a hare that is currently stunned and within 75 px can be
+  collected (walk-over, or A on a controller). It is removed exactly once and
+  immediately becomes one raw meat; no other species can be collected.
   Both use the selected animal. Shoo applies five seconds of visible scared
   status and fast escape, with a seven-second cooldown; invalid casts do not
   spend cooldown. It interrupts feeding/hunting and existing animal stun.
   Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
-- In the endless world wolves/lynxes are more frequent, hunt both prey species
-  and despawn after 180 hungry seconds. The finite scenes retain rare lynxes.
-  Hares remain most frequent, with deer/foxes less and boars uncommon.
+- In the endless world wolves/lynxes are more frequent, sprint in longer and
+  faster spurts, hunt both prey species and despawn after 180 hungry seconds.
+  Endless foxes also hunt hares but rarely catch them. The finite scenes
+  retain rare lynxes. Hares remain most frequent, with deer/foxes less and
+  boars uncommon; endless food and wildlife are about a third of v0.1 density.
+- Endless wolves/lynxes/boars can be provoked by lingering nearby: a visible
+  warning, a bounded charge and a stun-only hit, then a disengagement
+  cooldown. Shoo/stun interrupt it. No player damage, death or lethal combat.
+  Cross-species wolf/lynx/boar fights are rare, nonlethal (loser stunned) and
+  followed by a cooldown.
 - Controller: left stick/D-pad moves, right-stick flicks cycle targets,
-  LB/RB select the active skill, Y always casts it, A collects food.
-  LT/RT do not select skills. Map/Help start hidden (M/H; Select/Start).
+  LT casts Shoo and RT casts Sling directly, once per pull (fire at 0.6,
+  re-arm below 0.3). LB/RB still select the active skill and Y casts it;
+  trigger casts do not change that selection. A collects food.
+  Map/Help start hidden (M/H; Select/Start).
 - Keep the approved eight-direction Oravitsa walk and movement-driven gait.
   Do not replace it with the uncorrected source model.
 - Streaming must preserve pickups and animal state. Collision must work even

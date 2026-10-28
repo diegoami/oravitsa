@@ -43,20 +43,93 @@ render nodes. Absolute cell identities and deadlines survive chunk unloading
 and origin rebasing, and revisiting never restarts the timer. Depletion records
 are discarded when the patch recovers; full terrain history is regenerated.
 Regrowth adds no inventory, and a recovered patch must be collected again.
-There is no save to disk, and quitting/reloading starts a fresh session.
+Without loading a save, quitting/reloading starts a fresh session.
+
+## Sound
+
+A quiet forest ambience plays two looping layers of different lengths: 23 s of
+wind and leaves and 19 s of birdsong. Their combined pattern only repeats
+every 437 s. Animals within 14 m of Oravitsa occasionally call: wolves howl,
+lynxes growl, boars grunt, deer bark, foxes yip and hares thump. Each animal waits
+12–60 s (by species) between calls, at most two calls play at once, and calls
+start at least 1.2 s apart, so crowds stay comfortable. Distant and offscreen
+animals are silent. Calls are 3D sounds heard from Oravitsa's position (not the
+camera's), attenuated with distance and panned to match the fixed view. An
+animal that turns angry calls immediately, and so does an animal starting a
+fight. A call stops if its animal despawns or leaves the active area. The
+ambience is never restarted by streaming or origin rebasing.
+
+Volume levels cycle 100% → 60% → 30% → Off separately for the forest and the
+animals: press **9**/**0**, or use the *Forest*/*Animals* buttons under Help.
+The levels persist in `user://settings.cfg`. Browsers only start audio after
+the first click, key or touch on the page; the woods are silent until then.
+Headless runs use Godot's silent driver, where the same scheduling runs without
+playback. Every sound is synthesized by `tools/synth_audio.py` (CC0, no
+recordings or services; see [audio provenance](audio/PROVENANCE.md)).
+Listening quality, and browser and native playback, have not yet been checked
+by ear.
+
+## Saving
+
+One manual slot, `user://oravitsa_save.json`, with no autosave. **K** or the
+Help panel's *Save game* button saves; **L** or *Load game* loads; with Help
+open a controller uses **X**/**B**. (F5 would reload a browser tab, so it is not
+used.) A notice reports every success or failure.
+
+The save is versioned JSON holding only bounded state: the world identity,
+Oravitsa's absolute ground position, stun, both cooldowns, the selected skill,
+inventory (berries, mushrooms, raw meat), the food clock, depleted food records
+(absolute cell and deadline) and at most 208 animal records (absolute
+position/home/target plus status, hunger and cooldown timers). Terrain, trees and
+undepleted food are regenerated from the seeds, never stored. On loading, the
+floating origin is rebased near the saved position. Timers continue from their saved values,
+so game time is paused while the game is closed. Stones in flight, the target
+selection, route plans and in-progress warnings, charges, fights and hunts
+restart from calm, while their cooldowns persist.
+
+A save is written to a temporary file and read back and validated. Only then
+does it replace the slot, using renames that replace their destination in one
+step. A readable replaced save is kept as `.bak`; a corrupt slot is never
+rotated over a valid backup. If the final replacement fails, the previous save
+is moved back into the slot, so a failed save always leaves the last readable
+save recoverable (the save test injects real rename failures). Loading validates
+every field before anything changes. A missing, unreadable, incompatible
+(other version) or foreign-world save is reported and left untouched. If the
+slot is missing or unreadable but the backup is intact, the backup is loaded
+and the notice says so. Desktop builds store the file in Godot's per-user data folder.
+The Web build uses the browser's persistent storage (IndexedDB), which private
+browsing or clearing site data can discard. The browser save path is untested.
 
 ## Wildlife
 
 There are now six species. Seed weights are hare 52, deer 18, fox 10, boar 8,
 wolf 7 and lynx 5. This intentionally makes predators more frequent than in
-the retained finite scene. The fixed initial population is 103 animals:
-62 hares, 14 deer, 12 foxes, 5 boars, 6 lynxes and 4 wolves. Replenishment targets
-18/8/4/4/3/2 for hare/deer/fox/boar/wolf/lynx, with species-specific chances.
+the retained finite scene. The ecology is intentionally sparse, at roughly a
+third of v0.1's abundance (endless world only; finite scenes are unchanged).
+The fixed initial population is 34 animals: 17 hares, 8 deer, 3 foxes, 2 boars,
+2 lynxes and 2 wolves. Replenishment targets 6/3/1/1/1/1 for
+hare/deer/fox/boar/wolf/lynx, with species-specific chances; a 1.5 km walk
+averages about 10 animals in the local population radius (27 before). Food
+patch chances are 4.3% of cells in birch woods and 2.7% elsewhere, giving about
+400 patches per 200 m square around arrival (1115 before).
 New arrivals and prey respawns stay outside the actual smoothed camera view.
 
 Both wolves and lynxes hunt hares and deer. Hares are caught on contact; deer
 require three seconds of continuous close pursuit, interrupted by losing
-contact or stun. A successful catch resets the predator's hunger. After
+contact or stun. Endless wolves and lynxes chase in longer, faster spurts than
+the finite scenes: 240 px/s for 2.2 s, restarting 3.4 s after each spurt
+begins (finite scenes: 220 px/s for 1.5 s). Foxes hunt hares too, with weak
+195 px/s, 1.4 s spurts. They avoid only boars, wolves and lynxes, and hares
+now flee foxes. Seven of ten fox lunges miss, after which the fox rests for
+nine seconds before hunting again. In isolated 20-second chases from 6 m
+(`ecology_sample.gd`, 24 trials each), catches rose from wolf→hare 4 to 15,
+lynx→hare 3 to 11, wolf→deer 0 to 4 and lynx→deer 1 to 7; foxes catch 2 hares
+(previously they never hunted). Foxes also eat berries (never mushrooms) when no
+hare is within reach or while resting after a missed lunge; hunting a nearby
+hare takes priority. They use the shared foraging path: 0.7 s of eating
+consumes a patch once, starts its normal 3–6 minute berry regrowth deadline and
+grants no inventory. Fear or a stun resets eating progress, and a fox abandons
+a patch that someone else emptied. A successful catch resets the predator's hunger. After
 **180 seconds without a catch**, a predator despawns once outside the camera
 view. Hunger keeps counting while visible; offscreen predators leave immediately
 when the limit is reached.
@@ -65,6 +138,10 @@ The population system may later introduce a different arriving animal.
 Wolves use a rigged Quaternius CC0 model with Idle/Walk/Eating/Gallop clips; there are
 no attack or death animation calls. Oravitsa still cannot kill any animal:
 Sling stuns and Shoo repels, with the existing keyboard/touch/controller inputs.
+A hare that is currently stunned and within 75 px can be collected by walking
+to it or pressing A. It is removed once and becomes one raw meat. Its slot is
+marked gone with the 45-second reuse delay, so it never takes the prey respawn
+path; ordinary replenishment restores the hare population.
 Shoo shares the selected target/range with Sling and scares only that animal
 for five seconds. It interrupts feeding/hunting and existing animal stun,
 immediately starts a fast escape away from Oravitsa, and shows an orange
@@ -74,6 +151,29 @@ on invalid casts. Fear has priority over prey pursuit, food and home return;
 ordinary AI resumes when it expires. Sling can stun a scared animal; both
 status countdowns appear while it is frozen, and fear continues counting down.
 Collision and recovery routes still apply.
+
+**Aggression toward Oravitsa.** Lingering within 260 px (about 4 m) of a wolf,
+lynx or boar builds provocation; backing away drains it twice as fast. After
+three seconds there is a 60% chance the animal turns angry; otherwise it ignores
+her for eight seconds before another roll. An angry animal stands still for
+1.2 s under a red `!! ANGRY` marker, with a HUD notice, and then charges for at most
+four seconds (wolf 232, lynx 228, boar 196 px/s; Oravitsa walks at 210).
+Reaching her stuns her for two seconds; an already stunned Oravitsa is not
+stunned again. Hit or miss, the animal then loses interest for 25 seconds.
+Shoo, any stun, feeding or leaving the active area ends the encounter at once.
+A charge overrides hunting and uses ordinary collision-checked movement. There
+is no damage or death. Retained finite scenes have no aggression.
+
+**Fights.** Calm wolves, lynxes and boars of *different* species within 140 px
+are checked once per second, with a 12% chance to fight; same-species pairs do
+not fight. Both square off in place for 2.5 s under an orange `!! FIGHTING`
+marker. Wolves win slightly more often (strength 1.2 against 1.0). The loser
+is stunned for four seconds (with the normal `STUNNED` countdown); nobody is
+hurt or removed. Both then avoid fights for 45 s. An animal that is stunned,
+scared, feeding (including a forager in the middle of eating a patch), hunting
+or provoked by Oravitsa never starts a fight. Shoo, a
+stun or leaving the active area ends a fight for both with no winner and a
+20 s cooldown. A fighting animal ignores prey and Oravitsa.
 
 Animals that make little progress for 0.8 s can request a bounded 19 × 19
 local A* route around solid scenery. At most one recovery route is planned

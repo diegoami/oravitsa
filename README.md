@@ -25,13 +25,21 @@ roof cuts away inside. Select an animal, then press **Space** to Shoo it.
 select it, then **right-click**, press **F**, or click **Sling** to throw a stone. On phones,
 tap the animal and then the **Sling** button. A gold ring marks the selected
 target; the ring turns red when it is too far away. Stones stun on impact for
-**3 seconds**, with a **4-second cooldown** and a **600 px** firing range.
-Stunned animals stop moving and show circling stars, then recover. The sling
-does not injure or remove animals. Clicking or tapping empty ground clears
+**4.5 seconds**, with a **4-second cooldown** and a **600 px** firing range.
+A hit on an animal that is already stunned does not extend the stun, so an
+animal always gets to recover. Stunned animals stop moving and show a
+`STUNNED` countdown, then recover. The sling
+does not injure or remove animals. **A stunned hare can be collected for raw
+meat**: walk up to it (or press A on a controller) while it is still stunned.
+It is removed once and adds one raw meat to the inventory's third slot, with a
+`+1 raw meat` notice. Alert hares, other species and a stunned Oravitsa cannot
+collect. In the endless woods a collected hare does not respawn; the sparse
+population brings a new hare later. In the finite scenes it returns like a caught
+hare. Clicking or tapping empty ground clears
 the selection. Movement and Shoo remain available while using the sling.
 
 **Shoo uses the same selected animal and range as Sling** (600 simulation px,
-about 9.4 m in 2.5D). Space, the Shoo button, or controller Y with Shoo selected
+about 9.4 m in 2.5D). Space, the Shoo button, controller LT, or Y with Shoo selected
 gives that animal **five seconds of SCARED status**, shown above its head with
 a countdown. It immediately abandons feeding/hunting and runs away from
 Oravitsa faster than she can walk. Existing animal stun is cleared so it can
@@ -40,8 +48,14 @@ prevents the cast without wasting its seven-second cooldown. Other animals
 are unaffected; normal behavior returns after fear expires. Both skills remain
 non-lethal.
 
-Animals avoid each other and Oravitsa, forage, or hunt according to species. Bumping an animal briefly
-stuns both of them.
+Animals avoid each other and Oravitsa, forage, or hunt according to species.
+In the endless woods, lingering close to a wolf, lynx or boar for a few seconds
+may make it angry: after a red `!! ANGRY` warning it charges, and if it reaches
+Oravitsa she is stunned for two seconds. Back away or Shoo it to avoid the
+charge. Afterwards it loses interest. Wolves, lynxes and boars of different
+species occasionally fight each other; the loser is stunned, never hurt. Bumping an animal
+stuns both of them for **1.2 seconds**; the skill bar shows Oravitsa's
+recovery countdown.
 
 Oravitsa now uses the approved eight-pose walk in all eight directions, with
 separate westward views. Her gait follows actual movement and keeps its phase
@@ -49,19 +63,31 @@ through turns; blocked movement and stun return her to a grounded idle pose.
 
 Hares are frequent, deer and foxes are less common, boars are uncommon, and
 wolves and lynxes are more frequent than in the retained finite scene. The
-fixed seed starts with **103 animals: 62 hares, 14 deer, 12 foxes, 5 boars,
-6 lynxes and 4 wolves**, with four hares near arrival. Replenishment keeps
-species-specific chances. New arrivals and respawns
+woods are deliberately sparse: the fixed seed starts with **34 animals: 17
+hares, 8 deer, 3 foxes, 2 boars, 2 lynxes and 2 wolves**, with two hares near
+arrival, and food patches are about a third as dense as in v0.1. Replenishment
+keeps species-specific chances. New arrivals and respawns
 wait outside the actual camera view, including its smoothing lag.
 
 Terrain, trees, food and nearby animal models stream around the camera. Gathered
 food and wildlife state survive leaving and returning to an area during the
-session. Progress is **not saved** across quitting or reloading.
+session. **The endless woods can be saved and resumed**: press **K** to save
+and **L** to load, use the Save/Load buttons under Help, or press **X**/**B** on
+a controller while Help is open. There is one manual save slot and no autosave.
+The save restores Oravitsa's absolute location, inventory, cooldowns, depleted
+food with its regrowth deadlines, and wildlife state. Game time is paused while
+the game is closed. Finite scenes are not saved.
 Berries can regrow after **3–6 minutes** and mushrooms after **5–9 minutes**,
 with staggered timers. Due patches wait until offscreen before reappearing;
 leaving/revisiting a region does not reset their countdown.
 Rendering rebases its local origin during long walks; generated world data has
 no fixed playable border. Only nearby terrain and animal visuals stay loaded.
+
+The endless woods have a quiet looping forest ambience, and nearby animals
+occasionally call (wolves howl, boars grunt, foxes yip…). Distant ones stay
+silent. Press **9**/**0** or use the Help panel buttons to cycle forest and
+animal volume (100/60/30%/Off). In a browser, sound starts after your first
+click, key or touch. The sounds are original synthesized CC0 audio.
 
 The earlier **192 × 192 m clearing** remains playable at
 `res://scenes/forest_25d/clearing.tscn`, with its three lakes, four bridges and
@@ -89,10 +115,14 @@ adapts to portrait and landscape. Keyboard and touch input can coexist.
 The Compatibility renderer supports native desktop builds and WebGL 2 browsers.
 
 Controllers use the **left stick or D-pad** to move and **right-stick flicks**
-to cycle nearby living animal targets. **LB/RB (L1/R1)** switch the active skill,
-**Y/Triangle** casts it, and **A/Cross** picks up food within reach. Return the
-stick to center between targets; press either shoulder button to change skills.
-The active skill has a gold outline; its slot shows the cast button and cooldown.
+to cycle nearby living animal targets. **LT/L2 casts Shoo and RT/R2 casts
+Sling** directly at the selected animal. A trigger fires once when pulled past
+60% and re-arms after it is released below 30%, so holding it never repeats
+the cast. The earlier path still works: **LB/RB (L1/R1)** select a skill and
+**Y/Triangle** casts it; a trigger cast does not change that selection.
+**A/Cross** picks up food within reach. Return the stick to center between
+targets. The active skill has a gold outline; each slot shows its trigger, `· Y`
+on the selected one, and its cooldown.
 Stick movement is analog with a deadzone, so gentle input walks more slowly.
 On Web, enter the forest and press a controller button to let the browser detect it.
 
@@ -158,7 +188,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (thirteen smoke scripts). It rejects logged errors immediately
+foraging prototype (nineteen smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.
@@ -192,7 +222,8 @@ painted animated billboards. Their sources and the tree assets are recorded in
 tile/prop bitmap generation used no Tripo, fal.ai or OpenRouter credits; that
 statement does not apply to the heroine's paid 3D-to-sprite pipeline.
 
-Wolves and lynxes sprint in short bursts and catch hares quickly. Deer take
+Wolves and lynxes sprint in long bursts and catch hares quickly; foxes also
+chase hares but usually miss and then rest, and they eat berries between hunts. Deer take
 three seconds of continuous close pursuit to catch; both prey species return
 later away from the player. A catch resets the predator's hunger; after 180 s
 without a catch it despawns, including offscreen. Stuck animals can plan a local
