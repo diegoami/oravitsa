@@ -29,7 +29,13 @@ target; the ring turns red when it is too far away. Stones stun on impact for
 A hit on an animal that is already stunned does not extend the stun, so an
 animal always gets to recover. Stunned animals stop moving and show a
 `STUNNED` countdown, then recover. The sling
-does not injure or remove animals. Clicking or tapping empty ground clears
+does not injure or remove animals. **A stunned hare can be collected for raw
+meat**: walk up to it (or press A on a controller) while it is still stunned.
+It is removed once and adds one raw meat to the inventory's third slot, with a
+`+1 raw meat` notice. Alert hares, other species and a stunned Oravitsa cannot
+collect. In the endless woods a collected hare does not respawn; the sparse
+population brings a new hare later. In the finite scenes it returns like a caught
+hare. Clicking or tapping empty ground clears
 the selection. Movement and Shoo remain available while using the sling.
 
 **Shoo uses the same selected animal and range as Sling** (600 simulation px,

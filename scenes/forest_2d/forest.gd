@@ -10,6 +10,9 @@ const CHARACTER_ART := "res://prototypes/foraging_2d/art/"
 const PLAYER_WALK: SpriteFrames = preload("res://scenes/forest_2d/art/oravitsa/walk.tres")
 const SPEED := 210.0
 const PICKUP_RADIUS := 40.0
+# Bodies touch at 43 px, so a stunned hare is reachable before a bump.
+const HARE_PICKUP_RADIUS := 75.0
+const HARE_NOTICE_RADIUS := 260.0
 const START := Vector2i(208, 208)
 const GRASS := 0
 const DIRT := 1
@@ -66,6 +69,7 @@ var objects = PackedByteArray()
 var player_position := Vector2.ZERO
 var basket := 0
 var berries_basket := 0
+var raw_meat := 0
 var deer_caught := 0
 var hares_caught := 0
 var player_stun := 0.0
@@ -98,6 +102,8 @@ var _player: AnimatedSprite2D
 var _camera: Camera2D
 var _minimap: Control
 var _hint_label: Label
+var _notice_label: Label
+var _notice_time := 0.0
 var _touch_controls: Control
 var _active_props: Dictionary = {}
 var _animals: Array[Dictionary] = []
@@ -126,6 +132,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	player_stun = maxf(0.0, player_stun - delta)
 	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
+	_notice_time = maxf(0.0, _notice_time - delta)
 	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	direction = (direction + _touch_controls.direction).limit_length()
 	var before_move := player_position
@@ -576,6 +583,15 @@ func _build_hud() -> void:
 	_hint_label.add_theme_font_size_override("font_size", 14)
 	_hint_label.add_theme_color_override("font_color", Color("e9dfbb"))
 	canvas.add_child(_hint_label)
+	_notice_label = Label.new()
+	_notice_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_notice_label.add_theme_font_size_override("font_size", 16)
+	_notice_label.add_theme_color_override("font_color", Color("fff1bd"))
+	_notice_label.add_theme_color_override("font_shadow_color", Color("101820"))
+	_notice_label.add_theme_constant_override("shadow_offset_x", 1)
+	_notice_label.add_theme_constant_override("shadow_offset_y", 2)
+	_notice_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	canvas.add_child(_notice_label)
 	_map_toggle = _hud_toggle(canvas, _toggle_map)
 	_instructions_toggle = _hud_toggle(canvas, _toggle_instructions)
 	_skill_bar = Control.new()
@@ -671,7 +687,9 @@ func _layout_hud() -> void:
 	_minimap.position = Vector2(viewport_size.x - 20.0 - 244.0 * map_scale, 60.0)
 	_map_toggle.position = Vector2(_minimap.position.x, 16)
 	_map_toggle.size = Vector2(244.0 * map_scale, 32)
-	_inventory.position = Vector2(viewport_size.x - 178, viewport_size.y - 104)
+	_inventory.position = Vector2(viewport_size.x - 262, viewport_size.y - 104)
+	_notice_label.position = _inventory.position + Vector2(-60, -52)
+	_notice_label.size = Vector2(_inventory.size.x + 60, 24)
 	_instructions_toggle.position = Vector2(18, 16)
 	_instructions_toggle.size = Vector2(180, 32)
 	_help_panel.position = Vector2(18, 60)
@@ -1291,12 +1309,68 @@ func _collect_nearby() -> void:
 					berries_basket += 1
 				_consume_food(cell)
 				_update_hud()
+	var hare := _stunned_hare_near(HARE_PICKUP_RADIUS)
+	if hare >= 0 and player_stun <= 0.0:
+		_collect_hare(hare)
+
+
+## Nearest living, stunned hare within reach; only those can be collected.
+func _stunned_hare_near(radius: float) -> int:
+	var nearest := -1
+	var best := radius
+	for id in _active_animals:
+		var animal := _animals[id]
+		if animal["alive"] and animal["kind"] == HARE and animal["stun"] > 0.0:
+			var distance := player_position.distance_to(animal["position"])
+			if distance <= best:
+				best = distance
+				nearest = id
+	return nearest
+
+
+func _collect_hare(id: int) -> void:
+	var data := _animals[id]
+	if not data["alive"] or data["kind"] != HARE or data["stun"] <= 0.0:
+		return
+	# Removing it from the living set first makes collection happen once.
+	data["alive"] = false
+	data["stun"] = 0.0
+	data["shoo"] = 0.0
+	data["velocity"] = Vector2.ZERO
+	_on_hare_collected(id)
+	raw_meat += 1
+	if _active_animals.has(id):
+		_active_animals[id].queue_free()
+		_active_animals.erase(id)
+	if selected_target == id:
+		selected_target = -1
+	_show_notice("+1 raw meat")
+	_update_hud()
+
+
+## Finite scenes return a collected hare like a caught one, away from view.
+func _on_hare_collected(id: int) -> void:
+	_animals[id]["respawn"] = PREY_RESPAWN_TIME
+
+
+func _show_notice(text: String) -> void:
+	_notice_label.text = text
+	_notice_time = 2.5
 
 
 func _update_hud() -> void:
 	_inventory.set("mushrooms", basket)
 	_inventory.set("berries", berries_basket)
-	_inventory.set("pickup_prompt", "A / Cross: pick up" if _input_mode == "controller" else "Foraging bag")
+	_inventory.set("meat", raw_meat)
+	var prompt := "A / Cross: pick up" if _input_mode == "controller" else "Foraging bag"
+	if player_stun <= 0.0 and _stunned_hare_near(HARE_NOTICE_RADIUS) >= 0:
+		if _input_mode == "controller":
+			prompt = "A / Cross: take stunned hare" if _stunned_hare_near(HARE_PICKUP_RADIUS) >= 0 else "Get closer to take the hare"
+		else:
+			prompt = "Walk to the stunned hare to take it"
+	_inventory.set("pickup_prompt", prompt)
+	_notice_label.visible = _notice_time > 0.0
+	_notice_label.modulate.a = clampf(_notice_time / 0.6, 0.0, 1.0)
 	_inventory.queue_redraw()
 	_minimap.visible = _map_visible
 	_help_panel.visible = _instructions_visible

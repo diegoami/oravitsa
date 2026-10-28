@@ -236,6 +236,12 @@ func _make_animal_sprite(id: int) -> AnimatedSprite2D:
 	return sprite
 
 
+func _on_hare_collected(id: int) -> void:
+	# The slot leaves the sparse ecology; replenishment brings a new hare later.
+	_animals[id]["gone"] = true
+	_animals[id]["respawn"] = PREDATOR_RETURN_DELAY
+
+
 func _should_respawn(id: int) -> bool:
 	return not _animals[id].get("gone", false)
 

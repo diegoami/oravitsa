@@ -83,6 +83,10 @@ The population system may later introduce a different arriving animal.
 Wolves use a rigged Quaternius CC0 model with Idle/Walk/Eating/Gallop clips; there are
 no attack or death animation calls. Oravitsa still cannot kill any animal:
 Sling stuns and Shoo repels, with the existing keyboard/touch/controller inputs.
+A hare that is currently stunned and within 75 px can be collected by walking
+to it or pressing A. It is removed once and becomes one raw meat. Its slot is
+marked gone with the 45-second reuse delay, so it never takes the prey respawn
+path; ordinary replenishment restores the hare population.
 Shoo shares the selected target/range with Sling and scares only that animal
 for five seconds. It interrupts feeding/hunting and existing animal stun,
 immediately starts a fast escape away from Oravitsa, and shows an orange

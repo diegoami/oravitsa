@@ -63,7 +63,10 @@ Record unavailable checks as untested, never as passed.
 
 ## Gameplay contracts
 
-- Oravitsa cannot kill animals, including hares. Sling stuns; Shoo repels.
+- Oravitsa never kills or injures animals. Sling stuns; Shoo repels. The one
+  exception: a hare that is currently stunned and within 75 px can be
+  collected (walk-over, or A on a controller). It is removed exactly once and
+  immediately becomes one raw meat; no other species can be collected.
   Both use the selected animal. Shoo applies five seconds of visible scared
   status and fast escape, with a seven-second cooldown; invalid casts do not
   spend cooldown. It interrupts feeding/hunting and existing animal stun.
