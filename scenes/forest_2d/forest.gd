@@ -998,6 +998,10 @@ func _aggression(_id: int) -> int:
 	return AGGRO_NONE
 
 
+func _is_fighting(_id: int) -> bool:
+	return false
+
+
 func _charge_speed(kind: int) -> float:
 	return ANIMAL_SPEEDS[kind]
 
@@ -1182,6 +1186,12 @@ func _move_animals(delta: float) -> void:
 			target = position + away * 600
 			data["state"] = "scared"
 			speed = maxf(SHOO_FLEE_SPEED, ANIMAL_SPEEDS[kind] * 2.4)
+		elif _is_fighting(id):
+			# Fighting animals square off in place until the fight resolves.
+			data["velocity"] = Vector2.ZERO
+			data["state"] = "fight"
+			sprite.stop()
+			continue
 		elif _aggression(id) == AGGRO_WARN:
 			# A provoked animal stands its ground facing Oravitsa before charging.
 			data["velocity"] = Vector2.ZERO

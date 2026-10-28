@@ -27,6 +27,17 @@ const AGGRO_SPEED := {WOLF: 232.0, LYNX: 228.0, BOAR: 196.0}
 const AGGRO_REACH := 12.0
 const AGGRO_PLAYER_STUN := 2.0
 const AGGRO_COOLDOWN := 25.0
+# Nearby calm wolves, lynxes and boars of different species occasionally fight.
+# The loser is stunned; neither fights again during FIGHT_COOLDOWN.
+const FIGHT_KINDS := [WOLF, LYNX, BOAR]
+const FIGHT_RADIUS := 140.0
+const FIGHT_CHANCE := 0.12
+const FIGHT_CHECK := 1.0
+const FIGHT_TIME := 2.5
+const FIGHT_STRENGTH := {WOLF: 1.2, LYNX: 1.0, BOAR: 1.0}
+const FIGHT_LOSER_STUN := 4.0
+const FIGHT_COOLDOWN := 45.0
+const FIGHT_INTERRUPT_COOLDOWN := 20.0
 const PREDATOR_HUNGER_LIMIT := 180.0
 const PREDATOR_RETURN_DELAY := 45.0
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
@@ -38,6 +49,8 @@ var _nav_budget := 1
 var _nav_frame := -1
 var _food_clock := 0.0
 var _regrowth_check := 0.0
+var _fight_check := FIGHT_CHECK
+var _fight_tick := 0
 
 
 func _generate_map() -> void:
@@ -187,6 +200,91 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 	data["aggro_time"] = 0.0
 	data["aggro_cooldown"] = 0.0
 	data["aggro_rolls"] = 0
+	data["fight_with"] = -1
+	data["fight_time"] = 0.0
+	data["fight_cooldown"] = 0.0
+
+
+func _is_fighting(id: int) -> bool:
+	return _animals[id]["fight_with"] >= 0
+
+
+func _can_start_fight(id: int) -> bool:
+	var data := _animals[id]
+	return data["alive"] and _active_animals.has(id) and data["kind"] in FIGHT_KINDS and data["fight_with"] < 0 		and data["fight_cooldown"] <= 0 and data["stun"] <= 0 and data["shoo"] <= 0 and data["feeding"] <= 0 		and data["aggro"] == AGGRO_NONE and data["state"] != "hunt" and data["catch_target"] < 0
+
+
+func _start_fight(a: int, b: int) -> void:
+	for pair in [[a, b], [b, a]]:
+		var data := _animals[pair[0]]
+		data["fight_with"] = pair[1]
+		data["fight_time"] = FIGHT_TIME
+		data["velocity"] = Vector2.ZERO
+		data["burst"] = 0.0
+		data["eat_time"] = 0.0
+		data["provoke"] = 0.0
+		data["route"] = PackedVector2Array()
+		data["facing"] = (_animals[pair[1]]["position"] - data["position"]).normalized()
+
+
+func _end_fight(id: int, cooldown: float) -> void:
+	var data := _animals[id]
+	data["fight_with"] = -1
+	data["fight_time"] = 0.0
+	data["fight_cooldown"] = maxf(data["fight_cooldown"], cooldown)
+	if data["state"] == "fight":
+		data["state"] = "idle"
+		data["timeout"] = 0.0
+
+
+func _update_fights(delta: float) -> void:
+	for id in _animals.size():
+		var data := _animals[id]
+		data["fight_cooldown"] = maxf(0, data["fight_cooldown"] - delta)
+		var other: int = data["fight_with"]
+		if other < 0 or other < id and _animals[other]["fight_with"] == id:
+			continue # Each pair resolves once, from its lower id.
+		var rival := _animals[other] if other < _animals.size() else {}
+		var valid: bool = not rival.is_empty() and rival["fight_with"] == id
+		for fighter in [data, rival]:
+			valid = valid and fighter["alive"] and fighter["stun"] <= 0 and fighter["shoo"] <= 0
+		valid = valid and _active_animals.has(id) and _active_animals.has(other)
+		if not valid:
+			# Fear, a stun or leaving the active area ends it with no winner.
+			_end_fight(id, FIGHT_INTERRUPT_COOLDOWN)
+			if not rival.is_empty() and rival["fight_with"] == id:
+				_end_fight(other, FIGHT_INTERRUPT_COOLDOWN)
+			continue
+		data["fight_time"] -= delta
+		rival["fight_time"] = data["fight_time"]
+		if data["fight_time"] > 0:
+			continue
+		_fight_tick += 1
+		var odds: float = FIGHT_STRENGTH[data["kind"]] / (FIGHT_STRENGTH[data["kind"]] + FIGHT_STRENGTH[rival["kind"]])
+		var loser := other if _hash(id + other, _fight_tick, 1801) < odds else id
+		_end_fight(id, FIGHT_COOLDOWN)
+		_end_fight(other, FIGHT_COOLDOWN)
+		_animals[loser]["stun"] = maxf(_animals[loser]["stun"], FIGHT_LOSER_STUN)
+		_animals[loser]["velocity"] = Vector2.ZERO
+	_fight_check -= delta
+	if _fight_check > 0:
+		return
+	_fight_check = FIGHT_CHECK
+	var calm: Array[int] = []
+	for id in _active_animals:
+		if _can_start_fight(id):
+			calm.append(id)
+	for i in calm.size():
+		for j in range(i + 1, calm.size()):
+			var a := calm[i]
+			var b := calm[j]
+			if _animals[a]["kind"] == _animals[b]["kind"] or _animals[a]["fight_with"] >= 0 or _animals[b]["fight_with"] >= 0:
+				continue
+			if _animals[a]["position"].distance_to(_animals[b]["position"]) > FIGHT_RADIUS:
+				continue
+			_fight_tick += 1
+			if _hash(a * 977 + b, _fight_tick, 1802) < FIGHT_CHANCE:
+				_start_fight(a, b)
 
 
 func _aggression(id: int) -> int:
@@ -214,8 +312,8 @@ func _update_aggression(delta: float) -> void:
 		data["aggro_cooldown"] = maxf(0, data["aggro_cooldown"] - delta)
 		if data["kind"] not in AGGRO_KINDS:
 			continue
-		# Fear, any stun, feeding or leaving the active area ends an encounter.
-		if not data["alive"] or not _active_animals.has(id) or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0:
+		# Fear, any stun, feeding, a fight or leaving the active area ends an encounter.
+		if not data["alive"] or not _active_animals.has(id) or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0 or data["fight_with"] >= 0:
 			if data["aggro"] != AGGRO_NONE:
 				_end_aggression(id, AGGRO_COOLDOWN)
 			data["provoke"] = 0.0
@@ -385,6 +483,7 @@ func _move_animals(delta: float) -> void:
 		_nav_budget = 1
 	super._move_animals(delta)
 	_update_aggression(delta)
+	_update_fights(delta)
 	for id in _animals.size():
 		var data := _animals[id]
 		data["nav_cooldown"] = maxf(0, data["nav_cooldown"] - delta)
@@ -505,6 +604,12 @@ func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
 	for id in _animal_stars:
 		var data: Dictionary = _animals[id]
+		if data["fight_with"] >= 0:
+			_animal_stars[id].visible = true
+			_animal_stars[id].no_depth_test = true
+			_animal_stars[id].modulate = Color("ffb35c")
+			_animal_stars[id].text = "!! FIGHTING"
+			continue
 		if data["aggro"] == AGGRO_NONE:
 			continue
 		var marker: Label3D = _animal_stars[id]

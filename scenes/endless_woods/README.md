@@ -109,6 +109,16 @@ Shoo, any stun, feeding or leaving the active area ends the encounter at once.
 A charge overrides hunting and uses ordinary collision-checked movement. There
 is no damage or death. Retained finite scenes have no aggression.
 
+**Fights.** Calm wolves, lynxes and boars of *different* species within 140 px
+are checked once per second, with a 12% chance to fight; same-species pairs do
+not fight. Both square off in place for 2.5 s under an orange `!! FIGHTING`
+marker. Wolves win slightly more often (strength 1.2 against 1.0). The loser
+is stunned for four seconds (with the normal `STUNNED` countdown); nobody is
+hurt or removed. Both then avoid fights for 45 s. An animal that is stunned,
+scared, feeding, hunting or provoked by Oravitsa never starts a fight. Shoo, a
+stun or leaving the active area ends a fight for both with no winner and a
+20 s cooldown. A fighting animal ignores prey and Oravitsa.
+
 Animals that make little progress for 0.8 s can request a bounded 19 × 19
 local A* route around solid scenery. At most one recovery route is planned
 per frame, with a two-second cooldown per animal. Normal movement still checks

@@ -79,6 +79,8 @@ Record unavailable checks as untested, never as passed.
 - Endless wolves/lynxes/boars can be provoked by lingering nearby: a visible
   warning, a bounded charge and a stun-only hit, then a disengagement
   cooldown. Shoo/stun interrupt it. No player damage, death or lethal combat.
+  Cross-species wolf/lynx/boar fights are rare, nonlethal (loser stunned) and
+  followed by a cooldown.
 - Controller: left stick/D-pad moves, right-stick flicks cycle targets,
   LT casts Shoo and RT casts Sling directly, once per pull (fire at 0.6,
   re-arm below 0.3). LB/RB still select the active skill and Y casts it;

@@ -52,7 +52,8 @@ Animals avoid each other and Oravitsa, forage, or hunt according to species.
 In the endless woods, lingering close to a wolf, lynx or boar for a few seconds
 may make it angry: after a red `!! ANGRY` warning it charges, and if it reaches
 Oravitsa she is stunned for two seconds. Back away or Shoo it to avoid the
-charge. Afterwards it loses interest. Bumping an animal
+charge. Afterwards it loses interest. Wolves, lynxes and boars of different
+species occasionally fight each other; the loser is stunned, never hurt. Bumping an animal
 stuns both of them for **1.2 seconds**; the skill bar shows Oravitsa's
 recovery countdown.
 

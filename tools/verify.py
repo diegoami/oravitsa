@@ -28,6 +28,7 @@ SMOKES = (
     ("scenes/endless_woods/fox_forage_smoke_test.gd", "Fox forage smoke test passed:"),
     ("scenes/endless_woods/hare_meat_smoke_test.gd", "Hare meat smoke test passed:"),
     ("scenes/endless_woods/aggression_smoke_test.gd", "Aggression smoke test passed:"),
+    ("scenes/endless_woods/fight_smoke_test.gd", "Fight smoke test passed:"),
 )
 ERROR = re.compile(r"^\s*(?:(?:SCRIPT|SHADER|USER) ERROR:|ERROR:)", re.MULTILINE)
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
