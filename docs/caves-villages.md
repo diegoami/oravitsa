@@ -1,7 +1,12 @@
 # Proposal: empty caves and villages in the endless woods
 
-Status: **design proposal for owner review** (issue #22). Nothing here is
-implemented. Caves and villages stay **uninhabited**: no NPCs, quests, shops,
+Status: the owner chose the recommended first scope on 2026-10-28:
+exterior cave mouths only, hamlets of 3–6 cottages at about one crossing in
+six, bare gardens, no wildlife inside, and the proposed names and icons. It
+is implemented in the endless woods (see the world guide). Two implementation
+details differ from the sketch below: hamlets are at least 256 m apart (one
+per 512 × 384 m block), and cave mouths always open south toward the fixed
+camera. Interiors (option B) remain unbuilt. Caves and villages stay **uninhabited**: no NPCs, quests, shops,
 enemies or settlement systems.
 
 ## How they would fit the current world

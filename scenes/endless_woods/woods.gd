@@ -139,8 +139,8 @@ func _index(cell: Vector2i) -> int:
 		var value := EMPTY
 		if not _harvested.has(key) and landscape.random_at(global_cell, 910) < (FOOD_CHANCE.x if landscape.biome_at(p) == 1 else FOOD_CHANCE.y) and not landscape.is_water(p, 0.4) and not landscape.is_bridge(p):
 			value = MUSHROOM if landscape.random_at(global_cell, 911) < 0.55 else BERRIES
-		if value != EMPTY and not landscape.can_walk(p, 0.2):
-			value = EMPTY # Do not lure foragers toward food inside solid scenery.
+		if value != EMPTY and (not landscape.can_walk(p, 0.2) or landscape.in_settlement(p)):
+			value = EMPTY # No food inside solid scenery or a hamlet's bare clearing.
 		objects[key] = value
 		terrain[key] = GRASS
 	return key
@@ -466,7 +466,7 @@ func _seed_animals() -> void:
 				continue
 			var cell := _world_cell(from_ground(p))
 			var spot := _cell_center(cell)
-			if not _can_stand(spot, ANIMAL_RADIUS[kind]):
+			if not _can_stand(spot, ANIMAL_RADIUS[kind]) or not _spawn_allowed(spot):
 				continue
 			var clear := true
 			for animal in _animals:
@@ -493,6 +493,10 @@ func _on_hare_collected(id: int) -> void:
 	# The slot leaves the sparse ecology; replenishment brings a new hare later.
 	_animals[id]["gone"] = true
 	_animals[id]["respawn"] = PREDATOR_RETURN_DELAY
+
+
+func _spawn_allowed(spot: Vector2) -> bool:
+	return not landscape.in_settlement(to_ground(spot))
 
 
 func _should_respawn(id: int) -> bool:
@@ -678,6 +682,34 @@ func _local_point(value: Array) -> Vector2:
 	return from_ground(Vector2(value[0], value[1]) - Vector2(origin_cells) * TILE / METRE)
 
 
+## A save may predate world features added since (such as a hamlet house over
+## a saved spot), so loaded positions move to the nearest open ground, clear of
+## the `occupied` actor footprints (Vector3: position, radius); homes also
+## leave hamlet clearings. Spots that are already valid stay unchanged.
+func _open_ground_near(point: Vector2, actor_radius: float, outside_settlements: bool = false, occupied: Array[Vector3] = []) -> Vector2:
+	var start := to_ground(point)
+	var radius := actor_radius / METRE
+	var settled: bool = outside_settlements and landscape.in_settlement(start)
+	if not settled and landscape.can_walk(start, radius):
+		return point
+	if settled:
+		var hamlet: Dictionary = landscape.hamlet_near(start + landscape.origin)
+		var away: Vector2 = start + landscape.origin - hamlet["center"]
+		start = hamlet["center"] - landscape.origin + (away.normalized() if away.length() > 0.01 else Vector2.RIGHT) * (landscape.HAMLET_RADIUS + 1.0)
+	for ring in 120:
+		var count := maxi(1, ring * 6)
+		for i in count:
+			var q := start + Vector2.from_angle(i * TAU / count) * ring * 0.25
+			if landscape.can_walk(q, radius) and not (outside_settlements and landscape.in_settlement(q)):
+				var landing := from_ground(q)
+				var clear := true
+				for other in occupied:
+					clear = clear and landing.distance_to(Vector2(other.x, other.y)) >= actor_radius + other.z
+				if clear:
+					return landing
+	return point
+
+
 ## Bounded game state: absolute positions, timers and depleted food only. The
 ## world itself regenerates from its seeds; nothing like a world map is stored.
 func save_state() -> Dictionary:
@@ -739,10 +771,35 @@ func apply_state(data: Dictionary) -> void:
 			animal[field] = int(record[field])
 		# Encounters in progress restart from calm; their cooldowns persist.
 		animal["state"] = "idle" if record["state"] in ["warn", "charge", "fight", "hunt", "flee"] else record["state"]
+		var radius: float = ANIMAL_RADIUS[animal["kind"]]
+		animal["home"] = _open_ground_near(animal["home"], radius, true)
 		_animals.append(animal)
+	# Actors on valid ground keep their spots and reserve them; displaced actors
+	# then land clear of those and of each other, so nobody is stuck in contact.
+	player_position = _local_point(ground)
+	var occupied: Array[Vector3] = []
+	var displaced: Array[Dictionary] = []
+	if _can_stand(player_position):
+		occupied.append(Vector3(player_position.x, player_position.y, PLAYER_RADIUS))
+	for animal in _animals:
+		var radius: float = ANIMAL_RADIUS[animal["kind"]]
+		if not animal["alive"] or animal["gone"]:
+			animal["position"] = _open_ground_near(animal["position"], radius) # Collides with nobody.
+		elif _can_stand(animal["position"], radius):
+			occupied.append(Vector3(animal["position"].x, animal["position"].y, radius))
+		else:
+			displaced.append(animal)
+	for animal in displaced:
+		var radius: float = ANIMAL_RADIUS[animal["kind"]]
+		animal["position"] = _open_ground_near(animal["position"], radius, false, occupied)
+		occupied.append(Vector3(animal["position"].x, animal["position"].y, radius))
+	for animal in _animals:
+		if not _can_stand(animal["target"], ANIMAL_RADIUS[animal["kind"]]):
+			animal["target"] = animal["position"]
+	if not _can_stand(player_position):
+		player_position = _open_ground_near(player_position, PLAYER_RADIUS, false, occupied)
 	_stones.clear()
 	selected_target = -1
-	player_position = _local_point(ground)
 	player_stun = float(data["player"]["stun"])
 	shoo_cooldown = float(data["player"]["shoo_cooldown"])
 	sling_cooldown = float(data["player"]["sling_cooldown"])
@@ -826,6 +883,12 @@ func _sync_presentation(delta: float) -> void:
 	var site: Dictionary = landscape.landmark_at(Vector2i(floori(absolute.x / 256), floori(absolute.y / 128)))
 	if absolute.distance_to(site["position"]) < 7:
 		_landmark_label.text = ["Forgotten homestead", "Old standing stones", "Abandoned woodcutters’ camp", "Mossy cairns"][site["kind"]]
+	var hamlet: Dictionary = landscape.hamlet_near(absolute)
+	if not hamlet.is_empty() and absolute.distance_to(hamlet["center"]) < landscape.HAMLET_RADIUS:
+		_landmark_label.text = "Empty hamlet"
+	var cave: Dictionary = landscape.cave_at(Vector2i(floori(absolute.x / 256), floori(absolute.y / 128)))
+	if not cave.is_empty() and absolute.distance_to(cave["mouth"]) < 8:
+		_landmark_label.text = "Cave mouth"
 	var inside := Rect2(4.7, -5.8, 4.6, 3.8).has_point(absolute)
 	for roof in landscape.roofs:
 		roof.visible = not inside

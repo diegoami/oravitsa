@@ -1089,6 +1089,11 @@ func _population_radius() -> float:
 	return POPULATION_RADIUS
 
 
+## Scenes can keep wildlife homes out of special places.
+func _spawn_allowed(_spot: Vector2) -> bool:
+	return true
+
+
 func _spawn_is_hidden(_spot: Vector2, _kind: int) -> bool:
 	# The original 2D scene retains its distance-based exclusion below.
 	return true
@@ -1107,7 +1112,7 @@ func _find_local_spawn(kind: int) -> Vector2i:
 		if not _in_bounds(cell):
 			continue
 		var spot := _cell_center(cell)
-		if spot.distance_to(player_position) < 730.0 or not _spawn_is_hidden(spot, kind) or not _can_stand(spot, ANIMAL_RADIUS[kind]):
+		if spot.distance_to(player_position) < 730.0 or not _spawn_is_hidden(spot, kind) or not _can_stand(spot, ANIMAL_RADIUS[kind]) or not _spawn_allowed(spot):
 			continue
 		var clear := true
 		for animal in _animals:
