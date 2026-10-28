@@ -75,10 +75,42 @@ func _run() -> void:
 	assert(forest.selected_target == 1)
 	_axis(JOY_AXIS_RIGHT_X, 0.0)
 	assert(forest.active_skill == 0)
+	# RT casts Sling and LT casts Shoo directly (#18). A light pull does nothing;
+	# holding a trigger casts once and it re-arms only after release.
+	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.4)
+	await process_frame
+	assert(forest._stones.is_empty())
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.9)
 	await process_frame
-	assert(forest.active_skill == 0) # Triggers do not select or cast skills.
+	assert(forest._stones.size() == 1 and forest.sling_cooldown > 0.0)
+	assert(forest.active_skill == 0, "A direct cast keeps the LB/RB selection")
+	forest.sling_cooldown = 0.0
+	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.95)
+	await process_frame
+	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.7)
+	await process_frame
+	assert(forest._stones.size() == 1, "Holding RT must not repeat the cast")
+	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.5)
+	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.8)
+	await process_frame
+	assert(forest._stones.size() == 1, "RT re-arms only below the release threshold")
+	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.1)
+	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.8)
+	await process_frame
+	assert(forest._stones.size() == 2, "A new RT pull casts again")
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.0)
+	_axis(JOY_AXIS_TRIGGER_LEFT, 0.9)
+	await process_frame
+	assert(forest.shoo_cooldown > 0.0 and forest._animals[forest.selected_target]["shoo"] > 0.0)
+	forest.shoo_cooldown = 0.0
+	_axis(JOY_AXIS_TRIGGER_LEFT, 1.0)
+	await process_frame
+	assert(forest.shoo_cooldown == 0.0, "Holding LT must not repeat Shoo")
+	_axis(JOY_AXIS_TRIGGER_LEFT, 0.0)
+	assert(forest.active_skill == 0 and forest._shoo_button.get("prompt") == "LT · Y" and forest._sling_button.get("prompt") == "RT")
+	forest._stones.clear()
+	forest.sling_cooldown = 0.0
+	forest._animals[forest.selected_target]["shoo"] = 0.0
 	_button(JOY_BUTTON_RIGHT_SHOULDER)
 	await process_frame
 	assert(forest.active_skill == 1 and forest._sling_button.get("active"))
@@ -95,15 +127,16 @@ func _run() -> void:
 	await process_frame
 	assert(forest._stones.size() == 1)
 	_button(JOY_BUTTON_Y, false)
-	assert(forest._sling_button.get("prompt") == "Y / Triangle")
-	assert(forest._shoo_button.get("prompt") == "")
+	assert(forest._sling_button.get("prompt") == "RT · Y")
+	assert(forest._shoo_button.get("prompt") == "LT")
 	assert(forest._skill_hint_label.visible)
 	_button(JOY_BUTTON_LEFT_SHOULDER)
 	await process_frame
 	assert(forest.active_skill == 0 and forest._shoo_button.get("active"))
-	assert(forest._shoo_button.get("prompt") == "Y / Triangle")
-	assert(forest._sling_button.get("prompt") == "")
+	assert(forest._shoo_button.get("prompt") == "LT · Y")
+	assert(forest._sling_button.get("prompt") == "RT")
 	_button(JOY_BUTTON_LEFT_SHOULDER, false)
+	forest.shoo_cooldown = 0.0
 	_button(JOY_BUTTON_Y)
 	await process_frame
 	assert(forest.shoo_cooldown > 0.0)
@@ -173,5 +206,5 @@ func _run() -> void:
 	assert(not forest._help_panel.visible and not forest._hint_label.visible)
 	key.pressed = false
 	Input.parse_input_event(key)
-	print("Controller smoke test passed: analog movement/deadzone, D-pad, right-stick targeting, shoulder skill selection, Y cast, A pickup, inventory and panel toggles")
+	print("Controller smoke test passed: analog movement/deadzone, D-pad, right-stick targeting, direct LT Shoo/RT Sling with analog threshold and hold latch, shoulder skill selection, Y cast, A pickup, inventory and panel toggles")
 	quit()

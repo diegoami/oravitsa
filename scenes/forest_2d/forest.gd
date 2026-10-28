@@ -57,6 +57,9 @@ const SLING_STUN_TIME := 4.5
 # Bumping an animal stuns both; Oravitsa then recovers before it can recur.
 const CONTACT_STUN_TIME := 1.2
 const STONE_SPEED := 1050.0
+# Analog triggers cast once per pull: fire past PRESS, re-arm below RELEASE.
+const TRIGGER_PRESS := 0.6
+const TRIGGER_RELEASE := 0.3
 
 var terrain = PackedByteArray()
 var objects = PackedByteArray()
@@ -85,6 +88,7 @@ var _input_mode := "keyboard"
 var active_skill := 0 # Shoo, Sling.
 var _right_stick := Vector2.ZERO
 var _target_stick_latched := false
+var _trigger_latched := [false, false] # LT casts Shoo, RT casts Sling.
 var _inventory: Control
 var _ground: TileMapLayer
 var _dirt: TileMapLayer
@@ -216,10 +220,22 @@ func _controller_axis(event: InputEventJoypadMotion) -> void:
 			var value := _right_stick.x if absf(_right_stick.x) >= absf(_right_stick.y) else _right_stick.y
 			_cycle_sling_target(1 if value > 0.0 else -1)
 			_target_stick_latched = true
+	elif event.axis in [JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]:
+		var skill := 0 if event.axis == JOY_AXIS_TRIGGER_LEFT else 1
+		if event.axis_value < TRIGGER_RELEASE:
+			_trigger_latched[skill] = false
+		elif event.axis_value >= TRIGGER_PRESS and not _trigger_latched[skill]:
+			_trigger_latched[skill] = true
+			# Direct casts leave the LB/RB selection for Y unchanged.
+			_cast_skill(skill)
 
 
 func _use_skill(skill: int) -> void:
 	active_skill = skill
+	_cast_skill(skill)
+
+
+func _cast_skill(skill: int) -> void:
 	if skill == 0:
 		_shoo()
 	else:
@@ -231,6 +247,7 @@ func _notification(what: int) -> void:
 	if what in [NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_WINDOW_FOCUS_OUT]:
 		_right_stick = Vector2.ZERO
 		_target_stick_latched = false
+		_trigger_latched = [false, false]
 
 
 func _input(event: InputEvent) -> void:
@@ -1287,11 +1304,11 @@ func _update_hud() -> void:
 	var controller := _input_mode == "controller"
 	var touch := _input_mode == "touch"
 	_skill_hint_label.visible = controller
-	_skill_hint_label.text = "LB / RB: select skill · Y: cast"
+	_skill_hint_label.text = "LT: Shoo · RT: Sling · LB / RB + Y"
 	_map_toggle.text = ("− Map" if _map_visible else "+ Map") + (" [Select]" if controller else ("" if touch else " [M]"))
 	_instructions_toggle.text = ("− Help" if _instructions_visible else "+ Help") + (" [Start]" if controller else ("" if touch else " [H]"))
 	if controller:
-		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLB / RB: switch active skill\nY / Triangle: cast · A / Cross: pick up\nSelect: map · Start: help"
+		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLT / L2: Shoo · RT / R2: Sling\nLB / RB: select skill · Y / Triangle: cast it\nA / Cross: pick up · Select: map · Start: help"
 	elif touch:
 		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap Shoo or Sling on that target\nWalk over mushrooms & berries\nUse the top buttons to hide panels"
 	else:
@@ -1307,8 +1324,8 @@ func _update_hud() -> void:
 	_shoo_button.set("cooldown", shoo_cooldown)
 	_sling_button.set("cooldown", sling_cooldown)
 	_sling_button.set("cooldown_duration", SLING_COOLDOWN)
-	_shoo_button.set("prompt", ("Y / Triangle" if active_skill == 0 else "") if controller else ("TAP" if touch else "SPACE"))
-	_sling_button.set("prompt", ("Y / Triangle" if active_skill == 1 else "") if controller else ("TAP" if touch else "RMB / F"))
+	_shoo_button.set("prompt", ("LT · Y" if active_skill == 0 else "LT") if controller else ("TAP" if touch else "SPACE"))
+	_sling_button.set("prompt", ("RT · Y" if active_skill == 1 else "RT") if controller else ("TAP" if touch else "RMB / F"))
 	_shoo_button.set("active", active_skill == 0)
 	_sling_button.set("active", active_skill == 1)
 	_shoo_button.queue_redraw()

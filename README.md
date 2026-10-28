@@ -33,7 +33,7 @@ does not injure or remove animals. Clicking or tapping empty ground clears
 the selection. Movement and Shoo remain available while using the sling.
 
 **Shoo uses the same selected animal and range as Sling** (600 simulation px,
-about 9.4 m in 2.5D). Space, the Shoo button, or controller Y with Shoo selected
+about 9.4 m in 2.5D). Space, the Shoo button, controller LT, or Y with Shoo selected
 gives that animal **five seconds of SCARED status**, shown above its head with
 a countdown. It immediately abandons feeding/hunting and runs away from
 Oravitsa faster than she can walk. Existing animal stun is cleared so it can
@@ -93,10 +93,14 @@ adapts to portrait and landscape. Keyboard and touch input can coexist.
 The Compatibility renderer supports native desktop builds and WebGL 2 browsers.
 
 Controllers use the **left stick or D-pad** to move and **right-stick flicks**
-to cycle nearby living animal targets. **LB/RB (L1/R1)** switch the active skill,
-**Y/Triangle** casts it, and **A/Cross** picks up food within reach. Return the
-stick to center between targets; press either shoulder button to change skills.
-The active skill has a gold outline; its slot shows the cast button and cooldown.
+to cycle nearby living animal targets. **LT/L2 casts Shoo and RT/R2 casts
+Sling** directly at the selected animal. A trigger fires once when pulled past
+60% and re-arms after it is released below 30%, so holding it never repeats
+the cast. The earlier path still works: **LB/RB (L1/R1)** select a skill and
+**Y/Triangle** casts it; a trigger cast does not change that selection.
+**A/Cross** picks up food within reach. Return the stick to center between
+targets. The active skill has a gold outline; each slot shows its trigger, `· Y`
+on the selected one, and its cooldown.
 Stick movement is analog with a deadzone, so gentle input walks more slowly.
 On Web, enter the forest and press a controller button to let the browser detect it.
 

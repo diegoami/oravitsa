@@ -74,8 +74,10 @@ Record unavailable checks as untested, never as passed.
   retain rare lynxes. Hares remain most frequent, with deer/foxes less and
   boars uncommon; endless food and wildlife are about a third of v0.1 density.
 - Controller: left stick/D-pad moves, right-stick flicks cycle targets,
-  LB/RB select the active skill, Y always casts it, A collects food.
-  LT/RT do not select skills. Map/Help start hidden (M/H; Select/Start).
+  LT casts Shoo and RT casts Sling directly, once per pull (fire at 0.6,
+  re-arm below 0.3). LB/RB still select the active skill and Y casts it;
+  trigger casts do not change that selection. A collects food.
+  Map/Help start hidden (M/H; Select/Start).
 - Keep the approved eight-direction Oravitsa walk and movement-driven gait.
   Do not replace it with the uncorrected source model.
 - Streaming must preserve pickups and animal state. Collision must work even
