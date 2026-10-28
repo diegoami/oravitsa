@@ -41,7 +41,7 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twenty smoke scripts, including targeted
+`verify.py` imports and runs all nineteen smoke scripts, including targeted
 Shoo, endless-world travel/rebasing/ecology/food regrowth, fox foraging, hare
 collection, aggression, fights, save/load, audio wiring, queued streaming,
 offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot

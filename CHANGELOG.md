@@ -21,7 +21,7 @@
 - Synthesized CC0 forest ambience and nearby animal calls with forest/animal
   volume controls (#23).
 - Design proposal for empty caves and villages, not implemented (#22).
-- Seven new smoke scripts (twenty in total) and an ecology sampling tool.
+- Six new smoke scripts (nineteen in total) and an ecology sampling tool.
 
 Untested in this candidate: listening quality, browser and native audio
 playback, browser save persistence, physical controller triggers and
