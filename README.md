@@ -48,7 +48,11 @@ prevents the cast without wasting its seven-second cooldown. Other animals
 are unaffected; normal behavior returns after fear expires. Both skills remain
 non-lethal.
 
-Animals avoid each other and Oravitsa, forage, or hunt according to species. Bumping an animal
+Animals avoid each other and Oravitsa, forage, or hunt according to species.
+In the endless woods, lingering close to a wolf, lynx or boar for a few seconds
+may make it angry: after a red `!! ANGRY` warning it charges, and if it reaches
+Oravitsa she is stunned for two seconds. Back away or Shoo it to avoid the
+charge. Afterwards it loses interest. Bumping an animal
 stuns both of them for **1.2 seconds**; the skill bar shows Oravitsa's
 recovery countdown.
 

@@ -97,6 +97,18 @@ ordinary AI resumes when it expires. Sling can stun a scared animal; both
 status countdowns appear while it is frozen, and fear continues counting down.
 Collision and recovery routes still apply.
 
+**Aggression toward Oravitsa.** Lingering within 260 px (about 4 m) of a wolf,
+lynx or boar builds provocation; backing away drains it twice as fast. After
+three seconds there is a 60% chance the animal turns angry; otherwise it ignores
+her for eight seconds before another roll. An angry animal stands still for
+1.2 s under a red `!! ANGRY` marker, with a HUD notice, and then charges for at most
+four seconds (wolf 232, lynx 228, boar 196 px/s; Oravitsa walks at 210).
+Reaching her stuns her for two seconds; an already stunned Oravitsa is not
+stunned again. Hit or miss, the animal then loses interest for 25 seconds.
+Shoo, any stun, feeding or leaving the active area ends the encounter at once.
+A charge overrides hunting and uses ordinary collision-checked movement. There
+is no damage or death. Retained finite scenes have no aggression.
+
 Animals that make little progress for 0.8 s can request a bounded 19 × 19
 local A* route around solid scenery. At most one recovery route is planned
 per frame, with a two-second cooldown per animal. Normal movement still checks

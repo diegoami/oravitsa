@@ -13,6 +13,20 @@ const PREDATOR_BURST := Vector3(240, 2.2, 3.4)
 const FOX_BURST := Vector3(195, 1.4, 4.0)
 const FOX_CATCH_CHANCE := 0.3
 const FOX_HUNT_REST := 9.0
+# Lingering within AGGRO_RADIUS of a wolf, lynx or boar for AGGRO_DWELL seconds
+# may provoke it: a visible warning, then a bounded charge that can stun
+# Oravitsa. Win or lose, the animal then ignores her for AGGRO_COOLDOWN.
+const AGGRO_KINDS := [WOLF, LYNX, BOAR]
+const AGGRO_RADIUS := 260.0
+const AGGRO_DWELL := 3.0
+const AGGRO_CHANCE := 0.6
+const AGGRO_RETRY := 8.0
+const AGGRO_WARN_TIME := 1.2
+const AGGRO_CHARGE_TIME := 4.0
+const AGGRO_SPEED := {WOLF: 232.0, LYNX: 228.0, BOAR: 196.0}
+const AGGRO_REACH := 12.0
+const AGGRO_PLAYER_STUN := 2.0
+const AGGRO_COOLDOWN := 25.0
 const PREDATOR_HUNGER_LIMIT := 180.0
 const PREDATOR_RETURN_DELAY := 45.0
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
@@ -168,6 +182,79 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 	data["nav_cooldown"] = 0.0
 	data["hunt_rest"] = 0.0
 	data["hunt_attempts"] = 0
+	data["provoke"] = 0.0
+	data["aggro"] = AGGRO_NONE
+	data["aggro_time"] = 0.0
+	data["aggro_cooldown"] = 0.0
+	data["aggro_rolls"] = 0
+
+
+func _aggression(id: int) -> int:
+	return _animals[id]["aggro"]
+
+
+func _charge_speed(kind: int) -> float:
+	return AGGRO_SPEED.get(kind, ANIMAL_SPEEDS[kind])
+
+
+func _end_aggression(id: int, cooldown: float) -> void:
+	var data := _animals[id]
+	data["aggro"] = AGGRO_NONE
+	data["aggro_time"] = 0.0
+	data["aggro_cooldown"] = maxf(data["aggro_cooldown"], cooldown)
+	data["provoke"] = 0.0
+	if data["state"] in ["warn", "charge"]:
+		data["state"] = "idle"
+		data["timeout"] = 0.0
+
+
+func _update_aggression(delta: float) -> void:
+	for id in _animals.size():
+		var data := _animals[id]
+		data["aggro_cooldown"] = maxf(0, data["aggro_cooldown"] - delta)
+		if data["kind"] not in AGGRO_KINDS:
+			continue
+		# Fear, any stun, feeding or leaving the active area ends an encounter.
+		if not data["alive"] or not _active_animals.has(id) or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0:
+			if data["aggro"] != AGGRO_NONE:
+				_end_aggression(id, AGGRO_COOLDOWN)
+			data["provoke"] = 0.0
+			continue
+		var distance: float = data["position"].distance_to(player_position)
+		if data["aggro"] == AGGRO_NONE:
+			if data["aggro_cooldown"] > 0 or distance > AGGRO_RADIUS:
+				data["provoke"] = maxf(0, data["provoke"] - delta * 2)
+				continue
+			data["provoke"] += delta
+			if data["provoke"] < AGGRO_DWELL:
+				continue
+			data["provoke"] = 0.0
+			data["aggro_rolls"] += 1
+			if _hash(id, data["aggro_rolls"], 1701) >= AGGRO_CHANCE:
+				data["aggro_cooldown"] = AGGRO_RETRY
+				continue
+			data["aggro"] = AGGRO_WARN
+			data["aggro_time"] = AGGRO_WARN_TIME
+			data["catch_target"] = -1
+			data["catch_time"] = 0.0
+			data["burst"] = 0.0
+			_show_notice("The %s is angry — back away!" % ANIMAL_NAMES[data["kind"]].to_lower())
+		elif data["aggro"] == AGGRO_WARN:
+			data["aggro_time"] -= delta
+			if data["aggro_time"] <= 0:
+				data["aggro"] = AGGRO_CHARGE
+				data["aggro_time"] = AGGRO_CHARGE_TIME
+		else:
+			data["aggro_time"] -= delta
+			if distance <= ANIMAL_RADIUS[data["kind"]] + PLAYER_RADIUS + AGGRO_REACH:
+				# An already stunned Oravitsa is not stunned again by a second animal.
+				if player_stun <= 0:
+					player_stun = AGGRO_PLAYER_STUN
+					_show_notice("The %s knocked Oravitsa down!" % ANIMAL_NAMES[data["kind"]].to_lower())
+				data["velocity"] = Vector2.ZERO
+				_end_aggression(id, AGGRO_COOLDOWN)
+			elif data["aggro_time"] <= 0 or distance > AGGRO_RADIUS * 3:
+				_end_aggression(id, AGGRO_COOLDOWN)
 
 
 func _prey_kinds(kind: int) -> Array:
@@ -297,6 +384,7 @@ func _move_animals(delta: float) -> void:
 		_nav_frame = Engine.get_process_frames()
 		_nav_budget = 1
 	super._move_animals(delta)
+	_update_aggression(delta)
 	for id in _animals.size():
 		var data := _animals[id]
 		data["nav_cooldown"] = maxf(0, data["nav_cooldown"] - delta)
@@ -415,6 +503,15 @@ func _process(delta: float) -> void:
 
 func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
+	for id in _animal_stars:
+		var data: Dictionary = _animals[id]
+		if data["aggro"] == AGGRO_NONE:
+			continue
+		var marker: Label3D = _animal_stars[id]
+		marker.visible = true
+		marker.no_depth_test = true
+		marker.modulate = Color("ff7a5c")
+		marker.text = "!! ANGRY" if data["aggro"] == AGGRO_WARN else "!! CHARGING"
 	var absolute := absolute_ground(player_position)
 	_landmark_label.text = landscape.biome_name(to_ground(player_position))
 	if absolute.distance_to(Vector2(7, -4)) < 9:

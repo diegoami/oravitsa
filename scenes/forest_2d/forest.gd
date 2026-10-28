@@ -60,6 +60,9 @@ const SLING_STUN_TIME := 4.5
 # Bumping an animal stuns both; Oravitsa then recovers before it can recur.
 const CONTACT_STUN_TIME := 1.2
 const STONE_SPEED := 1050.0
+const AGGRO_NONE := 0
+const AGGRO_WARN := 1
+const AGGRO_CHARGE := 2
 # Analog triggers cast once per pull: fire past PRESS, re-arm below RELEASE.
 const TRIGGER_PRESS := 0.6
 const TRIGGER_RELEASE := 0.3
@@ -990,6 +993,15 @@ func _threat_kinds(kind: int) -> Array:
 	return [LYNX, WOLF] if kind in [DEER, HARE] else []
 
 
+## Aggression phase toward Oravitsa; only the endless world provokes animals.
+func _aggression(_id: int) -> int:
+	return AGGRO_NONE
+
+
+func _charge_speed(kind: int) -> float:
+	return ANIMAL_SPEEDS[kind]
+
+
 ## Food an animal forages for; hunting nearby prey takes priority over it.
 func _food_kinds(kind: int) -> Array:
 	if kind == BOAR:
@@ -1170,6 +1182,16 @@ func _move_animals(delta: float) -> void:
 			target = position + away * 600
 			data["state"] = "scared"
 			speed = maxf(SHOO_FLEE_SPEED, ANIMAL_SPEEDS[kind] * 2.4)
+		elif _aggression(id) == AGGRO_WARN:
+			# A provoked animal stands its ground facing Oravitsa before charging.
+			data["velocity"] = Vector2.ZERO
+			data["state"] = "warn"
+			sprite.stop()
+			continue
+		elif _aggression(id) == AGGRO_CHARGE:
+			target = player_position
+			data["state"] = "charge"
+			speed = _charge_speed(kind)
 		elif threat >= 0 or avoid_player:
 			var away := Vector2.ZERO
 			if avoid_player:
@@ -1226,7 +1248,7 @@ func _move_animals(delta: float) -> void:
 			target = data["target"]
 		var heading := _steer_animal(id, position.direction_to(target), target, delta)
 		var velocity: Vector2 = data["velocity"]
-		velocity = velocity.move_toward(heading * speed, (520.0 if data["burst"] > 0.0 else 290.0) * delta)
+		velocity = velocity.move_toward(heading * speed, (520.0 if data["burst"] > 0.0 or data["state"] == "charge" else 290.0) * delta)
 		data["velocity"] = velocity
 		var step: Vector2 = velocity * delta
 		var candidate := position
