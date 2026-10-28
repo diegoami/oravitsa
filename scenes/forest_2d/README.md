@@ -27,8 +27,8 @@ between two props can be crossed. Animals and Oravitsa have solid circular
 footprints. Walking into an awake animal
 stuns both for 1.2 seconds; Oravitsa walks through stunned animals, and
 stepping out of one that woke up under her is not a bump. Select an animal, then Space scares that target
-within 600 px for five seconds, with a seven-second cooldown. A visible SCARED
-countdown marks its fast escape away from Oravitsa. Invalid casts spend no
+within 600 px for five seconds, with a seven-second cooldown. A sweat-drops icon
+with a time-left bar marks its fast escape away from Oravitsa. Invalid casts spend no
 cooldown. Boars move slowly, forage for mushrooms and berries,
 and sometimes hold their ground near Oravitsa. Deer seek berries and flee
 lynxes; lynxes pursue nearby deer and hares in 1.5-second bursts at 220 px/s,
@@ -59,7 +59,9 @@ Click or tap an animal to select it, then right-click, press F, or use Sling to 
 is 600 px, the cooldown is four seconds, and a hit stuns for 4.5 seconds
 without injury or removal. A hit never extends an existing stun, which
 prevents stun-locking with the shorter cooldown. Oravitsa can walk through a
-stunned animal without bumping it, so its longer stun is never replaced. A `STUNNED` countdown is shown above the animal.
+stunned animal without bumping it, so its longer stun is never replaced. A dizzy-stars icon with a time-left bar is shown above the animal. States use
+the hand-drawn SVG icons in `status_icons/` (CC0, see `PROVENANCE.md`); no
+state is shown as text.
 The selection ring, flying stone, and circling stun stars are drawn effects;
 Oravitsa currently keeps her walking or idle pose rather than a sling animation.
 Controllers use the left stick or D-pad to walk and right-stick flicks to cycle

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+<circle cx="32" cy="32" r="30.5" fill="#18211c" fill-opacity="0.82" stroke="#f4ecd0" stroke-width="2.5"/>
+<g transform="translate(32 32) scale(0.74) translate(-32 -32)">
+<g fill="#e9e4d4" stroke="#3b372c" stroke-width="2.5">
+<circle cx="20" cy="38" r="12"/><circle cx="44" cy="38" r="12"/><circle cx="32" cy="28" r="14"/><circle cx="32" cy="44" r="11"/>
+</g>
+<g fill="#e9e4d4"><circle cx="20" cy="38" r="9.8"/><circle cx="44" cy="38" r="9.8"/><circle cx="32" cy="28" r="11.8"/><circle cx="32" cy="44" r="8.8"/><rect x="18" y="30" width="28" height="14"/></g>
+<g fill="#ffb02e" stroke="#3a2008" stroke-width="2" stroke-linejoin="round">
+<polygon points="10.0,10.0 12.1,15.1 17.6,15.5 13.4,19.1 14.7,24.5 10.0,21.6 5.3,24.5 6.6,19.1 2.4,15.5 7.9,15.1"/>
+<polygon points="54.0,13.0 55.9,17.5 60.7,17.8 57.0,21.0 58.1,25.7 54.0,23.1 49.9,25.7 51.0,21.0 47.3,17.8 52.1,17.5"/>
+<polygon points="50.0,48.0 51.6,51.8 55.7,52.1 52.6,54.8 53.5,58.9 50.0,56.7 46.5,58.9 47.4,54.8 44.3,52.1 48.4,51.8"/>
+</g>
+</g>
+</svg>

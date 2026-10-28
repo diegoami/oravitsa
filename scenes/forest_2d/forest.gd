@@ -121,6 +121,7 @@ var _loaded_half := Vector2i.ZERO
 var _population_timer := POPULATION_INTERVAL
 var _population_tick := 0
 var _walk_phase := 0.0
+var _status_peaks: Dictionary = {} # "id:field" -> Vector2(timer length, last value)
 
 
 func _ready() -> void:
@@ -314,6 +315,26 @@ func _cycle_sling_target(step: int) -> void:
 	var current := candidates.find(selected_target)
 	selected_target = -1 if candidates.is_empty() else candidates[0 if current < 0 else wrapi(current + step, 0, candidates.size())]
 	_update_hud()
+
+
+## Status icons shown above an animal instead of text, as [icon, fraction of
+## the timer left, or -1 for an untimed state]. A stun and fear can show at once.
+func _status_states(id: int) -> Array:
+	var data := _animals[id]
+	var states := []
+	for field in ["stun", "shoo"]:
+		var value: float = data[field]
+		var key := "%d:%s" % [id, field]
+		if value <= 0.0 or not data["alive"]:
+			_status_peaks.erase(key)
+			continue
+		# A timer that rose was (re)started: its new value is the full length.
+		var peak: Vector2 = _status_peaks.get(key, Vector2.ZERO)
+		if value > peak.y:
+			peak.x = value
+		_status_peaks[key] = Vector2(peak.x, value)
+		states.append(["stunned" if field == "stun" else "scared", value / peak.x])
+	return states
 
 
 func _valid_sling_target(id: int) -> bool:

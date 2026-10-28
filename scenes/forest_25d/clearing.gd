@@ -4,6 +4,7 @@ extends "res://scenes/forest_2d/forest.gd"
 ## Legacy simulation coordinates are converted to metres at one boundary.
 const METRE := 64.0
 const CAMERA_OFFSET := Vector3(0, 18, 25.4558)
+const STATUS_MARKER := preload("res://scenes/forest_25d/status_marker.gd")
 var landscape: Node3D
 var stage: Node3D
 var view: Camera3D
@@ -380,13 +381,8 @@ func _add_animal_visual(id: int) -> void:
 		model = sprite
 	model.name = ANIMAL_NAMES[kind] + "_%d" % id
 	_animal_models[id] = model
-	var stars := Label3D.new()
-	stars.text = "✦  ✦  ✦"
-	stars.font_size = 32
-	stars.pixel_size = 0.012
-	stars.modulate = Color("ffe2a0")
-	stars.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	stars.no_depth_test = false
+	var stars := Node3D.new()
+	stars.set_script(STATUS_MARKER)
 	stars.visible = false
 	stage.add_child(stars)
 	_animal_stars[id] = stars
@@ -574,14 +570,10 @@ func _sync_presentation(delta: float) -> void:
 				animator.play(wanted, 0.2)
 			animator.speed_scale = 0.0 if data["stun"] > 0 else (1.4 if data["shoo"] > 0 else 1.0)
 		_animal_shadows[id].position = model.position + Vector3.UP * 0.015
-		var stars: Label3D = _animal_stars[id]
-		stars.position = model.position + Vector3.UP * (_animal_heights[kind] + 0.25 + sin(Time.get_ticks_msec() * 0.005) * 0.05)
-		stars.text = "!! SCARED %.1fs" % data["shoo"] if data["shoo"] > 0 else ""
-		if data["stun"] > 0:
-			stars.text = ("STUNNED %.1fs\n" % data["stun"] + stars.text) if data["shoo"] > 0 else "✦ STUNNED %.1fs ✦" % data["stun"]
-		stars.modulate = Color("ffcb79") if data["shoo"] > 0 else Color("ffe2a0")
-		stars.no_depth_test = data["shoo"] > 0
-		stars.visible = data["stun"] > 0.0 or data["shoo"] > 0.0
+		var stars: Node3D = _animal_stars[id]
+		stars.position = model.position + Vector3.UP * (_animal_heights[kind] + 0.35 + sin(Time.get_ticks_msec() * 0.005) * 0.05)
+		stars.show_states(_status_states(id))
+		stars.set_on_top(data["shoo"] > 0)
 
 	_target_ring.visible = _valid_sling_target(selected_target)
 	if _target_ring.visible:

@@ -79,7 +79,7 @@ func _run() -> void:
 	assert(wolf["aggro"] == world.AGGRO_WARN)
 	assert(world._notice_label.text.contains("angry"))
 	world._sync_presentation(0.0)
-	assert(world._animal_stars[0].visible and "ANGRY" in world._animal_stars[0].text)
+	assert(world._animal_stars[0].visible and world._animal_stars[0].icons == ["angry"])
 	var standing: Vector2 = wolf["position"]
 	world._move_animals(0.5)
 	assert(wolf["position"] == standing and wolf["state"] == "warn", "The warning is a pause, not an attack")
@@ -92,7 +92,7 @@ func _run() -> void:
 		assert(world._can_stand(wolf["position"], world.ANIMAL_RADIUS[world.WOLF]))
 		if wolf["state"] == "charge":
 			world._sync_presentation(0.0)
-			assert("CHARGING" in world._animal_stars[0].text)
+			assert(world._animal_stars[0].icons == ["charging"])
 		if world.player_stun > 0:
 			hit = true
 			break

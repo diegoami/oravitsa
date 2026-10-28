@@ -1,5 +1,14 @@
 extends Node2D
 
+const STATUS_ICONS := {
+	"stunned": preload("res://scenes/forest_2d/status_icons/stunned.svg"),
+	"scared": preload("res://scenes/forest_2d/status_icons/scared.svg"),
+	"angry": preload("res://scenes/forest_2d/status_icons/angry.svg"),
+	"charging": preload("res://scenes/forest_2d/status_icons/charging.svg"),
+	"fighting": preload("res://scenes/forest_2d/status_icons/fighting.svg"),
+}
+const STATUS_COLORS := {"stunned": Color("ffd95a"), "scared": Color("8fd3ff"), "angry": Color("ff4a3a"), "charging": Color("ff4a3a"), "fighting": Color("ffb02e")}
+
 var forest: Node2D
 
 
@@ -27,13 +36,14 @@ func _draw() -> void:
 		var sprite: AnimatedSprite2D = forest._active_animals[id]
 		var texture := sprite.sprite_frames.get_frame_texture(sprite.animation, sprite.frame)
 		var center: Vector2 = animal["position"] - Vector2(0, texture.get_height() * sprite.scale.y * 0.75)
-		if animal["shoo"] > 0 or animal["stun"] > 0:
-			var text := "!! SCARED %.1fs" % animal["shoo"] if animal["shoo"] > 0 else ""
-			if animal["stun"] > 0:
-				text = "STUNNED %.1fs" % animal["stun"] + (" / " + text if not text.is_empty() else "")
-			var font := ThemeDB.fallback_font
-			var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
-			draw_string(font, center - Vector2(width * 0.5, 20 if animal["stun"] > 0 else 0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("ffcb79") if animal["shoo"] > 0 else Color("fff0ac"))
+		var states: Array = forest._status_states(id)
+		for i in states.size():
+			# Icons side by side above the head, each with its time-left bar.
+			var at := center + Vector2((i - (states.size() - 1) * 0.5) * 44.0, -36.0)
+			draw_texture_rect(STATUS_ICONS[states[i][0]], Rect2(at - Vector2(20, 20), Vector2(40, 40)), false)
+			if states[i][1] >= 0.0:
+				draw_rect(Rect2(at + Vector2(-17, 22), Vector2(34, 5)), Color(0.08, 0.1, 0.08, 0.8))
+				draw_rect(Rect2(at + Vector2(-17, 22), Vector2(34 * states[i][1], 5)), STATUS_COLORS[states[i][0]])
 		if animal["stun"] <= 0:
 			continue
 		for star in 3:

@@ -78,6 +78,9 @@ Record unavailable checks as untested, never as passed.
   animal stuns both for 1.2 seconds. Stepping out of an animal she overlaps
   (one that woke up under her) is never a bump, and such an animal can step
   away from her but never further in.
+- Animal states (stunned, scared, angry, charging, fighting) are shown as
+  icons above the animal, never as text. Timed states have a time-left bar,
+  and stun and fear can show together.
 - In the endless world wolves/lynxes are more frequent, sprint in longer and
   faster spurts, hunt both prey species and despawn after 180 hungry seconds.
   Endless foxes also hunt hares but rarely catch them. The finite scenes

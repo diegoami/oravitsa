@@ -4,6 +4,11 @@
 
 - Oravitsa walks through stunned animals with no bump. Stepping out of an
   animal that woke up under her is never a bump either, and it can step away.
+- Animal states are icons instead of text, on dark round badges, in all
+  scenes: dizzy stars (stunned), sweat drops (scared), an anger mark (angry
+  warning), a red burst (charging) and a scuffle cloud (fighting). Timed
+  states have a bar that empties as they run out. Stun and fear show side by
+  side.
 - The hare exception is now stated with its reason: hares are the only
   animals Oravitsa kills, because unchecked they would multiply out of control.
 

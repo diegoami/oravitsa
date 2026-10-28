@@ -68,7 +68,7 @@ func _run() -> void:
 	world._move_animals(0.5)
 	assert(world._animals[0]["position"] == a_position and world._animals[0]["state"] == "fight")
 	world._sync_presentation(0.0)
-	assert(world._animal_stars[0].visible and "FIGHTING" in world._animal_stars[0].text)
+	assert(world._animal_stars[0].visible and world._animal_stars[0].icons == ["fighting"])
 	# Resolution: one loser is stunned, both return to ordinary behaviour.
 	for step in 120:
 		world._move_animals(0.05)
@@ -81,7 +81,7 @@ func _run() -> void:
 	assert(not world._is_fighting(0) and not world._is_fighting(1))
 	assert(world._animals[winner]["state"] != "fight")
 	world._sync_presentation(0.0)
-	assert("STUNNED" in world._animal_stars[loser].text)
+	assert(world._animal_stars[loser].icons == ["stunned"])
 	# Cooldown: they do not immediately fight again (no stun-lock).
 	assert(world._animals[0]["fight_cooldown"] > 40 and world._animals[1]["fight_cooldown"] > 40)
 	world._animals[loser]["stun"] = 0.0

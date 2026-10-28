@@ -196,19 +196,20 @@ marked gone with the 45-second reuse delay, so it never takes the prey respawn
 path; ordinary replenishment restores the hare population.
 Shoo shares the selected target/range with Sling and scares only that animal
 for five seconds. It interrupts feeding/hunting and existing animal stun,
-immediately starts a fast escape away from Oravitsa, and shows an orange
-`SCARED` countdown above the animal. Rigged animals gallop where available;
+immediately starts a fast escape away from Oravitsa, and shows a sweat-drops
+icon with a time-left bar above the animal. Rigged animals gallop where available;
 painted animals animate faster. The cooldown is seven seconds and is not spent
 on invalid casts. Fear has priority over prey pursuit, food and home return;
 ordinary AI resumes when it expires. Sling can stun a scared animal; both
-status countdowns appear while it is frozen, and fear continues counting down.
+status icons appear side by side while it is frozen, and the fear bar keeps
+emptying.
 Collision and recovery routes still apply.
 
 **Aggression toward Oravitsa.** Lingering within 260 px (about 4 m) of a wolf,
 lynx or boar builds provocation; backing away drains it twice as fast. After
 three seconds there is a 60% chance the animal turns angry; otherwise it ignores
 her for eight seconds before another roll. An angry animal stands still for
-1.2 s under a red `!! ANGRY` marker, with a HUD notice, and then charges for at most
+1.2 s under a red anger-mark icon, with a HUD notice, and then charges for at most
 four seconds (wolf 232, lynx 228, boar 196 px/s; Oravitsa walks at 210).
 Reaching her stuns her for two seconds; an already stunned Oravitsa is not
 stunned again. Hit or miss, the animal then loses interest for 25 seconds.
@@ -218,9 +219,9 @@ is no damage or death. Retained finite scenes have no aggression.
 
 **Fights.** Calm wolves, lynxes and boars of *different* species within 140 px
 are checked once per second, with a 12% chance to fight; same-species pairs do
-not fight. Both square off in place for 2.5 s under an orange `!! FIGHTING`
-marker. Wolves win slightly more often (strength 1.2 against 1.0). The loser
-is stunned for four seconds (with the normal `STUNNED` countdown); nobody is
+not fight. Both square off in place for 2.5 s under one scuffle-cloud icon
+centred over the pair. Wolves win slightly more often (strength 1.2 against 1.0). The loser
+is stunned for four seconds (with the normal dizzy-stars icon and bar); nobody is
 hurt or removed. Both then avoid fights for 45 s. An animal that is stunned,
 scared, feeding (including a forager in the middle of eating a patch), hunting
 or provoked by Oravitsa never starts a fight. Shoo, a
