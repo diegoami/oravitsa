@@ -709,10 +709,8 @@ func _layout_hud() -> void:
 	_instructions_toggle.position = Vector2(18, 16)
 	_instructions_toggle.size = Vector2(180, 32)
 	_help_panel.position = Vector2(18, 60)
-	_help_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 164)
-	_save_button.position = _help_panel.position + Vector2(0, _help_panel.size.y + 8)
+	_help_panel.size = Vector2(minf(340.0, _minimap.position.x - 36.0), 144)
 	_save_button.size = Vector2(124, 32)
-	_load_button.position = _save_button.position + Vector2(132, 0)
 	_load_button.size = Vector2(124, 32)
 	_hint_label.position = _help_panel.position + Vector2(12, 9)
 	_hint_label.size = _help_panel.size - Vector2(24, 18)
@@ -1413,6 +1411,14 @@ func _show_notice(text: String, seconds: float = 2.5) -> void:
 	_notice_duration = seconds
 
 
+## Grows Help to its line count (23 px per line) and keeps buttons beneath it.
+func _fit_help_panel() -> void:
+	_help_panel.size.y = maxf(144.0, 22.0 + 23.0 * (_hint_label.text.count("\n") + 1))
+	_hint_label.size = _help_panel.size - Vector2(24, 18)
+	_save_button.position = _help_panel.position + Vector2(0, _help_panel.size.y + 8)
+	_load_button.position = _save_button.position + Vector2(132, 0)
+
+
 ## Saving is offered only where a scene supports it (the endless woods).
 func _can_save() -> bool:
 	return false
@@ -1461,6 +1467,7 @@ func _update_hud() -> void:
 		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling target\nSpace: scare selected animal\nM: map · H: instructions"
 	if _can_save():
 		_hint_label.text += "\n" + ("X: save game · B: load game" if controller else ("Save or load with the buttons below" if touch else "K: save game · L: load game"))
+	_fit_help_panel()
 	var target_name: String = ANIMAL_NAMES[_animals[selected_target]["kind"]] if _valid_sling_target(selected_target) else ""
 	_sling_label.text = "Right stick: select target" if controller else ("Tap animal to target" if touch else "Click animal to target")
 	if not target_name.is_empty():

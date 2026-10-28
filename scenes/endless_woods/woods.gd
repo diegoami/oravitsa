@@ -84,8 +84,8 @@ func _build_world() -> void:
 	_layout_hud()
 
 
-func _layout_hud() -> void:
-	super._layout_hud()
+func _fit_help_panel() -> void:
+	super._fit_help_panel()
 	if is_instance_valid(_ambience_button):
 		_ambience_button.position = _save_button.position + Vector2(0, 40)
 		_ambience_button.size = Vector2(124, 32)
@@ -104,6 +104,7 @@ func _update_hud() -> void:
 	_animal_sound_button.text = "Animals " + audio.level_text(audio.animal_level) + (" [0]" if keys else "")
 	if keys:
 		_hint_label.text += "\n9 / 0: forest / animal volume"
+	_fit_help_panel()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -798,10 +799,15 @@ func _sync_presentation(delta: float) -> void:
 	for id in _animal_stars:
 		var data: Dictionary = _animals[id]
 		if data["fight_with"] >= 0:
-			_animal_stars[id].visible = true
+			# One label centred over the pair, so the two never overlap.
+			var other: int = data["fight_with"]
+			_animal_stars[id].visible = id < other or not _animal_models.has(other)
 			_animal_stars[id].no_depth_test = true
 			_animal_stars[id].modulate = Color("ffb35c")
 			_animal_stars[id].text = "!! FIGHTING"
+			if _animal_models.has(other):
+				var top := maxf(_animal_heights[data["kind"]], _animal_heights[_animals[other]["kind"]])
+				_animal_stars[id].position = (_animal_models[id].position + _animal_models[other].position) * 0.5 + Vector3.UP * (top + 0.3)
 			continue
 		if data["aggro"] == AGGRO_NONE:
 			continue
