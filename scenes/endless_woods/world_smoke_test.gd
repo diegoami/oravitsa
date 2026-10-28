@@ -27,7 +27,19 @@ func _run() -> void:
 		counts[animal["kind"]] += 1
 	assert(counts[world.WOLF] > 1 and counts[world.LYNX] > 1)
 	assert(counts[world.HARE] > counts[world.WOLF] + counts[world.LYNX])
+	# Sparse ecology (#21): about a third of the former 103 animals and 1115
+	# food patches per 200 m square; the old abundance must not return.
+	assert(world._animals.size() >= 25 and world._animals.size() <= 45, "Initial wildlife must stay sparse")
 	var land: Node3D = world.landscape
+	var patches := 0
+	var reach := int(100 * world.METRE / world.TILE)
+	for z in range(-reach, reach + 1):
+		for x in range(-reach, reach + 1):
+			if world.objects[world._index(world.START + Vector2i(x, z))] in [world.MUSHROOM, world.BERRIES]:
+				patches += 1
+		if z % 40 == 0:
+			world._refresh_food()
+	assert(patches > 280 and patches < 520, "Food density must stay near a third of the former 1115 patches")
 	assert(absf(land.road_z(64, 0) - lerpf(land.road_z(0, 0), land.road_z(128, 0), 0.5)) > 1, "Road must curve between endpoints")
 	var biomes := {}
 	var landmarks := {}

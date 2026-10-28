@@ -49,9 +49,14 @@ There is no save to disk, and quitting/reloading starts a fresh session.
 
 There are now six species. Seed weights are hare 52, deer 18, fox 10, boar 8,
 wolf 7 and lynx 5. This intentionally makes predators more frequent than in
-the retained finite scene. The fixed initial population is 103 animals:
-62 hares, 14 deer, 12 foxes, 5 boars, 6 lynxes and 4 wolves. Replenishment targets
-18/8/4/4/3/2 for hare/deer/fox/boar/wolf/lynx, with species-specific chances.
+the retained finite scene. The ecology is intentionally sparse, at roughly a
+third of v0.1's abundance (endless world only; finite scenes are unchanged).
+The fixed initial population is 34 animals: 17 hares, 8 deer, 3 foxes, 2 boars,
+2 lynxes and 2 wolves. Replenishment targets 6/3/1/1/1/1 for
+hare/deer/fox/boar/wolf/lynx, with species-specific chances; a 1.5 km walk
+averages about 10 animals in the local population radius (27 before). Food
+patch chances are 4.3% of cells in birch woods and 2.7% elsewhere, giving about
+400 patches per 200 m square around arrival (1115 before).
 New arrivals and prey respawns stay outside the actual smoothed camera view.
 
 Both wolves and lynxes hunt hares and deer. Hares are caught on contact; deer

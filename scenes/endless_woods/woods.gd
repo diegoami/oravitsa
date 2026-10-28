@@ -1,7 +1,10 @@
 extends "res://scenes/forest_25d/clearing.gd"
 
 const WILDLIFE_WEIGHTS := {HARE: 52, DEER: 18, FOX: 10, BOAR: 8, WOLF: 7, LYNX: 5}
-const WILDLIFE_TARGETS := {HARE: 18, DEER: 8, FOX: 4, BOAR: 4, WOLF: 3, LYNX: 2}
+# Owner-tuned sparse ecology: roughly a third of the earlier abundance.
+const WILDLIFE_TARGETS := {HARE: 6, DEER: 3, FOX: 1, BOAR: 1, WOLF: 1, LYNX: 1}
+const SEEDED_ANIMALS := 33
+const FOOD_CHANCE := Vector2(0.043, 0.027) # Birch biome, other biomes.
 const WILDLIFE_CHANCE := {HARE: 1.0, DEER: 0.65, FOX: 0.35, BOAR: 0.25, WOLF: 0.32, LYNX: 0.22}
 const PREDATOR_HUNGER_LIMIT := 180.0
 const PREDATOR_RETURN_DELAY := 45.0
@@ -41,7 +44,7 @@ func _index(cell: Vector2i) -> int:
 		_cached_cells[key] = global_cell
 		var p := to_ground(_cell_center(cell))
 		var value := EMPTY
-		if not _harvested.has(key) and landscape.random_at(global_cell, 910) < (0.13 if landscape.biome_at(p) == 1 else 0.08) and not landscape.is_water(p, 0.4) and not landscape.is_bridge(p):
+		if not _harvested.has(key) and landscape.random_at(global_cell, 910) < (FOOD_CHANCE.x if landscape.biome_at(p) == 1 else FOOD_CHANCE.y) and not landscape.is_water(p, 0.4) and not landscape.is_bridge(p):
 			value = MUSHROOM if landscape.random_at(global_cell, 911) < 0.55 else BERRIES
 		if value != EMPTY and not landscape.can_walk(p, 0.2):
 			value = EMPTY # Do not lure foragers toward food inside solid scenery.
@@ -159,10 +162,10 @@ func _add_animal(kind: int, cell: Vector2i) -> void:
 
 
 func _seed_animals() -> void:
-	for off in [Vector2i(1, 3), Vector2i(4, 0), Vector2i(2, -3), Vector2i(-1, 5)]:
+	for off in [Vector2i(4, 0), Vector2i(-1, 5)]:
 		if _can_stand(_cell_center(START + off)):
 			_add_animal(HARE, START + off)
-	for i in 100:
+	for i in SEEDED_ANIMALS:
 		var roll := _hash(i, 0, 950) * 100
 		var kind := HARE
 		for species in WILDLIFE_WEIGHTS:

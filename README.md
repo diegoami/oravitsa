@@ -49,9 +49,10 @@ through turns; blocked movement and stun return her to a grounded idle pose.
 
 Hares are frequent, deer and foxes are less common, boars are uncommon, and
 wolves and lynxes are more frequent than in the retained finite scene. The
-fixed seed starts with **103 animals: 62 hares, 14 deer, 12 foxes, 5 boars,
-6 lynxes and 4 wolves**, with four hares near arrival. Replenishment keeps
-species-specific chances. New arrivals and respawns
+woods are deliberately sparse: the fixed seed starts with **34 animals: 17
+hares, 8 deer, 3 foxes, 2 boars, 2 lynxes and 2 wolves**, with two hares near
+arrival, and food patches are about a third as dense as in v0.1. Replenishment
+keeps species-specific chances. New arrivals and respawns
 wait outside the actual camera view, including its smoothing lag.
 
 Terrain, trees, food and nearby animal models stream around the camera. Gathered
