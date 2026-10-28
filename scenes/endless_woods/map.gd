@@ -28,6 +28,21 @@ func _draw() -> void:
 			var p: Vector2 = convert.call(forest.absolute_ground(data["position"]))
 			if rect.has_point(p):
 				draw_circle(p, 2, COLORS[data["kind"]])
+	# Hamlets and cave mouths within the map's 128 m view.
+	var land: Node3D = forest.landscape
+	for dz in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			var hamlet: Dictionary = land.hamlet_near(center + Vector2(dx, dz) * 64)
+			if not hamlet.is_empty():
+				var h: Vector2 = convert.call(hamlet["center"])
+				if rect.has_point(h):
+					draw_rect(Rect2(h - Vector2(4, 3), Vector2(8, 6)), Color("d8cfb2"))
+					draw_colored_polygon(PackedVector2Array([h + Vector2(-5, -3), h + Vector2(0, -8), h + Vector2(5, -3)]), Color("8a6a52"))
+			var cave: Dictionary = land.cave_at(Vector2i(floori((center.x + dx * 64) / 256), floori((center.y + dz * 64) / 128)))
+			if not cave.is_empty():
+				var c: Vector2 = convert.call(cave["mouth"])
+				if rect.has_point(c):
+					draw_colored_polygon(PackedVector2Array([c + Vector2(-5, 3), c + Vector2(0, -5), c + Vector2(5, 3)]), Color("2a2b26"))
 	draw_circle(convert.call(center), 4, Color("fff0b0"))
 	draw_rect(rect, Color("bca677"), false, 1)
 	draw_string(ThemeDB.fallback_font, Vector2(12, 20), "MOSSBANK · LOCAL MAP", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color("ead9a9"))

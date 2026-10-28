@@ -100,6 +100,43 @@ and the notice says so. Desktop builds store the file in Godot's per-user data f
 The Web build uses the browser's persistent storage (IndexedDB), which private
 browsing or clearing site data can discard. The browser save path is untested.
 
+## Empty hamlets and cave mouths
+
+Both are uninhabited: no people, quests, shops or enemies. They come from the
+same seeded absolute data as roads and landmarks, so revisits and saves need
+no extra state. Collision works without rendered chunks, and each house or
+rock is built in the chunk that holds its centre.
+
+- **Hamlets.** Each 512 × 384 m block (two road columns by three road rows)
+  has one hamlet, at a seeded crossing in its middle row, so exactly one
+  crossing in six. Hamlets are at least 256 m apart. Each has 3–6 closed,
+  weathered cottages from six seeded slots set back from both roads, and an
+  old well near the crossing. Cottages are grey timber with a shut door facing
+  the east/west road, dark shuttered windows, a seeded collapsed roof section
+  over a dark interior, and usually a cold chimney. A short dressed trail
+  joins each door to the road. The 30 m clearing around the crossing grows no
+  trees, rocks or food ("bare gardens"), and no animal spawns or has its home
+  there; wandering animals may pass through. The label reads "Empty hamlet",
+  and the map shows a small house icon.
+- **Cave mouths.** Exterior entrances only, with no interiors. A landmark
+  region without a homestead gets a cave with an 80% chance, on the highest of
+  14 seeded candidate spots at least 0.55 m above the base terrain. Candidates
+  avoid roads, water, the region's landmark and hamlets. The mouth always
+  opens south, toward the fixed camera: a dark recessed opening under a stone
+  lintel in a mossy outcrop, flanked by two boulders. Its trail runs 6 m south
+  and then to the nearest road. The trail must stay inside the region, keep
+  clear of water and the landmark, and never pass back through the outcrop,
+  or the spot gets no cave. One list of rock parts drives both collision and
+  meshes, so Oravitsa can stand in the entrance while the rock behind it is
+  solid. About one region in three has a cave. The label reads "Cave mouth",
+  and the map shows a dark triangle.
+
+`landmarks_smoke_test.gd` surveys 49 blocks and 117 regions, including
+negative ones. It checks solid houses, wells and rock, open entrances and
+crossings, walkable door and cave trails that match their dressing, bare
+clearings, no spawns inside, identical regeneration after a 3 km
+rebased round trip, bounded caches, and the labels.
+
 ## Wildlife
 
 There are now six species. Seed weights are hare 52, deer 18, fox 10, boar 8,

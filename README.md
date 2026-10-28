@@ -83,6 +83,11 @@ leaving/revisiting a region does not reset their countdown.
 Rendering rebases its local origin during long walks; generated world data has
 no fixed playable border. Only nearby terrain and animal visuals stay loaded.
 
+Along the roads you will find **empty hamlets** of closed, weathered cottages
+around an old well, at about one road crossing in six. On higher ground there
+are **cave mouths** you can step into but not enter further. Both are empty;
+the map marks them, and the location label names them.
+
 The endless woods have a quiet looping forest ambience, and nearby animals
 occasionally call (wolves howl, boars grunt, foxes yip…). Distant ones stay
 silent. Press **9**/**0** or use the Help panel buttons to cycle forest and
@@ -188,7 +193,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (nineteen smoke scripts). It rejects logged errors immediately
+foraging prototype (twenty smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.

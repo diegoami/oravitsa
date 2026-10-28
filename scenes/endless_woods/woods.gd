@@ -139,8 +139,8 @@ func _index(cell: Vector2i) -> int:
 		var value := EMPTY
 		if not _harvested.has(key) and landscape.random_at(global_cell, 910) < (FOOD_CHANCE.x if landscape.biome_at(p) == 1 else FOOD_CHANCE.y) and not landscape.is_water(p, 0.4) and not landscape.is_bridge(p):
 			value = MUSHROOM if landscape.random_at(global_cell, 911) < 0.55 else BERRIES
-		if value != EMPTY and not landscape.can_walk(p, 0.2):
-			value = EMPTY # Do not lure foragers toward food inside solid scenery.
+		if value != EMPTY and (not landscape.can_walk(p, 0.2) or landscape.in_settlement(p)):
+			value = EMPTY # No food inside solid scenery or a hamlet's bare clearing.
 		objects[key] = value
 		terrain[key] = GRASS
 	return key
@@ -466,7 +466,7 @@ func _seed_animals() -> void:
 				continue
 			var cell := _world_cell(from_ground(p))
 			var spot := _cell_center(cell)
-			if not _can_stand(spot, ANIMAL_RADIUS[kind]):
+			if not _can_stand(spot, ANIMAL_RADIUS[kind]) or not _spawn_allowed(spot):
 				continue
 			var clear := true
 			for animal in _animals:
@@ -493,6 +493,10 @@ func _on_hare_collected(id: int) -> void:
 	# The slot leaves the sparse ecology; replenishment brings a new hare later.
 	_animals[id]["gone"] = true
 	_animals[id]["respawn"] = PREDATOR_RETURN_DELAY
+
+
+func _spawn_allowed(spot: Vector2) -> bool:
+	return not landscape.in_settlement(to_ground(spot))
 
 
 func _should_respawn(id: int) -> bool:
@@ -826,6 +830,12 @@ func _sync_presentation(delta: float) -> void:
 	var site: Dictionary = landscape.landmark_at(Vector2i(floori(absolute.x / 256), floori(absolute.y / 128)))
 	if absolute.distance_to(site["position"]) < 7:
 		_landmark_label.text = ["Forgotten homestead", "Old standing stones", "Abandoned woodcutters’ camp", "Mossy cairns"][site["kind"]]
+	var hamlet: Dictionary = landscape.hamlet_near(absolute)
+	if not hamlet.is_empty() and absolute.distance_to(hamlet["center"]) < landscape.HAMLET_RADIUS:
+		_landmark_label.text = "Empty hamlet"
+	var cave: Dictionary = landscape.cave_at(Vector2i(floori(absolute.x / 256), floori(absolute.y / 128)))
+	if not cave.is_empty() and absolute.distance_to(cave["mouth"]) < 8:
+		_landmark_label.text = "Cave mouth"
 	var inside := Rect2(4.7, -5.8, 4.6, 3.8).has_point(absolute)
 	for roof in landscape.roofs:
 		roof.visible = not inside
