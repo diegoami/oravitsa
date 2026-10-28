@@ -5,7 +5,8 @@
 - Empty hamlets at one road crossing in six: 3–6 closed, weathered cottages, a
   well and a bare clearing. Exterior cave mouths on high ground in about one
   landmark region in three. Both are seeded and solid, with walkable trails,
-  map icons and labels (#22).
+  map icons and labels (#22). Saves from before hamlets load with Oravitsa
+  and animals moved off any new house to the nearest open ground.
 
 ## 0.2.0-alpha.1 — living woods (candidate)
 

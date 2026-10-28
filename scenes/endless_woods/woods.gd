@@ -682,6 +682,28 @@ func _local_point(value: Array) -> Vector2:
 	return from_ground(Vector2(value[0], value[1]) - Vector2(origin_cells) * TILE / METRE)
 
 
+## A save may predate world features added since (such as a hamlet house over
+## a saved spot), so loaded positions move to the nearest open ground; homes
+## also leave hamlet clearings. Spots that are already valid stay unchanged.
+func _open_ground_near(point: Vector2, actor_radius: float, outside_settlements: bool = false) -> Vector2:
+	var start := to_ground(point)
+	var radius := actor_radius / METRE
+	var settled: bool = outside_settlements and landscape.in_settlement(start)
+	if not settled and landscape.can_walk(start, radius):
+		return point
+	if settled:
+		var hamlet: Dictionary = landscape.hamlet_near(start + landscape.origin)
+		var away: Vector2 = start + landscape.origin - hamlet["center"]
+		start = hamlet["center"] - landscape.origin + (away.normalized() if away.length() > 0.01 else Vector2.RIGHT) * (landscape.HAMLET_RADIUS + 1.0)
+	for ring in 120:
+		var count := maxi(1, ring * 6)
+		for i in count:
+			var q := start + Vector2.from_angle(i * TAU / count) * ring * 0.25
+			if landscape.can_walk(q, radius) and not (outside_settlements and landscape.in_settlement(q)):
+				return from_ground(q)
+	return point
+
+
 ## Bounded game state: absolute positions, timers and depleted food only. The
 ## world itself regenerates from its seeds; nothing like a world map is stored.
 func save_state() -> Dictionary:
@@ -743,10 +765,15 @@ func apply_state(data: Dictionary) -> void:
 			animal[field] = int(record[field])
 		# Encounters in progress restart from calm; their cooldowns persist.
 		animal["state"] = "idle" if record["state"] in ["warn", "charge", "fight", "hunt", "flee"] else record["state"]
+		var radius: float = ANIMAL_RADIUS[animal["kind"]]
+		animal["position"] = _open_ground_near(animal["position"], radius)
+		animal["home"] = _open_ground_near(animal["home"], radius, true)
+		if not _can_stand(animal["target"], radius):
+			animal["target"] = animal["position"]
 		_animals.append(animal)
 	_stones.clear()
 	selected_target = -1
-	player_position = _local_point(ground)
+	player_position = _open_ground_near(_local_point(ground), PLAYER_RADIUS)
 	player_stun = float(data["player"]["stun"])
 	shoo_cooldown = float(data["player"]["shoo_cooldown"])
 	sling_cooldown = float(data["player"]["sling_cooldown"])

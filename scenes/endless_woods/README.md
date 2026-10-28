@@ -85,7 +85,11 @@ undepleted food are regenerated from the seeds, never stored. On loading, the
 floating origin is rebased near the saved position. Timers continue from their saved values,
 so game time is paused while the game is closed. Stones in flight, the target
 selection, route plans and in-progress warnings, charges, fights and hunts
-restart from calm, while their cooldowns persist.
+restart from calm, while their cooldowns persist. A save made before a world
+feature existed (such as a hamlet house built over the saved spot) still
+loads in the same world. Oravitsa and every animal are moved to the nearest
+open ground, and animal homes leave hamlet clearings. Positions that are
+already valid stay exactly as saved.
 
 A save is written to a temporary file and read back and validated. Only then
 does it replace the slot, using renames that replace their destination in one
@@ -111,7 +115,7 @@ rock is built in the chunk that holds its centre.
   has one hamlet, at a seeded crossing in its middle row, so exactly one
   crossing in six. Hamlets are at least 256 m apart. Each has 3–6 closed,
   weathered cottages from six seeded slots set back from both roads, and an
-  old well near the crossing. Cottages are grey timber with a shut door facing
+  old square stone well near the crossing, solid exactly to its drawn wall. Cottages are grey timber with a shut door facing
   the east/west road, dark shuttered windows, a seeded collapsed roof section
   over a dark interior, and usually a cold chimney. A short dressed trail
   joins each door to the road. The 30 m clearing around the crossing grows no
@@ -132,10 +136,19 @@ rock is built in the chunk that holds its centre.
   and the map shows a dark triangle.
 
 `landmarks_smoke_test.gd` surveys 49 blocks and 117 regions, including
-negative ones. It checks solid houses, wells and rock, open entrances and
-crossings, walkable door and cave trails that match their dressing, bare
-clearings, no spawns inside, identical regeneration after a 3 km
-rebased round trip, bounded caches, and the labels.
+negative ones. Its checks:
+
+- Solid houses, wells and rock, and open entrances and crossings.
+- Rock and well collision ending at the drawn surface, sampled just inside
+  and just outside each part and side.
+- Every visited house, well wall, rock part and cave opening drawn once, at
+  exactly its collision size, both before and after a 3 km rebased round trip
+  that unloads and rebuilds them.
+- Walkable door and cave trails that match their dressing.
+- Bare clearings with no spawns inside, and identical regeneration.
+- Bounded caches and the labels.
+- Old saves positioned inside a house or homed in a clearing being moved
+  to open ground on load.
 
 ## Wildlife
 
