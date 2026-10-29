@@ -351,6 +351,24 @@ func _sync_animal_lifecycle() -> void:
 func _add_animal_visual(id: int) -> void:
 	var kind: int = _animals[id]["kind"]
 	var height: float = _animal_heights[kind]
+	var model := _animal_model(id)
+	model.name = ANIMAL_NAMES[kind] + "_%d" % id
+	_animal_models[id] = model
+	var stars := Node3D.new()
+	stars.set_script(STATUS_MARKER)
+	stars.visible = false
+	stage.add_child(stars)
+	_animal_stars[id] = stars
+	var shadow := _contact_shadow(height * 0.45)
+	stage.add_child(shadow)
+	_animal_shadows[id] = shadow
+
+
+## The visible model of one animal, added to the stage; a rigged model also
+## registers its AnimationPlayer (clips named Idle/Walk, optionally more).
+func _animal_model(id: int) -> Node3D:
+	var kind: int = _animals[id]["kind"]
+	var height: float = _animal_heights[kind]
 	var model: Node3D
 	if kind in [DEER, FOX, WOLF]:
 		var filename := "deer" if kind == DEER else ("fox" if kind == FOX else "wolf")
@@ -379,16 +397,7 @@ func _add_animal_visual(id: int) -> void:
 		sprite.shaded = false
 		stage.add_child(sprite)
 		model = sprite
-	model.name = ANIMAL_NAMES[kind] + "_%d" % id
-	_animal_models[id] = model
-	var stars := Node3D.new()
-	stars.set_script(STATUS_MARKER)
-	stars.visible = false
-	stage.add_child(stars)
-	_animal_stars[id] = stars
-	var shadow := _contact_shadow(height * 0.45)
-	stage.add_child(shadow)
-	_animal_shadows[id] = shadow
+	return model
 
 
 func _model_bounds(node: Node3D) -> AABB:

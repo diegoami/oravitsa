@@ -48,6 +48,19 @@ const SAVED_ANIMAL_TIMERS := ["respawn", "stun", "shoo", "hunger", "feeding", "b
 const SAVED_ANIMAL_COUNTERS := ["turn", "hunt_attempts", "aggro_rolls"]
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
 const MUSHROOM_REGROW_SECONDS := Vector2(300, 540)
+# Karma is the game's points (#42).
+const KARMA := {"rat": 5, "spider": 10, "checkpoint": 20, "food": 1, "meat": 3, "shoo_villager": -5, "hit_villager": -10}
+# Oravitsa eats one item from her bag this often; with nothing to eat she is
+# hungry and walks slower until she eats again (#43).
+const HUNGER_INTERVAL := 120.0
+const HUNGRY_SPEED := 0.6
+# Hamlet villagers (#44): they wander their clearing and ignore Oravitsa.
+const CREATURES := "res://scenes/endless_woods/creatures/"
+const VILLAGER_LOOKS := ["farmer", "man", "woman_dress"]
+const VILLAGERS_PER_HAMLET := Vector2i(2, 4)
+const VILLAGER_APPEAR := 150.0 # Metres from a hamlet centre at which its villagers appear.
+const VILLAGER_LEAVE := 230.0
+const OFFER_RADIUS := 3.0 # Metres from the village well, the focal point of a hamlet's centre.
 var origin_cells := Vector2i.ZERO
 var _harvested: Dictionary = {}
 var _cached_cells: Dictionary = {}
@@ -61,12 +74,21 @@ var save_path: String = SAVE_GAME.PATH
 var audio: Node
 var _ambience_button: Button
 var _animal_sound_button: Button
+var karma := 0
+var hungry := false
+var _hunger_timer := HUNGER_INTERVAL
+var _karma_badge: Control
+var _offer_button: Button
+var _villager_check := 0.0
 
 
 func _generate_map() -> void:
 	objects = {}
 	terrain = {}
 	_animal_heights[WOLF] = 0.95
+	_animal_heights[RAT] = 0.55
+	_animal_heights[SPIDER] = 0.5
+	_animal_heights[VILLAGER] = 1.55
 
 
 func _build_world() -> void:
@@ -81,7 +103,22 @@ func _build_world() -> void:
 	_animal_sound_button = _hud_toggle(canvas, func():
 		audio.cycle_animals()
 		_update_hud())
+	_karma_badge = Control.new()
+	_karma_badge.set_script(load("res://scenes/endless_woods/karma_badge.gd"))
+	_karma_badge.name = "Karma"
+	canvas.add_child(_karma_badge)
+	_offer_button = _hud_toggle(canvas, _offer_food)
+	_offer_button.visible = false
 	_layout_hud()
+
+
+func _layout_hud() -> void:
+	super._layout_hud()
+	if is_instance_valid(_karma_badge):
+		var viewport_size := get_viewport_rect().size
+		_karma_badge.position = Vector2(viewport_size.x * 0.5 - _karma_badge.ICON * 0.5, 10)
+		_offer_button.size = Vector2(176, 34)
+		_offer_button.position = Vector2(viewport_size.x * 0.5 - 88, viewport_size.y - 156)
 
 
 func _fit_help_panel() -> void:
@@ -95,20 +132,28 @@ func _fit_help_panel() -> void:
 
 func _update_hud() -> void:
 	super._update_hud()
+	var keys := _input_mode != "controller" and _input_mode != "touch"
+	if is_instance_valid(_karma_badge):
+		_karma_badge.karma = karma
+		_karma_badge.hungry = hungry
+		_karma_badge.queue_redraw()
+		_offer_button.visible = _offer_ready()
+		_offer_button.text = "Offer food" + (" [A]" if _input_mode == "controller" else (" [O]" if keys else ""))
 	if not is_instance_valid(_ambience_button) or audio == null:
 		return
 	_ambience_button.visible = _instructions_visible
 	_animal_sound_button.visible = _instructions_visible
-	var keys := _input_mode != "controller" and _input_mode != "touch"
 	_ambience_button.text = "Forest " + audio.level_text(audio.ambience_level) + (" [9]" if keys else "")
 	_animal_sound_button.text = "Animals " + audio.level_text(audio.animal_level) + (" [0]" if keys else "")
 	if keys:
-		_hint_label.text += "\n9 / 0: forest / animal volume"
+		_hint_label.text += "\nO: offer food at a village well\n9 / 0: forest / animal volume"
 	_fit_help_panel()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_9, KEY_0]:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_O:
+		_offer_food()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_9, KEY_0]:
 		if event.keycode == KEY_9:
 			audio.cycle_ambience()
 		else:
@@ -473,10 +518,10 @@ func _seed_animals() -> void:
 
 
 func _make_animal_sprite(id: int) -> AnimatedSprite2D:
-	if _animals[id]["kind"] != WOLF:
+	if _animals[id]["kind"] not in [WOLF, RAT, SPIDER, VILLAGER]:
 		return super._make_animal_sprite(id)
-	# Invisible animation driver only; the wolf's actual visual is its rigged
-	# CC0 wolf mesh, never a substitute fox/heroine displayed in the world.
+	# Invisible animation driver only; the actual visual is a rigged CC0 mesh,
+	# never a substitute fox/heroine displayed in the world.
 	var sprite := AnimatedSprite2D.new()
 	sprite.sprite_frames = PLAYER_WALK
 	_world.add_child(sprite)
@@ -710,6 +755,8 @@ func _open_ground_near(point: Vector2, actor_radius: float, outside_settlements:
 func save_state() -> Dictionary:
 	var animals := []
 	for data in _animals:
+		if data["kind"] == VILLAGER:
+			continue # Villagers regenerate from their hamlet's seed.
 		var record := {"kind": data["kind"], "alive": data["alive"], "gone": data["gone"], "state": data["state"]}
 		for field in ["position", "home", "target"]:
 			record[field] = _absolute_point(data[field])
@@ -729,6 +776,8 @@ func save_state() -> Dictionary:
 		"clock": {"food": _food_clock, "population_tick": _population_tick, "fight_tick": _fight_tick},
 		"harvested": harvested,
 		"animals": animals,
+		"karma": karma,
+		"hunger": {"timer": _hunger_timer, "hungry": hungry},
 	}
 
 
@@ -806,6 +855,12 @@ func apply_state(data: Dictionary) -> void:
 	_food_clock = float(data["clock"]["food"])
 	_population_tick = int(data["clock"]["population_tick"])
 	_fight_tick = int(data["clock"]["fight_tick"])
+	# Saves from before karma and hunger (version 1) start at zero and fed.
+	karma = int(data.get("karma", 0))
+	var hunger: Dictionary = data.get("hunger", {})
+	_hunger_timer = float(hunger.get("timer", HUNGER_INTERVAL))
+	hungry = bool(hunger.get("hungry", false))
+	_villager_check = 0.0
 	_regrowth_check = 0.0
 	view.position = to_world(player_position) + CAMERA_OFFSET
 	_refresh_visible()
@@ -843,7 +898,270 @@ func _load_game() -> void:
 func _process(delta: float) -> void:
 	_rebase_if_needed()
 	_update_food_regrowth(delta)
+	_update_hunger(delta)
+	_villager_check -= delta
+	if _villager_check <= 0.0:
+		_villager_check = 0.5
+		_update_villagers()
 	super._process(delta)
+
+
+func _move_speed() -> float:
+	return SPEED * (HUNGRY_SPEED if hungry else 1.0)
+
+
+## Karma, the game's points: every gain or loss shows a notice and flashes the
+## HUD badge.
+func _add_karma(amount: int, reason: String) -> void:
+	karma += amount
+	_show_notice("%+d karma · %s" % [amount, reason])
+	if is_instance_valid(_karma_badge):
+		_karma_badge.show_change(amount)
+	_update_hud()
+
+
+## Every HUNGER_INTERVAL Oravitsa eats one item: berries first, then a
+## mushroom, then raw meat. With an empty bag she stays hungry (and slower)
+## and eats as soon as she has food again.
+func _update_hunger(delta: float) -> void:
+	_hunger_timer = maxf(0.0, _hunger_timer - delta)
+	if _hunger_timer > 0.0:
+		return
+	var meal := ""
+	if berries_basket > 0:
+		berries_basket -= 1
+		meal = "some berries"
+	elif basket > 0:
+		basket -= 1
+		meal = "a mushroom"
+	elif raw_meat > 0:
+		raw_meat -= 1
+		meal = "some raw meat"
+	if meal.is_empty():
+		if not hungry:
+			hungry = true
+			_show_notice("Oravitsa is hungry and slower: find food", 3.0)
+			_update_hud()
+		return
+	_hunger_timer = HUNGER_INTERVAL
+	_show_notice("Oravitsa ate " + meal + ("; she is no longer hungry" if hungry else ""))
+	hungry = false
+	_update_hud()
+
+
+## The hamlet whose well (its centre) Oravitsa is standing at, or {}.
+func _offer_spot() -> Dictionary:
+	var here := absolute_ground(player_position)
+	var hamlet: Dictionary = landscape.hamlet_near(here)
+	if not hamlet.is_empty() and here.distance_to(hamlet["well"]) <= OFFER_RADIUS + landscape.WELL_HALF:
+		return hamlet
+	return {}
+
+
+func _offer_ready() -> bool:
+	return player_stun <= 0.0 and basket + berries_basket + raw_meat > 0 and not _offer_spot().is_empty()
+
+
+## Offers one item at the village well for karma; raw meat is worth most.
+func _offer_food() -> void:
+	if not _offer_ready():
+		return
+	if raw_meat > 0:
+		raw_meat -= 1
+		_add_karma(KARMA["meat"], "offered raw meat to the village")
+	elif basket > 0:
+		basket -= 1
+		_add_karma(KARMA["food"], "offered a mushroom to the village")
+	else:
+		berries_basket -= 1
+		_add_karma(KARMA["food"], "offered berries to the village")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# At a village well, A offers food instead of picking up.
+	if event is InputEventJoypadButton and event.pressed and event.is_action_pressed("pick_up") and _offer_ready():
+		_offer_food()
+		get_viewport().set_input_as_handled()
+		return
+	super._unhandled_input(event)
+
+
+func _on_shooed(id: int) -> void:
+	if _animals[id]["kind"] == VILLAGER:
+		_add_karma(KARMA["shoo_villager"], "never shoo villagers")
+
+
+func _on_sling_hit(id: int) -> void:
+	if _animals[id]["kind"] == VILLAGER:
+		_add_karma(KARMA["hit_villager"], "never hit villagers")
+
+
+func _passes_through(id: int) -> bool:
+	return _animals[id]["kind"] == VILLAGER
+
+
+func _moves_itself(id: int, delta: float) -> bool:
+	if _animals[id]["kind"] != VILLAGER:
+		return false
+	_move_villager(id, delta)
+	return true
+
+
+## Villagers stroll around their clearing, pause, and ignore Oravitsa: she
+## walks through them and they through her. Shoo makes one run off; Sling
+## stuns one. Both cost karma.
+func _move_villager(id: int, delta: float) -> void:
+	var data := _animals[id]
+	var sprite: AnimatedSprite2D = _active_animals[id]
+	data["stun"] = maxf(0.0, data["stun"] - delta)
+	data["shoo"] = maxf(0.0, data["shoo"] - delta)
+	var position: Vector2 = data["position"]
+	if data["stun"] > 0.0:
+		data["velocity"] = Vector2.ZERO
+		return
+	var speed: float = ANIMAL_SPEEDS[VILLAGER]
+	var target: Vector2 = data["target"]
+	if data["shoo"] > 0.0:
+		var away: Vector2 = (position - player_position).normalized()
+		if away.length_squared() < 0.01:
+			away = Vector2.DOWN
+		target = position + away * 300.0
+		speed *= 3.0
+		data["state"] = "scared"
+	else:
+		if data["state"] == "scared":
+			data["state"] = "roam"
+			data["timeout"] = 0.0
+		data["timeout"] = float(data["timeout"]) - delta
+		if position.distance_to(target) < 10.0 or data["timeout"] <= 0.0:
+			data["turn"] += 1
+			var home: Vector2 = data["home"]
+			target = position # Pauses are part of strolling.
+			if _hash(id, data["turn"], 1701) >= 0.35:
+				var reach: float = (4.0 + _hash(id, data["turn"], 1702) * (landscape.HAMLET_RADIUS - 9.0)) * METRE
+				var spot: Vector2 = home + Vector2.from_angle(_hash(id, data["turn"], 1703) * TAU) * reach
+				if _can_stand(spot, ANIMAL_RADIUS[VILLAGER]):
+					target = spot
+			data["target"] = target
+			data["timeout"] = 3.0 + _hash(id, data["turn"], 1704) * 6.0
+			data["state"] = "roam"
+	var heading := position.direction_to(target) if position.distance_to(target) > 6.0 else Vector2.ZERO
+	var velocity: Vector2 = data["velocity"]
+	velocity = velocity.move_toward(heading * speed, 220.0 * delta)
+	var step := velocity * delta
+	var candidate := position
+	if _can_animal_move(id, candidate + Vector2(step.x, 0)):
+		candidate.x += step.x
+	if _can_animal_move(id, candidate + Vector2(0, step.y)):
+		candidate.y += step.y
+	if candidate.distance_squared_to(position) < 0.01:
+		velocity = Vector2.ZERO
+	data["velocity"] = velocity
+	data["position"] = candidate
+	sprite.position = candidate
+
+
+## Villagers appear at hamlets near Oravitsa and leave once she is far away.
+## They are not wildlife and are never saved: each hamlet regenerates its
+## own seeded villagers.
+func _update_villagers() -> void:
+	var here := absolute_ground(player_position)
+	var block := Vector2i(floori(here.x / landscape.HAMLET_BLOCK.x), floori(here.y / landscape.HAMLET_BLOCK.y))
+	var wanted := {}
+	for dz in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			var hamlet: Dictionary = landscape.hamlet_at(block + Vector2i(dx, dz))
+			if not hamlet.is_empty() and here.distance_to(hamlet["center"]) < VILLAGER_APPEAR:
+				wanted[hamlet["block"]] = hamlet
+	var present := {}
+	var changed := false
+	for id in _animals.size():
+		var data := _animals[id]
+		if data["kind"] != VILLAGER or not data["alive"]:
+			continue
+		var home: Dictionary = landscape.hamlet_at(data["hamlet"])
+		if home.is_empty() or here.distance_to(home["center"]) > VILLAGER_LEAVE:
+			data["alive"] = false
+			data["gone"] = true
+			data["respawn"] = 0.0
+			if _active_animals.has(id):
+				_active_animals[id].queue_free()
+				_active_animals.erase(id)
+			if selected_target == id:
+				selected_target = -1
+			changed = true
+		else:
+			present[data["hamlet"]] = true
+	for key in wanted:
+		if not present.has(key):
+			_spawn_villagers(wanted[key])
+			changed = true
+	if changed:
+		_refresh_animals(_loaded_center)
+		_sync_animal_lifecycle()
+
+
+func _spawn_villagers(hamlet: Dictionary) -> void:
+	var block: Vector2i = hamlet["block"]
+	var span := VILLAGERS_PER_HAMLET.y - VILLAGERS_PER_HAMLET.x + 1
+	var count := VILLAGERS_PER_HAMLET.x + mini(span - 1, int(landscape.random_at(block, 140) * span))
+	var center: Vector2 = hamlet["center"]
+	for i in count:
+		for attempt in 30:
+			var angle: float = landscape.random_at(block + Vector2i(i, attempt), 141) * TAU
+			var reach: float = 5.0 + landscape.random_at(block + Vector2i(attempt, i), 142) * (landscape.HAMLET_RADIUS - 11.0)
+			var q: Vector2 = center + Vector2.from_angle(angle) * reach
+			var spot := _local_point([q.x, q.y])
+			if not _can_stand(spot, ANIMAL_RADIUS[VILLAGER]):
+				continue
+			var data := _animal_record(VILLAGER, spot)
+			data["home"] = _local_point([center.x, center.y])
+			data["target"] = spot
+			data["state"] = "roam"
+			data["hamlet"] = block
+			data["look"] = (int(landscape.random_at(block, 143) * VILLAGER_LOOKS.size()) + i) % VILLAGER_LOOKS.size()
+			var slot := -1
+			for id in _animals.size():
+				if _animals[id]["kind"] == VILLAGER and _animals[id]["gone"] and not _active_animals.has(id):
+					slot = id
+					break
+			if slot >= 0:
+				_animals[slot] = data
+			else:
+				_animals.append(data)
+			break
+
+
+## Villagers, giant rats and giant spiders use CC0 Quaternius models; their
+## clips are aliased to the Idle/Walk/Attack/Death names the stage plays.
+func _animal_model(id: int) -> Node3D:
+	var kind: int = _animals[id]["kind"]
+	if kind not in [RAT, SPIDER, VILLAGER]:
+		return super._animal_model(id)
+	var file: String = {RAT: "rat", SPIDER: "spider"}.get(kind, VILLAGER_LOOKS[int(_animals[id].get("look", 0)) % VILLAGER_LOOKS.size()])
+	var model: Node3D = load(CREATURES + file + ".glb").instantiate()
+	stage.add_child(model)
+	var bounds := _model_bounds(model)
+	model.scale = Vector3.ONE * _animal_heights[kind] / maxf(bounds.size.y, 0.01)
+	var animator := _find_animator(model)
+	if animator != null:
+		_alias_clips(animator)
+		animator.play("Idle")
+		_animal_players[id] = animator
+	return model
+
+
+func _alias_clips(animator: AnimationPlayer) -> void:
+	var library := animator.get_animation_library(animator.get_animation_library_list()[0])
+	for clip in ["Idle", "Walk", "Attack", "Death"]:
+		if library.has_animation(clip):
+			continue
+		for clip_name in animator.get_animation_list():
+			if clip_name.ends_with("|" + clip) or clip_name.ends_with("_" + clip):
+				var animation: Animation = animator.get_animation(clip_name)
+				animation.loop_mode = Animation.LOOP_NONE if clip in ["Attack", "Death"] else Animation.LOOP_LINEAR
+				library.add_animation(clip, animation)
+				break
 
 
 ## Fights and provocation take precedence over stun and fear icons; each is
@@ -887,7 +1205,7 @@ func _sync_presentation(delta: float) -> void:
 		_landmark_label.text = ["Forgotten homestead", "Old standing stones", "Abandoned woodcutters’ camp", "Mossy cairns"][site["kind"]]
 	var hamlet: Dictionary = landscape.hamlet_near(absolute)
 	if not hamlet.is_empty() and absolute.distance_to(hamlet["center"]) < landscape.HAMLET_RADIUS:
-		_landmark_label.text = "Empty hamlet"
+		_landmark_label.text = "Hamlet"
 	var cave: Dictionary = landscape.cave_at(Vector2i(floori(absolute.x / 256), floori(absolute.y / 128)))
 	if not cave.is_empty() and absolute.distance_to(cave["mouth"]) < 8:
 		_landmark_label.text = "Cave mouth"

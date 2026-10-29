@@ -158,7 +158,7 @@ func _run() -> void:
 	assert(near > 50)
 	assert(not world._spawn_allowed(world.from_ground(hamlet["center"] - land.origin)))
 	for animal in world._animals:
-		assert(not land.in_settlement(world.to_ground(animal["home"])) or not animal["alive"], "No wildlife homes inside a hamlet")
+		assert(animal["kind"] == world.VILLAGER or not land.in_settlement(world.to_ground(animal["home"])) or not animal["alive"], "No wildlife homes inside a hamlet")
 	await _assert_rendered(world, hamlet, {})
 	# Streaming: every house of a visited hamlet is built in its own chunk, and
 	# returning after a rebase rebuilds the same placement.
@@ -173,7 +173,7 @@ func _run() -> void:
 	assert(land._hamlet_cache.size() < 40 and land._cave_cache.size() < 60, "Feature caches stay bounded")
 	# Labels at the hamlet and the cave mouth.
 	world._sync_presentation(0.0)
-	assert(world._landmark_label.text == "Empty hamlet")
+	assert(world._landmark_label.text == "Hamlet")
 	await _assert_rendered(world, after, {})
 	var cave: Dictionary = caves[0]
 	await _travel(world, cave["mouth"] + cave["facing"] * 2)

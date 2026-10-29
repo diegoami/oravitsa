@@ -4,7 +4,9 @@ extends RefCounted
 ## file and read back before it replaces the slot; the replaced save is kept
 ## as a backup. Failures never delete or overwrite the existing valid save.
 const FORMAT := "oravitsa-save"
-const VERSION := 1
+## Version 2 adds karma, hunger and cave progress; version 1 saves still load.
+const VERSION := 2
+const OLDEST_VERSION := 1
 const PATH := "user://oravitsa_save.json"
 
 
@@ -67,7 +69,7 @@ static func _point(value) -> bool:
 static func validate(data: Dictionary) -> String:
 	if data.get("format") != FORMAT:
 		return "this is not an Oravitsa save"
-	if not _number(data.get("version"), 0, 1e6) or int(data["version"]) != VERSION:
+	if not _number(data.get("version"), 0, 1e6) or int(data["version"]) < OLDEST_VERSION or int(data["version"]) > VERSION:
 		return "the save comes from an incompatible version"
 	for section in ["player", "inventory", "clock"]:
 		if not data.get(section) is Dictionary:
@@ -107,4 +109,20 @@ static func validate(data: Dictionary) -> String:
 		for field in ["turn", "hunt_attempts", "aggro_rolls"]:
 			if not _number(animal.get(field), 0, 1e12):
 				return "a saved animal counter is invalid"
+	if int(data["version"]) >= 2:
+		if not _number(data.get("karma"), -1e9, 1e9):
+			return "the saved karma is invalid"
+		var hunger = data.get("hunger")
+		if not hunger is Dictionary or not _number(hunger.get("timer"), 0, 3600) or not hunger.get("hungry") is bool:
+			return "the saved hunger is invalid"
+		var caves = data.get("caves", {})
+		if not caves is Dictionary or caves.size() > 5000:
+			return "the saved cave progress is invalid"
+		for key in caves:
+			var cave = caves[key]
+			if not key is String or not cave is Dictionary or not cave.get("checkpoints") is Array or not cave.get("killed") is Array or cave["checkpoints"].size() > 16 or cave["killed"].size() > 64:
+				return "the saved cave progress is invalid"
+			for value in cave["checkpoints"] + cave["killed"]:
+				if not _number(value, 0, 63):
+					return "the saved cave progress is invalid"
 	return ""

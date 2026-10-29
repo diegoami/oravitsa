@@ -2,7 +2,7 @@ extends Control
 var forest: Node2D
 var _map_texture: ImageTexture
 var _map_center := Vector2(INF, INF)
-const COLORS := [Color("ad7460"), Color("e8c690"), Color("f59a52"), Color("d6ad53"), Color("eee7cc"), Color("a8b5bc")]
+const COLORS := [Color("ad7460"), Color("e8c690"), Color("f59a52"), Color("d6ad53"), Color("eee7cc"), Color("a8b5bc"), Color("8c7f8e"), Color("6c5a78"), Color("7fc7e8")]
 
 
 func _draw() -> void:
