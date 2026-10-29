@@ -151,9 +151,28 @@ func _run() -> void:
 		assert(world._animals[id]["aggro"] == world.AGGRO_WARN)
 		world._end_aggression(id, world.AGGRO_COOLDOWN)
 		world._animals[id]["position"] = world.player_position + Vector2(0, 2500 + id * 100)
+	# A boar actually eating a food patch (#48) is feeding too: lingering can't
+	# provoke it, even after nearly enough dwell, and its meal goes on.
+	var cell: Vector2i = world._forage_visuals.keys()[0]
+	world.objects[world._index(cell)] = world.BERRIES
+	_reset(world, 2, Vector2.ZERO)
+	world._animals[2]["position"] = world._cell_center(cell)
+	world._animals[2]["target"] = world._cell_center(cell)
+	world._animals[2]["food_cell"] = cell
+	world.player_position = world._cell_center(cell) + near
+	world._refresh_visible()
+	assert(world._active_animals.has(2))
+	world._animals[2]["provoke"] = world.AGGRO_DWELL - 0.2
+	world._animals[2]["aggro_rolls"] = _rolls_for(world, 2, true)
+	world._move_animals(0.3)
+	assert(world._animals[2]["state"] == "forage" and world._animals[2]["eat_time"] > 0, "The boar must really be eating")
+	world._move_animals(0.1)
+	assert(world._animals[2]["aggro"] == world.AGGRO_NONE and world._animals[2]["state"] == "forage", "An eating boar must not turn angry")
+	assert(world._animals[2]["eat_time"] > 0.3, "The meal goes on")
+	world._animals[2]["position"] = world.player_position + Vector2(0, 2700)
 	_reset(world, 1, near)
 	_dwell(world, 1, 10.0, near)
 	assert(world._animals[1]["aggro"] == world.AGGRO_NONE and world._animals[1]["provoke"] == 0.0)
 	assert(world._charge_speed(world.BOAR) < world.SPEED, "Oravitsa can outrun a charging boar")
-	print("Aggression smoke test passed: dwell approach/retreat, failed chance retry delay, warning pause, collision-safe charge, hit stun, hunting override, disengagement cooldown, miss timeout, Shoo/stun interruption, three species only")
+	print("Aggression smoke test passed: dwell approach/retreat, failed chance retry delay, warning pause, collision-safe charge, hit stun, hunting override, disengagement cooldown, miss timeout, Shoo/stun interruption, no provocation while eating, three species only")
 	quit()
