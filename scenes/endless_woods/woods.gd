@@ -455,8 +455,9 @@ func _update_aggression(delta: float) -> void:
 		data["aggro_cooldown"] = maxf(0, data["aggro_cooldown"] - delta)
 		if data["kind"] not in AGGRO_KINDS:
 			continue
-		# Fear, any stun, feeding, a fight or leaving the active area ends an encounter.
-		if not data["alive"] or not _active_animals.has(id) or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0 or data["fight_with"] >= 0:
+		# Fear, any stun, feeding (after a catch or at a food patch), a fight or
+		# leaving the active area ends an encounter.
+		if not data["alive"] or not _active_animals.has(id) or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0 or data["eat_time"] > 0 or data["fight_with"] >= 0:
 			if data["aggro"] != AGGRO_NONE:
 				_end_aggression(id, AGGRO_COOLDOWN)
 			data["provoke"] = 0.0
