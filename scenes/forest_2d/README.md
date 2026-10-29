@@ -1,7 +1,8 @@
 # Scrolling forest scene
 
-Run `res://scenes/forest_2d/forest.tscn`, or press F5 because it is the default
-scene. The map has **416 × 416 cells of 114 px** each, 10.56 times the previous
+Open `res://scenes/forest_2d/forest.tscn` and run it with **F6** (Run Current
+Scene). This is a retained scene: **F5** starts the project's default scene,
+the endless Mossbank woods (`scenes/endless_woods/woods.tscn`). The map has **416 × 416 cells of 114 px** each, 10.56 times the previous
 128 × 128 map area. Grass and dirt textures are split into 11 × 11 tile atlases.
 Atlas cells are placed in sequence and mirrored at each 11-cell edge so the
 painting joins continuously. A shader blends dirt softly into grass. A fixed
@@ -37,8 +38,12 @@ deer require three seconds of continuous close pursuit. The lynx keeps pace
 while attempting a deer catch; losing contact, switching prey, being shooed,
 or being stunned resets the attempt. A lynx that catches prey pauses to feed;
 the prey returns at its home area after 25 seconds, once that area is clear
-and away from Oravitsa. Hares seek berries and flee lynxes. Oravitsa cannot
-kill any animal, including hares. Foxes flee every nearby animal. All species avoid Oravitsa only
+and away from Oravitsa. Hares seek berries and flee lynxes. Oravitsa never injures
+animals, and hares are the only ones she kills, because unchecked they would
+multiply out of control. A hare that is currently stunned (by Sling) and within
+75 px can be collected by walking to it, or with A on a controller. It is
+removed once and becomes one raw meat, and in this finite scene it later
+returns at its home area like a caught hare. Foxes flee every nearby animal. All species avoid Oravitsa only
 when she comes close, except for some boars that hold their ground. Their
 roaming targets persist for several seconds and stay near their home area.
 World generation chooses species with relative weights of **60% hare, 17% deer,
