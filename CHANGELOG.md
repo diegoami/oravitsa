@@ -2,14 +2,17 @@
 
 ## Unreleased
 
-- **Karma**, the game's points: a lotus HUD icon with the number on top (#42).
-- **Hunger**: Oravitsa eats from her bag every two minutes. With an empty bag
-  she is hungry and walks slower (#43).
+- **Aura**, the game's points: a glowing HUD icon with the number on top (#42).
+- **Feeding**: a fed meter beside aura. Oravitsa eats a random bag item every
+  two minutes unless full. Well fed she walks faster and recovers from stuns
+  sooner; starving she walks slower (#43).
 - **Villagers** stroll around each hamlet and ignore Oravitsa. Shooing or
-  hitting them costs karma. Food offered at a village well earns karma (#44).
+  hitting them costs aura. Each hamlet's **chieftain** stands at his store
+  tent, which replaces the hamlet well, and takes food gifts for aura (#44).
 - **Cave levels**: every cave mouth leads to a seeded, lantern-lit first level
-  with checkpoints worth karma (#45). Its giant rats and spiders bite (a stun
-  only) and can be stunned with Sling and finished for karma (#46).
+  with checkpoints worth aura (#45). Its giant rats and spiders bite (a stun
+  only) and can be stunned with Sling and finished for aura (#46). Saving
+  works underground.
 - Saves are version 2; version-1 saves still load.
 
 ## 0.2.0-alpha.2 — hamlets and caves (candidate)

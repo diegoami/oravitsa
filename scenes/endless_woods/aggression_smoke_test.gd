@@ -105,7 +105,7 @@ func _run() -> void:
 		if world.player_stun > 0:
 			hit = true
 			break
-	assert(hit and world.player_stun == world.AGGRO_PLAYER_STUN, "A charge that reaches Oravitsa stuns her")
+	assert(hit and is_equal_approx(world.player_stun, world._player_stun_time(world.AGGRO_PLAYER_STUN)), "A charge that reaches Oravitsa stuns her")
 	assert(charge_bars.size() >= 2 and world._animal_stars[0].visible)
 	assert(world._animals[1]["alive"], "A charging wolf ignores prey")
 	assert(wolf["aggro"] == world.AGGRO_NONE and wolf["aggro_cooldown"] >= world.AGGRO_COOLDOWN - 0.1, "It loses interest after the attack")

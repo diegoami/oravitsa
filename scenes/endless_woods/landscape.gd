@@ -16,7 +16,7 @@ const HAMLET_BLOCK := Vector2(512, 384)
 const HAMLET_RADIUS := 30.0
 const HAMLET_SLOTS := [Vector2(-12, -10), Vector2(12, -10), Vector2(-12, 10), Vector2(12, 10), Vector2(-25, -10), Vector2(25, 10)]
 const HOUSE_SIZE := Vector2(4.2, 3.4)
-const WELL_HALF := 0.69 # Outer half-width of the square stone well wall.
+const STORE_HALF := 1.3 # Half-width of the square footprint of the chieftain's store tent.
 const CAVE_CHANCE := 0.8
 const CAVE_MIN_HEIGHT := 0.55
 var _hamlet_cache: Dictionary = {}
@@ -126,10 +126,10 @@ func hamlet_at(block: Vector2i) -> Dictionary:
 		var door := house.get_center() + Vector2(0, side * HOUSE_SIZE.y * 0.5)
 		doors.append(Vector4(door.x, door.y, door.x, road_z(door.x, row)))
 	var quadrant := Vector2(-1 if random_at(block, 63) < 0.5 else 1, -1 if random_at(block, 64) < 0.5 else 1)
-	var well := center + quadrant * 5.5
+	var store := center + quadrant * 6.0
 	var result := {}
-	if houses.size() >= 3 and water_edge(well - origin) > 1.6:
-		result = {"center": center, "houses": houses, "doors": doors, "well": well, "block": block}
+	if houses.size() >= 3 and water_edge(store - origin) > 2.2:
+		result = {"center": center, "houses": houses, "doors": doors, "store": store, "block": block}
 	_hamlet_cache[block] = result
 	return result
 
@@ -366,7 +366,7 @@ func can_walk(p: Vector2, radius: float) -> bool:
 		for house in hamlet["houses"]:
 			if house.grow(radius).has_point(q):
 				return false
-		if Rect2(hamlet["well"] - Vector2.ONE * WELL_HALF, Vector2.ONE * WELL_HALF * 2).grow(radius).has_point(q):
+		if Rect2(hamlet["store"] - Vector2.ONE * STORE_HALF, Vector2.ONE * STORE_HALF * 2).grow(radius).has_point(q):
 			return false
 	var cave := cave_at(Vector2i(floori(q.x / 256), floori(q.y / 128)))
 	if not cave.is_empty() and q.distance_to(cave["mouth"]) < 8:
@@ -564,18 +564,25 @@ func _hamlet_chunk(key: Vector2i, hamlet: Dictionary) -> void:
 		var house: Rect2 = hamlet["houses"][i]
 		if _in_chunk(house.get_center(), key):
 			_empty_house(house, hamlet["doors"][i], block + Vector2i(i * 13, 5))
-	var well: Vector2 = hamlet["well"]
-	if _in_chunk(well, key):
-		var p := well - origin
-		var y := height_at(p)
-		for side in 4:
-			var offset := Vector2(WELL_HALF - 0.14, 0).rotated(side * PI * 0.5)
-			var stone := box(Vector3(p.x + offset.x, y + 0.35, p.y + offset.y), Vector3(0.28, 0.7, 1.2), "7d7f70")
-			stone.rotation.y = side * PI * 0.5
-		box(Vector3(p.x, y + 0.05, p.y), Vector3(0.9, 0.1, 0.9), "1e2420")
-		for side in [-1, 1]:
-			box(Vector3(p.x + side * 0.55, y + 1.1, p.y), Vector3(0.1, 1.5, 0.1), "5d5240")
-		box(Vector3(p.x, y + 1.85, p.y), Vector3(1.4, 0.1, 0.5), "5b5446")
+	var store: Vector2 = hamlet["store"]
+	if _in_chunk(store, key):
+		_store_tent(store - origin)
+
+
+## The chieftain's store tent: a canvas ridge tent whose square base is its
+## collision footprint, with a dark entrance toward the camera (south), a
+## ridge pole and a pennant.
+func _store_tent(p: Vector2) -> void:
+	var y := height_at(p)
+	var canvas := PrismMesh.new()
+	canvas.size = Vector3(STORE_HALF * 2, 1.9, STORE_HALF * 2)
+	_mesh(canvas, material("8f7f60"), Vector3(p.x, y + 0.95, p.y))
+	var flap := PrismMesh.new()
+	flap.size = Vector3(1.0, 1.25, 0.04)
+	_mesh(flap, material("2b241b"), Vector3(p.x, y + 0.625, p.y + STORE_HALF + 0.02))
+	box(Vector3(p.x, y + 1.92, p.y), Vector3(0.08, 0.08, STORE_HALF * 2 + 0.2), "5d5240")
+	box(Vector3(p.x, y + 2.25, p.y + STORE_HALF), Vector3(0.05, 0.7, 0.05), "5d5240")
+	box(Vector3(p.x + 0.22, y + 2.45, p.y + STORE_HALF), Vector3(0.4, 0.22, 0.02), "a8452f")
 
 
 ## A closed, weathered cottage: grey timber walls, a shut door facing the road,

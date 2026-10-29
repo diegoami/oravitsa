@@ -4,7 +4,8 @@ extends RefCounted
 ## file and read back before it replaces the slot; the replaced save is kept
 ## as a backup. Failures never delete or overwrite the existing valid save.
 const FORMAT := "oravitsa-save"
-## Version 2 adds karma, hunger and cave progress; version 1 saves still load.
+## Version 2 adds aura, how well fed Oravitsa is, cave progress and saving
+## underground; version 1 saves still load.
 const VERSION := 2
 const OLDEST_VERSION := 1
 const PATH := "user://oravitsa_save.json"
@@ -110,11 +111,11 @@ static func validate(data: Dictionary) -> String:
 			if not _number(animal.get(field), 0, 1e12):
 				return "a saved animal counter is invalid"
 	if int(data["version"]) >= 2:
-		if not _number(data.get("karma"), -1e9, 1e9):
-			return "the saved karma is invalid"
-		var hunger = data.get("hunger")
-		if not hunger is Dictionary or not _number(hunger.get("timer"), 0, 3600) or not hunger.get("hungry") is bool:
-			return "the saved hunger is invalid"
+		if not _number(data.get("aura"), -1e9, 1e9):
+			return "the saved aura is invalid"
+		var feeding = data.get("fed")
+		if not feeding is Dictionary or not _number(feeding.get("level"), 0, 100) or not _number(feeding.get("meal_timer"), 0, 3600):
+			return "the saved feeding is invalid"
 		var caves = data.get("caves", {})
 		if not caves is Dictionary or caves.size() > 5000:
 			return "the saved cave progress is invalid"
@@ -125,4 +126,17 @@ static func validate(data: Dictionary) -> String:
 			for value in cave["checkpoints"] + cave["killed"]:
 				if not _number(value, 0, 63):
 					return "the saved cave progress is invalid"
+		if data.has("underground"):
+			var underground = data["underground"]
+			if not underground is Dictionary or not underground.get("cave") is String or not caves.has(underground["cave"]) or not RegEx.create_from_string("^-?\\d{1,9},-?\\d{1,9}$").search(underground["cave"]):
+				return "the saved cave is invalid"
+			var offset = underground.get("offset")
+			if not offset is Array or offset.size() != 2 or not _number(offset[0], -200, 200) or not _number(offset[1], -200, 200):
+				return "the saved cave position is invalid"
+			var monsters = underground.get("monsters")
+			if not monsters is Array or monsters.size() > 64:
+				return "the saved cave monsters are invalid"
+			for monster in monsters:
+				if not monster is Array or monster.size() != 4 or not _number(monster[0], 0, 63) or not _number(monster[1], -200, 200) or not _number(monster[2], -200, 200) or not _number(monster[3], 0, 60):
+					return "the saved cave monsters are invalid"
 	return ""

@@ -88,24 +88,26 @@ Rendering rebases its local origin during long walks; generated world data has
 no fixed playable border. Only nearby terrain and animal visuals stay loaded.
 
 Along the roads you will find **hamlets** of closed, weathered cottages around
-an old well, at about one road crossing in six. Villagers stroll around them
-and ignore Oravitsa, but shooing (−5) or hitting (−10) one costs karma.
-Standing at the well, press **O** (controller **A**, or the Offer food button)
-to offer one item from the bag for karma: raw meat +3, a mushroom or berries
-+1.
+the chieftain's canvas store tent, at about one road crossing in six. Villagers stroll around them
+and ignore Oravitsa, but shooing (−5) or hitting (−10) one costs aura. The
+hamlet's **chieftain**, crowned and armoured, stands at the tent's entrance. Next to
+him, press **O** (controller **A**, or the button that appears) to give him a
+random item from the bag for aura: raw meat +3, a mushroom or berries +1.
 
 On higher ground there are **cave mouths**. Walk into one to enter that cave's
 first level: dark tunnels and rooms lit by Oravitsa's lantern. Glowing
-checkpoints give +20 karma once each. Giant rats and spiders chase her and
+checkpoints give +20 aura once each. Giant rats and spiders chase her and
 bite, which only stuns her for a moment. Sling one to stun it, then walk to it
-(controller: A) to finish it for karma (rat +5, spider +10). The way out is
+(controller: A) to finish it for aura (rat +5, spider +10). The way out is
 the sunlit spot where she came in. The surface waits, unchanged, while she is
-underground, and saving is only possible in the woods.
+underground. You can save there too, and loading puts her back in the cave.
 
-**Karma** is the game's points, shown at the top of the screen as a lotus
-with the number on it. Oravitsa also eats from her bag every two minutes. If
-the bag is empty she is hungry (a crossed-out bowl beside karma) and walks
-slower until she finds food.
+**Aura** is the game's points, shown at the top of the screen as a glowing
+halo with the number on it. Beside it a bowl and a meter show how well fed
+Oravitsa is. She grows hungrier as she walks and eats a random item from her
+bag every two minutes unless she is full. The better fed she is, the faster
+she walks (up to 120%) and the shorter she is stunned (down to half). Starving,
+with nothing to eat, she walks at 60% until she finds food.
 
 The endless woods have a quiet looping forest ambience, and nearby animals
 occasionally call (wolves howl, boars grunt, foxes yip…). Distant ones stay

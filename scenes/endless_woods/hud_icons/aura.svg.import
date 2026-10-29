@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1q6ujga0mynh"
-path="res://.godot/imported/karma.svg-1670de2281130c7350519e0a5d563f26.ctex"
+uid="uid://bx2lxvske55jl"
+path="res://.godot/imported/aura.svg-e81d13f5a0050b193681e4bcf8d684c0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://scenes/endless_woods/hud_icons/karma.svg"
-dest_files=["res://.godot/imported/karma.svg-1670de2281130c7350519e0a5d563f26.ctex"]
+source_file="res://scenes/endless_woods/hud_icons/aura.svg"
+dest_files=["res://.godot/imported/aura.svg-e81d13f5a0050b193681e4bcf8d684c0.ctex"]
 
 [params]
 

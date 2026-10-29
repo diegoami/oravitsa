@@ -177,9 +177,16 @@ func _update_player(delta: float) -> void:
 		_collect_nearby()
 
 
-## Oravitsa's walking speed; the endless woods slow her while she is hungry.
+## Oravitsa's walking speed; in the endless woods it depends on how well fed
+## she is.
 func _move_speed() -> float:
 	return SPEED
+
+
+## How long a stun of `seconds` lasts for Oravitsa; being well fed in the
+## endless woods shortens it.
+func _player_stun_time(seconds: float) -> float:
+	return seconds
 
 
 func _update_player_walk(motion: Vector2) -> void:
@@ -1010,7 +1017,7 @@ func _shoo() -> void:
 		data["progress_origin"] = data["position"]
 
 
-## Hooks for scenes that score skills (the endless woods' karma).
+## Hooks for scenes that score skills (the endless woods' aura).
 func _on_shooed(_id: int) -> void:
 	pass
 
@@ -1409,7 +1416,7 @@ func _bump_animal(candidate: Vector2) -> bool:
 			continue
 		var distance := candidate.distance_to(animal["position"])
 		if distance < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]] and distance < player_position.distance_to(animal["position"]):
-			player_stun = CONTACT_STUN_TIME
+			player_stun = _player_stun_time(CONTACT_STUN_TIME)
 			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
 			animal["velocity"] = Vector2.ZERO
 			return true

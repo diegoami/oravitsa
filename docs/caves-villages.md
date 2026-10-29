@@ -9,7 +9,8 @@ per 512 × 384 m block), and cave mouths always open south toward the fixed
 camera.
 
 Update 2026-10-29: the owner extended this. Hamlets now have wandering
-villagers and a well for food offerings. Each cave mouth leads to a seeded
+villagers and a chieftain who takes food gifts at his store tent, which
+replaced the hamlet well. Each cave mouth leads to a seeded
 first level with checkpoints and giant rats and spiders (issues #44–#46; see
 the world guide). There are still no quests, shops or settlement systems.
 
