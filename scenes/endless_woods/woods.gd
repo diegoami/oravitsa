@@ -230,13 +230,8 @@ func _try_move(step: Vector2) -> bool:
 	var candidate := player_position + step
 	if not _can_stand(candidate, PLAYER_RADIUS):
 		return false
-	for id in _active_animals:
-		var animal: Dictionary = _animals[id]
-		if animal["alive"] and candidate.distance_to(animal["position"]) < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]]:
-			player_stun = CONTACT_STUN_TIME
-			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
-			animal["velocity"] = Vector2.ZERO
-			return false
+	if _bump_animal(candidate):
+		return false
 	player_position = candidate
 	return true
 
@@ -759,6 +754,7 @@ func apply_state(data: Dictionary) -> void:
 	_active_animals.clear()
 	_sync_animal_lifecycle()
 	_animals.clear()
+	_status_peaks.clear()
 	for record in data["animals"]:
 		var animal := _animal_record(int(record["kind"]), _local_point(record["position"]))
 		animal["home"] = _local_point(record["home"])
@@ -850,30 +846,33 @@ func _process(delta: float) -> void:
 	super._process(delta)
 
 
+## Fights and provocation take precedence over stun and fear icons.
+func _status_states(id: int) -> Array:
+	var data: Dictionary = _animals[id]
+	if data["alive"] and data["fight_with"] >= 0:
+		return [["fighting", -1.0]]
+	if data["alive"] and data["aggro"] != AGGRO_NONE:
+		return [["angry" if data["aggro"] == AGGRO_WARN else "charging", -1.0]]
+	return super._status_states(id)
+
+
 func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
 	if audio != null:
 		audio.update(delta)
 	for id in _animal_stars:
 		var data: Dictionary = _animals[id]
+		var marker: Node3D = _animal_stars[id]
 		if data["fight_with"] >= 0:
-			# One label centred over the pair, so the two never overlap.
+			# One icon centred over the pair, so the two never overlap.
 			var other: int = data["fight_with"]
-			_animal_stars[id].visible = id < other or not _animal_models.has(other)
-			_animal_stars[id].no_depth_test = true
-			_animal_stars[id].modulate = Color("ffb35c")
-			_animal_stars[id].text = "!! FIGHTING"
+			marker.visible = id < other or not _animal_models.has(other)
+			marker.set_on_top(true)
 			if _animal_models.has(other):
 				var top := maxf(_animal_heights[data["kind"]], _animal_heights[_animals[other]["kind"]])
-				_animal_stars[id].position = (_animal_models[id].position + _animal_models[other].position) * 0.5 + Vector3.UP * (top + 0.3)
-			continue
-		if data["aggro"] == AGGRO_NONE:
-			continue
-		var marker: Label3D = _animal_stars[id]
-		marker.visible = true
-		marker.no_depth_test = true
-		marker.modulate = Color("ff7a5c")
-		marker.text = "!! ANGRY" if data["aggro"] == AGGRO_WARN else "!! CHARGING"
+				marker.position = (_animal_models[id].position + _animal_models[other].position) * 0.5 + Vector3.UP * (top + 0.4)
+		elif data["aggro"] != AGGRO_NONE:
+			marker.set_on_top(true)
 	var absolute := absolute_ground(player_position)
 	_landmark_label.text = landscape.biome_name(to_ground(player_position))
 	if absolute.distance_to(Vector2(7, -4)) < 9:

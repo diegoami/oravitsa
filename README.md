@@ -28,9 +28,11 @@ target; the ring turns red when it is too far away. Stones stun on impact for
 **4.5 seconds**, with a **4-second cooldown** and a **600 px** firing range.
 A hit on an animal that is already stunned does not extend the stun, so an
 animal always gets to recover. Stunned animals stop moving and show a
-`STUNNED` countdown, then recover. The sling
-does not injure or remove animals. **A stunned hare can be collected for raw
-meat**: walk up to it (or press A on a controller) while it is still stunned.
+dizzy-stars icon whose bar counts down, then recover. The sling
+does not injure or remove animals. Oravitsa can walk straight through a
+stunned animal without bumping it. **Hares are the one exception to the
+no-killing rule**: unchecked, they would multiply out of control, so **a
+stunned hare can be collected for raw meat**: walk up to it (or press A on a controller) while it is still stunned.
 It is removed once and adds one raw meat to the inventory's third slot, with a
 `+1 raw meat` notice. Alert hares, other species and a stunned Oravitsa cannot
 collect. In the endless woods a collected hare does not respawn; the sparse
@@ -40,8 +42,8 @@ the selection. Movement and Shoo remain available while using the sling.
 
 **Shoo uses the same selected animal and range as Sling** (600 simulation px,
 about 9.4 m in 2.5D). Space, the Shoo button, controller LT, or Y with Shoo selected
-gives that animal **five seconds of SCARED status**, shown above its head with
-a countdown. It immediately abandons feeding/hunting and runs away from
+gives that animal **five seconds of scared status**, shown above its head as a
+sweat-drops icon with a time-left bar. It immediately abandons feeding/hunting and runs away from
 Oravitsa faster than she can walk. Existing animal stun is cleared so it can
 flee immediately. No target, a dead/out-of-range target, player stun or cooldown
 prevents the cast without wasting its seven-second cooldown. Other animals
@@ -50,12 +52,14 @@ non-lethal.
 
 Animals avoid each other and Oravitsa, forage, or hunt according to species.
 In the endless woods, lingering close to a wolf, lynx or boar for a few seconds
-may make it angry: after a red `!! ANGRY` warning it charges, and if it reaches
+may make it angry: after a red anger-mark warning icon it charges (a red burst icon), and if it reaches
 Oravitsa she is stunned for two seconds. Back away or Shoo it to avoid the
 charge. Afterwards it loses interest. Wolves, lynxes and boars of different
-species occasionally fight each other; the loser is stunned, never hurt. Bumping an animal
-stuns both of them for **1.2 seconds**; the skill bar shows Oravitsa's
-recovery countdown.
+species occasionally fight each other under a scuffle-cloud icon; the loser is stunned, never hurt. Bumping an awake animal
+stuns both of them for **1.2 seconds** (stunned animals can be walked through); the skill bar shows Oravitsa's
+recovery countdown. Animal states are shown as icons on dark round badges
+above the animal, never as text; a timed state has a bar that empties as it
+runs out, and a stunned, scared animal shows both icons.
 
 Oravitsa now uses the approved eight-pose walk in all eight directions, with
 separate westward views. Her gait follows actual movement and keeps its phase

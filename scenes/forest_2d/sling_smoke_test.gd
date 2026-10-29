@@ -52,13 +52,24 @@ func _run() -> void:
 	assert(target["alive"])
 	assert(target["stun"] == forest.SLING_STUN_TIME)
 	assert(target["velocity"] == Vector2.ZERO)
-	# A collision must not replace a longer sling stun with the short bump stun.
+	# Oravitsa walks straight through a stunned animal; neither is stunned again.
 	var original_player: Vector2 = forest.player_position
 	forest.player_position = target["position"] - Vector2(50, 0)
-	assert(not forest._try_move(Vector2(10, 0)))
-	assert(target["stun"] == forest.SLING_STUN_TIME)
-	assert(forest.player_stun == forest.CONTACT_STUN_TIME and forest.CONTACT_STUN_TIME > 0.85)
+	for step in 5:
+		assert(forest._try_move(Vector2(10, 0)), "A stunned animal never blocks Oravitsa")
+	assert(forest.player_position.distance_to(target["position"]) < 1.0)
+	assert(target["stun"] == forest.SLING_STUN_TIME and forest.player_stun == 0.0, "Passing through a stunned animal stuns nobody")
 	assert(forest.SLING_STUN_TIME > 3.0, "Stuns are longer than v0.1 (#26)")
+	# If it wakes up under her, she can step out and it can step away, freely;
+	# moving further into an awake animal is still a bump.
+	target["stun"] = 0.0
+	forest.player_position = target["position"] + Vector2(10, 0)
+	assert(forest._can_animal_move(0, target["position"] - Vector2(4, 0)), "An awake animal can step away from Oravitsa")
+	assert(not forest._can_animal_move(0, target["position"] + Vector2(4, 0)), "An awake animal never steps further into her")
+	assert(forest._try_move(Vector2(10, 0)) and forest.player_stun == 0.0 and target["stun"] == 0.0, "Stepping out of an awake animal is not a bump")
+	assert(not forest._try_move(Vector2(-10, 0)), "Walking into an awake animal still bumps")
+	assert(forest.player_stun == forest.CONTACT_STUN_TIME and target["stun"] == forest.CONTACT_STUN_TIME and forest.CONTACT_STUN_TIME > 0.85)
+	target["stun"] = forest.SLING_STUN_TIME
 	forest.player_position = original_player
 	forest.player_stun = 0.0
 	var before: Vector2 = target["position"]

@@ -65,14 +65,22 @@ Record unavailable checks as untested, never as passed.
 
 ## Gameplay contracts
 
-- Oravitsa never kills or injures animals. Sling stuns; Shoo repels. The one
-  exception: a hare that is currently stunned and within 75 px can be
-  collected (walk-over, or A on a controller). It is removed exactly once and
-  immediately becomes one raw meat; no other species can be collected.
-  Both use the selected animal. Shoo applies five seconds of visible scared
-  status and fast escape, with a seven-second cooldown; invalid casts do not
-  spend cooldown. It interrupts feeding/hunting and existing animal stun.
+- Oravitsa never injures animals, and hares are the only ones she kills:
+  unchecked, hares would multiply out of control. Sling stuns; Shoo repels. A
+  hare that is currently stunned and within 75 px can be collected (walk-over,
+  or A on a controller). It is removed exactly once and immediately becomes
+  one raw meat; no other species can be killed or collected.
+  Sling and Shoo use the selected animal. Shoo applies five seconds of visible
+  scared status and fast escape, with a seven-second cooldown; invalid casts do
+  not spend cooldown. It interrupts feeding/hunting and existing animal stun.
   Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
+- Oravitsa walks through stunned animals with no bump. Walking into an awake
+  animal stuns both for 1.2 seconds. Stepping out of an animal she overlaps
+  (one that woke up under her) is never a bump, and such an animal can step
+  away from her but never further in.
+- Animal states (stunned, scared, angry, charging, fighting) are shown as
+  icons above the animal, never as text. Timed states have a time-left bar,
+  and stun and fear can show together.
 - In the endless world wolves/lynxes are more frequent, sprint in longer and
   faster spurts, hunt both prey species and despawn after 180 hungry seconds.
   Endless foxes also hunt hares but rarely catch them. The finite scenes
