@@ -170,9 +170,10 @@ Top to bottom:
   flowers. This is the container the foraging loop fills.
 
 No weapon, no tool, no blade appears anywhere, in any sheet. That is
-deliberate, and it matches this iteration's design constraint: Oravitsa cannot
-kill any creature, including hares. Animal predation is a separate rule in
-`design.md`. **She should never be
+deliberate, and it matches this iteration's design constraint: Oravitsa never
+injures a creature. Collecting a stunned hare as raw meat is the one exception
+(unchecked, hares would multiply out of control), and it is a pickup, never a
+weapon. Animal predation is a separate rule in `design.md`. **She should never be
 drawn, modelled or rigged holding anything that reads as a weapon.**
 
 ### Also documented on the master sheet
