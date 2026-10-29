@@ -78,7 +78,8 @@ used.) A notice reports every success or failure.
 
 The save is versioned JSON holding only bounded state: the world identity,
 Oravitsa's absolute ground position, stun, both cooldowns, the selected skill,
-inventory (berries, mushrooms, raw meat), the food clock, depleted food records
+inventory (berries, mushrooms, raw meat), karma, hunger, cave progress
+(collected checkpoints and killed monsters per cave), the food clock, depleted food records
 (absolute cell and deadline) and at most 208 animal records (absolute
 position/home/target plus status, hunger and cooldown timers). Terrain, trees and
 undepleted food are regenerated from the seeds, never stored. On loading, the
@@ -105,7 +106,7 @@ and the notice says so. Desktop builds store the file in Godot's per-user data f
 The Web build uses the browser's persistent storage (IndexedDB), which private
 browsing or clearing site data can discard. The browser save path is untested.
 
-## Empty hamlets and cave mouths
+## Hamlets and cave mouths
 
 Both are uninhabited: no people, quests, shops or enemies. They come from the
 same seeded absolute data as roads and landmarks, so revisits and saves need
@@ -121,9 +122,9 @@ rock is built in the chunk that holds its centre.
   over a dark interior, and usually a cold chimney. A short dressed trail
   joins each door to the road. The 30 m clearing around the crossing grows no
   trees, rocks or food ("bare gardens"), and no animal spawns or has its home
-  there; wandering animals may pass through. The label reads "Empty hamlet",
-  and the map shows a small house icon.
-- **Cave mouths.** Exterior entrances only, with no interiors. A landmark
+  there; wandering animals may pass through. The label reads "Hamlet",
+  and the map shows a small house icon. Villagers live there (see below).
+- **Cave mouths.** Each leads to a seeded first level (see below). A landmark
   region without a homestead gets a cave with an 80% chance, on the highest of
   14 seeded candidate spots at least 0.55 m above the base terrain. Candidates
   avoid roads, water, the region's landmark and hamlets. The mouth always
@@ -150,6 +151,65 @@ negative ones. Its checks:
 - Bounded caches and the labels.
 - Old saves positioned inside a house or homed in a clearing being moved
   to open ground on load, clear of a validly saved boar right beside it.
+
+## Karma, hunger, villagers and offerings
+
+- **Karma** is the game's points: a lotus HUD badge at the top centre with
+  the number drawn on top (`karma_badge.gd`, `hud_icons/`). Every change
+  shows a "+N karma · reason" notice and flashes the badge. Karma can go
+  below zero.
+- **Hunger.** Every 120 s Oravitsa eats one item: berries first, then a
+  mushroom, then raw meat. With an empty bag she is hungry: a crossed-out
+  bowl appears beside karma, and she walks at 60% speed until she has food,
+  which she then eats at once. Hunger never harms her.
+- **Villagers.** Two to four per hamlet, seeded from the hamlet, drawn with
+  CC0 Quaternius farmer, man and woman models
+  (`creatures/ATTRIBUTION.md`). They stroll around the clearing with pauses
+  and ignore Oravitsa: neither blocks or bumps the other. Shoo sends one
+  running and costs 5 karma; a Sling hit stuns one and costs 10. They appear
+  within 150 m of their hamlet, leave beyond 230 m, regenerate identically
+  and are never saved.
+- **Offerings.** Within 3 m of a hamlet's well, O, controller A or the Offer
+  food button offers one item: raw meat first (+3), then a mushroom or
+  berries (+1).
+
+`village_smoke_test.gd` covers karma changes and the badge, hunger order and
+slowdown, villager spawning, wandering, pass-through, shoo/sling penalties,
+offerings by key and controller, leave/return regeneration, and saving
+(version 2, with version-1 saves still loading).
+
+## Cave levels
+
+Walking into a cave mouth (within 0.9 m) enters that cave's first level
+(`cave_level.gd`). It is a 26 × 20 grid of 2 m cells, generated from the
+cave's region: an entry room under the mouth, five to seven rooms joined to
+the nearest reachable room by tunnels (some two cells wide), all connected.
+It extends north of the mouth, so Oravitsa walks straight in. Collision comes
+from the grid, independent of the low drawn walls (low enough for the fixed
+camera to see over). The cave is dark: the surface sun is off, the ambient
+light is dim, a warm lantern follows Oravitsa, daylight marks the way out,
+and checkpoint crystals glow blue.
+
+- **Checkpoints.** Two or three, in the rooms farthest from the entrance.
+  Reaching one gives +20 karma once; its crystal then dims to gold.
+- **Giant rats and spiders.** Four to six rats and two or three spiders, at
+  least 10 m from the entrance, drawn with CC0 Quaternius models. They roam
+  near their lair, chase Oravitsa within 9 m and bite at reach. A bite stuns
+  her for 1.5 s (no health or injury) and plays the Attack clip, with a 3.5 s
+  cooldown. Shoo drives one off. Sling stuns one, which can then be finished
+  by walking to it (controller: A) for karma (rat +5, spider +10). Its Death
+  clip plays. Awake ones cannot be killed, and stunned ones can be walked
+  through. They chase in straight lines and slide along walls; there is no
+  pathfinding.
+- **Freezing and saving.** While Oravitsa is underground, the surface
+  landscape, food and wildlife are hidden and kept exactly as they were. The
+  map shows "Underground", and saving or loading is unavailable. The sunlit
+  way out returns her just outside the mouth. Killed monsters and collected
+  checkpoints are kept per cave and saved.
+
+`cave_smoke_test.gd` covers seeding and variety, connectivity, entry and
+exit, the frozen surface, lighting, bites, Sling-then-kill by walk-over and
+controller A, once-only checkpoints, and persistence across visits and saves.
 
 ## Wildlife
 

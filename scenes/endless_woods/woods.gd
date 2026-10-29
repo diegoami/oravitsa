@@ -61,6 +61,14 @@ const VILLAGERS_PER_HAMLET := Vector2i(2, 4)
 const VILLAGER_APPEAR := 150.0 # Metres from a hamlet centre at which its villagers appear.
 const VILLAGER_LEAVE := 230.0
 const OFFER_RADIUS := 3.0 # Metres from the village well, the focal point of a hamlet's centre.
+# Caves (#45, #46): a seeded first level behind each mouth, with giant rats
+# and spiders that bite (a stun, never an injury).
+const CAVE_LEVEL := preload("res://scenes/endless_woods/cave_level.gd")
+const CAVE_ENTER_RADIUS := 0.9
+const CAVE_REARM := 2.5
+const MONSTER_SIGHT := 9.0 # Metres at which a rat or spider notices Oravitsa.
+const BITE_STUN := 1.5
+const BITE_COOLDOWN := 3.5
 var origin_cells := Vector2i.ZERO
 var _harvested: Dictionary = {}
 var _cached_cells: Dictionary = {}
@@ -80,6 +88,16 @@ var _hunger_timer := HUNGER_INTERVAL
 var _karma_badge: Control
 var _offer_button: Button
 var _villager_check := 0.0
+var _cave: Node3D = null
+var _surface_landscape: Node3D
+var _surface_animals: Array[Dictionary] = []
+var _cave_key := ""
+var _cave_progress: Dictionary = {} # "x,y" region -> {"checkpoints": [...], "killed": [...]}
+var _cave_return := Vector2.ZERO
+var _cave_armed := true
+var _cave_exit_armed := false
+var _lantern: OmniLight3D
+var _surface_light: Dictionary = {}
 
 
 func _generate_map() -> void:
@@ -133,6 +151,14 @@ func _fit_help_panel() -> void:
 func _update_hud() -> void:
 	super._update_hud()
 	var keys := _input_mode != "controller" and _input_mode != "touch"
+	if in_cave() and player_stun <= 0.0 and _stunned_monster_near(HARE_NOTICE_RADIUS) >= 0:
+		var monster: String = ANIMAL_NAMES[_animals[_stunned_monster_near(HARE_NOTICE_RADIUS)]["kind"]].to_lower()
+		if _input_mode == "controller":
+			_inventory.set("pickup_prompt", ("A / Cross: finish the " + monster) if _stunned_monster_near(HARE_PICKUP_RADIUS) >= 0 else "Get closer to the " + monster)
+		else:
+			_inventory.set("pickup_prompt", "Walk to the stunned " + monster + " to finish it")
+	if in_cave() and _instructions_visible:
+		_hint_label.text += "\nSaving is not possible underground"
 	if is_instance_valid(_karma_badge):
 		_karma_badge.karma = karma
 		_karma_badge.hungry = hungry
@@ -710,7 +736,7 @@ func _shift_origin(shift_cells: Vector2i) -> void:
 
 
 func _can_save() -> bool:
-	return true
+	return not in_cave() # The surface is frozen underground; save in the woods.
 
 
 func _absolute_point(point: Vector2) -> Array:
@@ -778,6 +804,7 @@ func save_state() -> Dictionary:
 		"animals": animals,
 		"karma": karma,
 		"hunger": {"timer": _hunger_timer, "hungry": hungry},
+		"caves": _cave_progress.duplicate(true),
 	}
 
 
@@ -860,6 +887,10 @@ func apply_state(data: Dictionary) -> void:
 	var hunger: Dictionary = data.get("hunger", {})
 	_hunger_timer = float(hunger.get("timer", HUNGER_INTERVAL))
 	hungry = bool(hunger.get("hungry", false))
+	_cave_progress = {}
+	var caves: Dictionary = data.get("caves", {})
+	for key in caves:
+		_cave_progress[key] = {"checkpoints": caves[key]["checkpoints"].map(func(v): return int(v)), "killed": caves[key]["killed"].map(func(v): return int(v))}
 	_villager_check = 0.0
 	_regrowth_check = 0.0
 	view.position = to_world(player_position) + CAMERA_OFFSET
@@ -896,6 +927,9 @@ func _load_game() -> void:
 
 
 func _process(delta: float) -> void:
+	if in_cave():
+		_process_cave(delta)
+		return
 	_rebase_if_needed()
 	_update_food_regrowth(delta)
 	_update_hunger(delta)
@@ -904,6 +938,312 @@ func _process(delta: float) -> void:
 		_villager_check = 0.5
 		_update_villagers()
 	super._process(delta)
+	_check_cave_mouth()
+
+
+func in_cave() -> bool:
+	return _cave != null
+
+
+func _refresh_visible() -> void:
+	if in_cave():
+		_loaded_center = Vector2i(-999, -999)
+		_refresh_cave_creatures()
+	else:
+		super._refresh_visible()
+
+
+## Walking into a cave mouth enters its level; stepping back out re-arms it.
+func _check_cave_mouth() -> void:
+	var here := absolute_ground(player_position)
+	var cave: Dictionary = landscape.cave_at(Vector2i(floori(here.x / 256), floori(here.y / 128)))
+	if cave.is_empty():
+		_cave_armed = true
+		return
+	var distance := here.distance_to(cave["mouth"])
+	if distance > CAVE_REARM:
+		_cave_armed = true
+	elif distance < CAVE_ENTER_RADIUS and _cave_armed and player_stun <= 0.0:
+		_enter_cave(cave)
+
+
+## The surface freezes while Oravitsa is underground: its landscape, food and
+## wildlife are hidden and kept as they are, then restored on the way out.
+func _enter_cave(cave: Dictionary) -> void:
+	var region: Vector2i = cave["region"]
+	_cave_key = "%d,%d" % [region.x, region.y]
+	if not _cave_progress.has(_cave_key):
+		_cave_progress[_cave_key] = {"checkpoints": [], "killed": []}
+	var progress: Dictionary = _cave_progress[_cave_key]
+	_cave_return = cave["mouth"] + cave["facing"] * 2.2
+	var mouth: Vector2 = cave["mouth"] - landscape.origin
+	for sprite in _active_animals.values():
+		sprite.queue_free()
+	_active_animals.clear()
+	_sync_animal_lifecycle()
+	_surface_animals = _animals
+	var creatures: Array[Dictionary] = []
+	_animals = creatures
+	_stones.clear()
+	selected_target = -1
+	_status_peaks.clear()
+	_surface_landscape = landscape
+	landscape.visible = false
+	for node in _forage_visuals.values():
+		node.visible = false
+	var level: Node3D = CAVE_LEVEL.new()
+	level.name = "Cave"
+	level.setup(region, mouth, RAT, SPIDER)
+	stage.add_child(level)
+	level.build()
+	landscape = level
+	_cave = level
+	for i in level.spawns.size():
+		if i in progress["killed"]:
+			continue
+		var spot: Vector3 = level.spawns[i]
+		var data := _animal_record(int(spot.z), from_ground(Vector2(spot.x, spot.y)))
+		data["cave_index"] = i
+		data["bite_cooldown"] = 0.0
+		data["attack_time"] = 0.0
+		data["state"] = "roam"
+		_animals.append(data)
+	for i in progress["checkpoints"]:
+		level.checkpoint_collected(int(i))
+	player_position = from_ground(level.entrance)
+	_cave_exit_armed = false
+	_set_cave_lighting(true)
+	_loaded_center = Vector2i(-999, -999)
+	_refresh_cave_creatures()
+	view.position = to_world(player_position) + CAMERA_OFFSET
+	_show_notice("Oravitsa enters the cave: find its glowing checkpoints", 3.5)
+	_update_hud()
+
+
+func _exit_cave() -> void:
+	for sprite in _active_animals.values():
+		sprite.queue_free()
+	_active_animals.clear()
+	_sync_animal_lifecycle()
+	_animals = _surface_animals
+	var none: Array[Dictionary] = []
+	_surface_animals = none
+	_stones.clear()
+	selected_target = -1
+	_status_peaks.clear()
+	_cave.queue_free()
+	_cave = null
+	landscape = _surface_landscape
+	landscape.visible = true
+	for node in _forage_visuals.values():
+		node.visible = true
+	_set_cave_lighting(false)
+	player_position = _local_point([_cave_return.x, _cave_return.y])
+	_cave_armed = false
+	view.position = to_world(player_position) + CAMERA_OFFSET
+	_refresh_visible()
+	_sync_presentation(0.0)
+	_show_notice("Back in the woods")
+	_update_hud()
+
+
+func _set_cave_lighting(underground: bool) -> void:
+	var environment: Environment = null
+	var sun: DirectionalLight3D = null
+	for child in stage.get_children():
+		if child is WorldEnvironment:
+			environment = child.environment
+		elif child is DirectionalLight3D:
+			sun = child
+	if underground:
+		_surface_light = {"background": environment.background_color, "ambient": environment.ambient_light_energy, "ambient_color": environment.ambient_light_color, "sun": sun.light_energy}
+		environment.background_color = Color("050505")
+		environment.ambient_light_color = Color("7a7f8f")
+		environment.ambient_light_energy = 0.32
+		sun.light_energy = 0.0
+		if _lantern == null:
+			_lantern = OmniLight3D.new()
+			_lantern.name = "Lantern"
+			_lantern.light_color = Color("ffd9a0")
+			_lantern.light_energy = 2.2
+			_lantern.omni_range = 11.0
+			stage.add_child(_lantern)
+		_lantern.visible = true
+		_lantern.position = to_world(player_position) + Vector3.UP * 1.7
+	elif not _surface_light.is_empty():
+		environment.background_color = _surface_light["background"]
+		environment.ambient_light_energy = _surface_light["ambient"]
+		environment.ambient_light_color = _surface_light["ambient_color"]
+		sun.light_energy = _surface_light["sun"]
+		_lantern.visible = false
+
+
+func _refresh_cave_creatures() -> void:
+	var cell := _world_cell(player_position)
+	if cell == _loaded_center:
+		return
+	_loaded_center = cell
+	_loaded_half = _stream_half()
+	_refresh_animals(cell)
+	_sync_animal_lifecycle()
+
+
+## Underground only Oravitsa, her skills and the cave's monsters run; the
+## surface simulation waits, unchanged, for her return.
+func _process_cave(delta: float) -> void:
+	_update_player(delta)
+	if not in_cave():
+		return
+	_refresh_cave_creatures()
+	_move_cave_creatures(delta)
+	_update_sling(delta)
+	_update_hunger(delta)
+	_check_cave_points()
+	if not in_cave():
+		return
+	_update_hud()
+	_minimap.queue_redraw()
+	_sync_presentation(delta)
+
+
+func _check_cave_points() -> void:
+	var here := to_ground(player_position)
+	var progress: Dictionary = _cave_progress[_cave_key]
+	for i in _cave.checkpoints.size():
+		if i not in progress["checkpoints"] and here.distance_to(_cave.checkpoints[i]) <= _cave.CHECKPOINT_RADIUS:
+			progress["checkpoints"].append(i)
+			_cave.checkpoint_collected(i)
+			_add_karma(KARMA["checkpoint"], "cave checkpoint %d of %d" % [progress["checkpoints"].size(), _cave.checkpoints.size()])
+	var to_exit := here.distance_to(_cave.entrance)
+	if to_exit > 3.0:
+		_cave_exit_armed = true
+	elif _cave_exit_armed and to_exit < _cave.EXIT_RADIUS:
+		_exit_cave()
+
+
+## Giant rats and spiders roam near where they lair, chase Oravitsa when they
+## see her and bite, which only stuns her. Shoo drives one off; Sling stuns
+## one so it can be finished for karma.
+func _move_cave_creatures(delta: float) -> void:
+	for id in _active_animals.keys():
+		var data := _animals[id]
+		if not data["alive"]:
+			continue
+		var sprite: AnimatedSprite2D = _active_animals[id]
+		for timer in ["stun", "shoo", "bite_cooldown", "attack_time"]:
+			data[timer] = maxf(0.0, data[timer] - delta)
+		var position: Vector2 = data["position"]
+		if data["stun"] > 0.0 or data["attack_time"] > 0.0:
+			data["velocity"] = Vector2.ZERO
+			continue
+		var kind: int = data["kind"]
+		var to_player := player_position - position
+		var distance := to_player.length()
+		var speed: float = ANIMAL_SPEEDS[kind]
+		var target: Vector2 = data["target"]
+		if data["shoo"] > 0.0:
+			target = position - to_player.normalized() * 300.0
+			speed *= 1.6
+			data["state"] = "scared"
+		elif distance < MONSTER_SIGHT * METRE:
+			data["state"] = "hunt"
+			target = player_position
+			if distance <= ANIMAL_RADIUS[kind] + PLAYER_RADIUS + 10.0 and data["bite_cooldown"] <= 0.0 and player_stun <= 0.0:
+				player_stun = BITE_STUN
+				data["bite_cooldown"] = BITE_COOLDOWN
+				data["attack_time"] = 0.6
+				data["velocity"] = Vector2.ZERO
+				_show_notice("The %s bit Oravitsa!" % ANIMAL_NAMES[kind].to_lower())
+				continue
+		else:
+			data["state"] = "roam"
+			speed *= 0.35
+			data["timeout"] = float(data["timeout"]) - delta
+			if position.distance_to(target) < 12.0 or data["timeout"] <= 0.0:
+				data["turn"] += 1
+				var home: Vector2 = data["home"]
+				var spot: Vector2 = home + Vector2.from_angle(_hash(id, data["turn"], 1801) * TAU) * _hash(id, data["turn"], 1802) * 3.0 * METRE
+				target = spot if _can_stand(spot, ANIMAL_RADIUS[kind]) else position
+				data["target"] = target
+				data["timeout"] = 2.0 + _hash(id, data["turn"], 1803) * 4.0
+		var heading := position.direction_to(target) if position.distance_to(target) > 4.0 else Vector2.ZERO
+		var velocity: Vector2 = data["velocity"]
+		velocity = velocity.move_toward(heading * speed, 600.0 * delta)
+		var step := velocity * delta
+		var candidate := position
+		if _can_animal_move(id, candidate + Vector2(step.x, 0)):
+			candidate.x += step.x
+		if _can_animal_move(id, candidate + Vector2(0, step.y)):
+			candidate.y += step.y
+		if candidate.distance_squared_to(position) < 0.01:
+			velocity = Vector2.ZERO
+		data["velocity"] = velocity
+		data["position"] = candidate
+		sprite.position = candidate
+
+
+func _animation_override(id: int, wanted: String, animator: AnimationPlayer) -> String:
+	if float(_animals[id].get("attack_time", 0.0)) > 0.0 and animator.has_animation("Attack"):
+		return "Attack"
+	return wanted
+
+
+## Nearest stunned giant rat or spider within reach; only those can be killed.
+func _stunned_monster_near(radius: float) -> int:
+	var nearest := -1
+	var best := radius
+	for id in _active_animals:
+		var data := _animals[id]
+		if data["alive"] and data["kind"] in [RAT, SPIDER] and data["stun"] > 0.0:
+			var distance := player_position.distance_to(data["position"])
+			if distance <= best:
+				best = distance
+				nearest = id
+	return nearest
+
+
+func _collect_nearby() -> void:
+	if not in_cave():
+		super._collect_nearby()
+		return
+	var id := _stunned_monster_near(HARE_PICKUP_RADIUS)
+	if id >= 0 and player_stun <= 0.0:
+		_kill_monster(id)
+
+
+## A stunned giant rat or spider is finished off once, for karma; its Death
+## clip plays and it stays dead in this cave.
+func _kill_monster(id: int) -> void:
+	var data := _animals[id]
+	if not data["alive"] or data["kind"] not in [RAT, SPIDER] or data["stun"] <= 0.0:
+		return
+	data["alive"] = false
+	data["stun"] = 0.0
+	data["velocity"] = Vector2.ZERO
+	_cave_progress[_cave_key]["killed"].append(int(data["cave_index"]))
+	if _animal_models.has(id):
+		var model: Node3D = _animal_models[id]
+		var animator: AnimationPlayer = _animal_players.get(id)
+		_animal_models.erase(id)
+		_animal_players.erase(id)
+		_animal_stars[id].queue_free()
+		_animal_stars.erase(id)
+		_animal_shadows[id].queue_free()
+		_animal_shadows.erase(id)
+		if animator != null and animator.has_animation("Death"):
+			animator.speed_scale = 1.0
+			animator.play("Death")
+			get_tree().create_timer(2.5).timeout.connect(func():
+				if is_instance_valid(model):
+					model.queue_free())
+		else:
+			model.queue_free()
+	if _active_animals.has(id):
+		_active_animals[id].queue_free()
+		_active_animals.erase(id)
+	if selected_target == id:
+		selected_target = -1
+	_add_karma(KARMA["rat"] if data["kind"] == RAT else KARMA["spider"], "defeated a " + ANIMAL_NAMES[data["kind"]].to_lower())
 
 
 func _move_speed() -> float:
@@ -959,7 +1299,7 @@ func _offer_spot() -> Dictionary:
 
 
 func _offer_ready() -> bool:
-	return player_stun <= 0.0 and basket + berries_basket + raw_meat > 0 and not _offer_spot().is_empty()
+	return not in_cave() and player_stun <= 0.0 and basket + berries_basket + raw_meat > 0 and not _offer_spot().is_empty()
 
 
 ## Offers one item at the village well for karma; raw meat is worth most.
@@ -1179,6 +1519,14 @@ func _status_states(id: int) -> Array:
 
 func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
+	if in_cave():
+		if is_instance_valid(_lantern):
+			_lantern.position = heroine.position + Vector3.UP * 1.7
+		for id in _animal_stars:
+			_animal_stars[id].set_on_top(true) # Readable against the monsters' dark bodies.
+		var near_exit: bool = to_ground(player_position).distance_to(_cave.entrance) < 3.0
+		_landmark_label.text = "Way out to the woods" if near_exit else "Cave · first level"
+		return
 	if audio != null:
 		audio.update(delta)
 	for id in _animal_stars:

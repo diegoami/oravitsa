@@ -400,6 +400,11 @@ func _animal_model(id: int) -> Node3D:
 	return model
 
 
+## Lets a scene play an extra clip (a cave monster's bite) over Idle/Walk.
+func _animation_override(_id: int, wanted: String, _animator: AnimationPlayer) -> String:
+	return wanted
+
+
 func _model_bounds(node: Node3D) -> AABB:
 	var result := AABB()
 	var found := false
@@ -575,6 +580,7 @@ func _sync_presentation(delta: float) -> void:
 				wanted = "Eating"
 			if data["shoo"] > 0 and velocity.length_squared() > 1 and animator.has_animation("Gallop"):
 				wanted = "Gallop"
+			wanted = _animation_override(id, wanted, animator)
 			if animator.current_animation != wanted:
 				animator.play(wanted, 0.2)
 			animator.speed_scale = 0.0 if data["stun"] > 0 else (1.4 if data["shoo"] > 0 else 1.0)

@@ -87,10 +87,25 @@ leaving/revisiting a region does not reset their countdown.
 Rendering rebases its local origin during long walks; generated world data has
 no fixed playable border. Only nearby terrain and animal visuals stay loaded.
 
-Along the roads you will find **empty hamlets** of closed, weathered cottages
-around an old well, at about one road crossing in six. On higher ground there
-are **cave mouths** you can step into but not enter further. Both are empty;
-the map marks them, and the location label names them.
+Along the roads you will find **hamlets** of closed, weathered cottages around
+an old well, at about one road crossing in six. Villagers stroll around them
+and ignore Oravitsa, but shooing (−5) or hitting (−10) one costs karma.
+Standing at the well, press **O** (controller **A**, or the Offer food button)
+to offer one item from the bag for karma: raw meat +3, a mushroom or berries
++1.
+
+On higher ground there are **cave mouths**. Walk into one to enter that cave's
+first level: dark tunnels and rooms lit by Oravitsa's lantern. Glowing
+checkpoints give +20 karma once each. Giant rats and spiders chase her and
+bite, which only stuns her for a moment. Sling one to stun it, then walk to it
+(controller: A) to finish it for karma (rat +5, spider +10). The way out is
+the sunlit spot where she came in. The surface waits, unchanged, while she is
+underground, and saving is only possible in the woods.
+
+**Karma** is the game's points, shown at the top of the screen as a lotus
+with the number on it. Oravitsa also eats from her bag every two minutes. If
+the bag is empty she is hungry (a crossed-out bowl beside karma) and walks
+slower until she finds food.
 
 The endless woods have a quiet looping forest ambience, and nearby animals
 occasionally call (wolves howl, boars grunt, foxes yip…). Distant ones stay
@@ -197,7 +212,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (twenty smoke scripts). It rejects logged errors immediately
+foraging prototype (twenty-two smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.
@@ -237,7 +252,7 @@ three seconds of continuous close pursuit to catch; both prey species return
 later away from the player. A catch resets the predator's hunger; after 180 s
 without a catch it despawns, including offscreen. Stuck animals can plan a local
 collision-safe recovery route. The finite scenes retain their original ecology.
-Oravitsa never injures animals, and hares are the only ones she kills (a stunned
-hare collected as raw meat), because unchecked they would multiply out of
-control. There are no quests, swimming,
+Oravitsa never injures wildlife, and hares are the only wildlife she kills (a
+stunned hare collected as raw meat), because unchecked they would multiply out
+of control. The cave monsters are the other exception. There are no quests, swimming,
 building loot or camera orbit yet; this is an early playable alpha.

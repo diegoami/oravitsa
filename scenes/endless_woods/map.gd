@@ -7,6 +7,9 @@ const COLORS := [Color("ad7460"), Color("e8c690"), Color("f59a52"), Color("d6ad5
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color("172538"))
+	if forest.in_cave():
+		draw_string(ThemeDB.fallback_font, Vector2(20, 130), "Underground: no map", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("e5d6ad"))
+		return
 	var center: Vector2 = forest.absolute_ground(forest.player_position)
 	if _map_texture == null or center.distance_to(_map_center) > 2:
 		_map_center = center

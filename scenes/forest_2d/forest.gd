@@ -141,6 +141,23 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_player(delta)
+	var cell := _world_cell(player_position)
+	if cell != _loaded_center or _stream_half() != _loaded_half:
+		_refresh_visible()
+	_update_respawns(delta)
+	_move_animals(delta)
+	_update_sling(delta)
+	_population_timer -= delta
+	if _population_timer <= 0.0:
+		_population_timer = POPULATION_INTERVAL
+		_replenish_local_animals()
+	_update_hud()
+	_minimap.queue_redraw()
+
+
+## Oravitsa's timers, movement, walk animation and walk-over pickups.
+func _update_player(delta: float) -> void:
 	player_stun = maxf(0.0, player_stun - delta)
 	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
 	_notice_time = maxf(0.0, _notice_time - delta)
@@ -158,18 +175,6 @@ func _process(delta: float) -> void:
 	_camera.position = player_position
 	if _input_mode != "controller":
 		_collect_nearby()
-	var cell := _world_cell(player_position)
-	if cell != _loaded_center or _stream_half() != _loaded_half:
-		_refresh_visible()
-	_update_respawns(delta)
-	_move_animals(delta)
-	_update_sling(delta)
-	_population_timer -= delta
-	if _population_timer <= 0.0:
-		_population_timer = POPULATION_INTERVAL
-		_replenish_local_animals()
-	_update_hud()
-	_minimap.queue_redraw()
 
 
 ## Oravitsa's walking speed; the endless woods slow her while she is hungry.
