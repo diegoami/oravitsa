@@ -22,7 +22,8 @@ lynxes use their existing painted animation strips on depth-tested upright
 sprites. All five species retain their original roaming, avoidance, foraging,
 pursuit and stun rules. Lynxes catch hares quickly and require three seconds of
 continuous close contact with deer. Prey respawn away from the player. Oravitsa
-cannot kill any animal. Respawns and new arrivals are excluded from the actual
+never injures animals; the only animals she kills are stunned hares she collects
+as raw meat (unchecked, hares would multiply out of control). Respawns and new arrivals are excluded from the actual
 smoothed camera view, including animal height and an extra screen margin.
 The entry ring and population radius adapt to wide/portrait viewports.
 

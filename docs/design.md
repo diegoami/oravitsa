@@ -10,9 +10,12 @@ prototype uses a hunger clock; the current exploration scene has no time limit.
 
 ## The hard constraint
 
-**Oravitsa cannot kill any creature in this iteration, including hares.**
-Her interactions with creatures are non-lethal influences such as shooing,
-attracting, confusing, or slowing. The sling temporarily stuns a selected animal;
+**Oravitsa never injures a creature, and hares are the only ones she kills.**
+Unchecked, hares would multiply out of control. A hare that is currently stunned
+and within 75 px can be collected, which removes it once and yields one raw
+meat; no other species can be killed or collected. Her other interactions with
+creatures are non-lethal influences such as shooing, attracting, confusing, or
+slowing. The sling temporarily stuns a selected animal;
 it does not injure or kill it.
 Shoo is also targeted: it interrupts the selected animal and sends it running
 away from Oravitsa for five seconds, with a visible scared countdown. Other

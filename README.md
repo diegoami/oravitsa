@@ -237,5 +237,7 @@ three seconds of continuous close pursuit to catch; both prey species return
 later away from the player. A catch resets the predator's hunger; after 180 s
 without a catch it despawns, including offscreen. Stuck animals can plan a local
 collision-safe recovery route. The finite scenes retain their original ecology.
-Oravitsa cannot kill any animal, including hares. There are no quests, swimming,
+Oravitsa never injures animals, and hares are the only ones she kills (a stunned
+hare collected as raw meat), because unchecked they would multiply out of
+control. There are no quests, swimming,
 building loot or camera orbit yet; this is an early playable alpha.
