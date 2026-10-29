@@ -213,7 +213,8 @@ her for eight seconds before another roll. An angry animal stands still for
 four seconds (wolf 232, lynx 228, boar 196 px/s; Oravitsa walks at 210).
 Reaching her stuns her for two seconds; an already stunned Oravitsa is not
 stunned again. Hit or miss, the animal then loses interest for 25 seconds.
-Shoo, any stun, feeding or leaving the active area ends the encounter at once.
+Shoo, any stun, feeding (after a catch or at a food patch) or leaving the active
+area ends the encounter at once.
 A charge overrides hunting and uses ordinary collision-checked movement. There
 is no damage or death. Retained finite scenes have no aggression.
 
