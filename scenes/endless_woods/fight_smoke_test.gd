@@ -69,6 +69,11 @@ func _run() -> void:
 	assert(world._animals[0]["position"] == a_position and world._animals[0]["state"] == "fight")
 	world._sync_presentation(0.0)
 	assert(world._animal_stars[0].visible and world._animal_stars[0].icons == ["fighting"])
+	var fight_left: float = world._animal_stars[0].fractions[0]
+	assert(absf(fight_left - world._animals[0]["fight_time"] / world.FIGHT_TIME) < 0.001 and fight_left < 0.85, "The fight bar shows the fight time left")
+	world._move_animals(0.5)
+	world._sync_presentation(0.0)
+	assert(world._animal_stars[0].fractions[0] < fight_left - 0.15, "The fight bar empties")
 	# Resolution: one loser is stunned, both return to ordinary behaviour.
 	for step in 120:
 		world._move_animals(0.05)

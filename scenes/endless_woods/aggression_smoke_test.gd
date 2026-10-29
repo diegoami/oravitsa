@@ -80,23 +80,33 @@ func _run() -> void:
 	assert(world._notice_label.text.contains("angry"))
 	world._sync_presentation(0.0)
 	assert(world._animal_stars[0].visible and world._animal_stars[0].icons == ["angry"])
+	var warn_left: float = world._animal_stars[0].fractions[0]
+	assert(warn_left > 0.9, "The warning shows a nearly full time-left bar")
 	var standing: Vector2 = wolf["position"]
 	world._move_animals(0.5)
 	assert(wolf["position"] == standing and wolf["state"] == "warn", "The warning is a pause, not an attack")
+	world._sync_presentation(0.0)
+	assert(absf(world._animal_stars[0].fractions[0] - wolf["aggro_time"] / world.AGGRO_WARN_TIME) < 0.001 and world._animal_stars[0].fractions[0] < warn_left - 0.3, "The warning bar empties")
 	# Place a hare between them: charging overrides hunting.
 	world._animals[1]["position"] = wolf["position"] + Vector2(0, 120)
 	world._refresh_visible()
 	var hit := false
+	var charge_bars: Array[float] = []
 	for frame in 240:
 		world._move_animals(1.0 / 30.0)
 		assert(world._can_stand(wolf["position"], world.ANIMAL_RADIUS[world.WOLF]))
 		if wolf["state"] == "charge":
 			world._sync_presentation(0.0)
 			assert(world._animal_stars[0].icons == ["charging"])
+			var left: float = world._animal_stars[0].fractions[0]
+			assert(absf(left - wolf["aggro_time"] / world.AGGRO_CHARGE_TIME) < 0.001, "The charge bar shows the charge time left")
+			assert(charge_bars.is_empty() or left < charge_bars[-1], "The charge bar empties")
+			charge_bars.append(left)
 		if world.player_stun > 0:
 			hit = true
 			break
 	assert(hit and world.player_stun == world.AGGRO_PLAYER_STUN, "A charge that reaches Oravitsa stuns her")
+	assert(charge_bars.size() >= 2 and world._animal_stars[0].visible)
 	assert(world._animals[1]["alive"], "A charging wolf ignores prey")
 	assert(wolf["aggro"] == world.AGGRO_NONE and wolf["aggro_cooldown"] >= world.AGGRO_COOLDOWN - 0.1, "It loses interest after the attack")
 	assert(world.player_stun < world.SLING_STUN_TIME + world.AGGRO_PLAYER_STUN)
