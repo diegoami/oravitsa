@@ -59,7 +59,7 @@ func _run() -> void:
 	world.player_position = walk_start
 	deer["stun"] = 0.0
 	deer["position"] = walk_start + Vector2(-40, 0)
-	assert(not world._try_move(Vector2(-10, 0)) and world.player_stun == world.CONTACT_STUN_TIME)
+	assert(not world._try_move(Vector2(-10, 0)) and is_equal_approx(world.player_stun, world._player_stun_time(world.CONTACT_STUN_TIME)))
 	world.player_stun = 0.0
 	deer["position"] = world.player_position + Vector2(0, 1500)
 	# Oravitsa cannot take it while she is stunned herself.

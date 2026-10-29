@@ -36,26 +36,26 @@ func _rendered_at(land, absolute: Vector2, matches: Callable) -> int:
 
 
 ## Visiting each element, the drawn hamlet and cave match their collision
-## exactly once: house walls, the square well wall, every rock part and opening.
+## exactly once: house walls, the square store tent, every rock part and opening.
 func _assert_rendered(world: Node2D, hamlet: Dictionary, cave: Dictionary) -> void:
 	var land: Node3D = world.landscape
 	if not hamlet.is_empty():
 		for house in hamlet["houses"]:
 			await _travel(world, house.get_center() + Vector2(0, 4))
 			assert(_rendered_at(land, house.get_center(), func(n: MeshInstance3D) -> bool: return n.mesh is BoxMesh and n.mesh.size.is_equal_approx(Vector3(house.size.x, 2.5, house.size.y))) == 1, "Every solid house is drawn once at its collision size")
-		await _travel(world, hamlet["well"] + Vector2(0, 2))
+		await _travel(world, hamlet["store"] + Vector2(0, 3))
 		var footprint := Rect2()
-		var stones := 0
+		var tents := 0
 		for chunk in land.chunks.values():
 			for node in chunk.get_children():
-				if node is MeshInstance3D and node.mesh is BoxMesh and is_equal_approx(node.mesh.size.y, 0.7):
+				if node is MeshInstance3D and node.mesh is PrismMesh and node.mesh.size.y > 1.0:
 					var box: AABB = node.transform * node.get_aabb()
 					var rect := Rect2(Vector2(box.position.x, box.position.z) + Vector2(chunk.position.x, chunk.position.z), Vector2(box.size.x, box.size.z))
-					if rect.get_center().distance_to(hamlet["well"] - land.origin) < 1.0:
-						footprint = rect if stones == 0 else footprint.merge(rect)
-						stones += 1
-		var expected := Rect2(hamlet["well"] - land.origin - Vector2.ONE * land.WELL_HALF, Vector2.ONE * land.WELL_HALF * 2)
-		assert(stones == 4 and footprint.position.distance_to(expected.position) < 0.01 and footprint.size.distance_to(expected.size) < 0.01, "The drawn well wall is the well's collision square")
+					if rect.get_center().distance_to(hamlet["store"] - land.origin) < 1.0:
+						footprint = rect
+						tents += 1
+		var expected := Rect2(hamlet["store"] - land.origin - Vector2.ONE * land.STORE_HALF, Vector2.ONE * land.STORE_HALF * 2)
+		assert(tents == 1 and footprint.position.distance_to(expected.position) < 0.01 and footprint.size.distance_to(expected.size) < 0.01, "The drawn store tent is its collision square")
 	if not cave.is_empty():
 		await _travel(world, cave["mouth"] + cave["facing"] * 2)
 		for part in cave["parts"]:
@@ -101,14 +101,14 @@ func _run() -> void:
 			assert(not land.can_walk(house.get_center() - land.origin, radius))
 			assert(not land.can_walk(house.position + Vector2(0.3, 0.3) - land.origin, radius))
 			assert(not land.is_water(house.get_center() - land.origin))
-		# The square well wall is solid at its corners and open just beyond each side.
-		var well: Vector2 = hamlet["well"]
-		var reach: float = land.WELL_HALF + radius
+		# The square store tent is solid at its corners and open just beyond each side.
+		var store: Vector2 = hamlet["store"]
+		var reach: float = land.STORE_HALF + radius
 		for corner in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
-			assert(not land.can_walk(well + corner * (reach - 0.05) - land.origin, radius), "No clipping into the well's corners")
+			assert(not land.can_walk(store + corner * (reach - 0.05) - land.origin, radius), "No clipping into the tent's corners")
 		for side in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
-			assert(not land.can_walk(well + side * (reach - 0.05) - land.origin, radius))
-			assert(land.can_walk(well + side * (reach + 0.05) - land.origin, radius), "No invisible wall around the well")
+			assert(not land.can_walk(store + side * (reach - 0.05) - land.origin, radius))
+			assert(land.can_walk(store + side * (reach + 0.05) - land.origin, radius), "No invisible wall around the tent")
 		for door in hamlet["doors"]:
 			var from := Vector2(door.x, door.y) + Vector2(0, signf(door.w - door.y) * 0.5)
 			assert(_walk(land, from, Vector2(door.z, door.w), radius), "Every door trail must reach the road")
@@ -158,7 +158,7 @@ func _run() -> void:
 	assert(near > 50)
 	assert(not world._spawn_allowed(world.from_ground(hamlet["center"] - land.origin)))
 	for animal in world._animals:
-		assert(not land.in_settlement(world.to_ground(animal["home"])) or not animal["alive"], "No wildlife homes inside a hamlet")
+		assert(animal["kind"] == world.VILLAGER or not land.in_settlement(world.to_ground(animal["home"])) or not animal["alive"], "No wildlife homes inside a hamlet")
 	await _assert_rendered(world, hamlet, {})
 	# Streaming: every house of a visited hamlet is built in its own chunk, and
 	# returning after a rebase rebuilds the same placement.
@@ -169,11 +169,11 @@ func _run() -> void:
 	assert(_rendered_at(land, hamlet["houses"][0].get_center(), func(_n: MeshInstance3D) -> bool: return true) == 0, "Far away, the hamlet's chunks are unloaded")
 	await _travel(world, hamlet["center"] + Vector2(0, 2))
 	var after: Dictionary = land.hamlet_near(hamlet["center"])
-	assert(after["houses"] == before["houses"] and after["well"] == before["well"], "Hamlets regenerate identically after rebasing")
+	assert(after["houses"] == before["houses"] and after["store"] == before["store"], "Hamlets regenerate identically after rebasing")
 	assert(land._hamlet_cache.size() < 40 and land._cave_cache.size() < 60, "Feature caches stay bounded")
 	# Labels at the hamlet and the cave mouth.
 	world._sync_presentation(0.0)
-	assert(world._landmark_label.text == "Empty hamlet")
+	assert(world._landmark_label.text == "Hamlet")
 	await _assert_rendered(world, after, {})
 	var cave: Dictionary = caves[0]
 	await _travel(world, cave["mouth"] + cave["facing"] * 2)
@@ -235,5 +235,5 @@ func _run() -> void:
 			moves += 1
 		world.player_position = start
 	assert(moves >= 3, "Oravitsa can walk away beside the boar")
-	print("Landmarks smoke test passed: ", hamlets.size(), " hamlets (", houses, " closed houses) and ", caves.size(), " cave mouths; solid houses/wells/rock matching their drawn meshes (", open_samples, " open samples beside rock), open entrances and crossings, passable door and cave trails, bare clearings, no spawns inside, deterministic after rebasing, bounded caches, labels and old saves moved out of new houses")
+	print("Landmarks smoke test passed: ", hamlets.size(), " hamlets (", houses, " closed houses) and ", caves.size(), " cave mouths; solid houses/store tents/rock matching their drawn meshes (", open_samples, " open samples beside rock), open entrances and crossings, passable door and cave trails, bare clearings, no spawns inside, deterministic after rebasing, bounded caches, labels and old saves moved out of new houses")
 	quit()

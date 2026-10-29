@@ -48,6 +48,38 @@ const SAVED_ANIMAL_TIMERS := ["respawn", "stun", "shoo", "hunger", "feeding", "b
 const SAVED_ANIMAL_COUNTERS := ["turn", "hunt_attempts", "aggro_rolls"]
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
 const MUSHROOM_REGROW_SECONDS := Vector2(300, 540)
+# Aura is the game's points (#42).
+const AURA := {"rat": 5, "spider": 10, "checkpoint": 20, "food": 1, "meat": 3, "shoo_villager": -5, "hit_villager": -10}
+# How well fed Oravitsa is (#43), from 0 (starving) to FED_MAX. It falls
+# steadily; every MEAL_INTERVAL she eats one random bag item unless she is
+# full, and when starving she eats as soon as she has food. Being well fed
+# makes her faster and shortens the stuns she suffers.
+const FED_MAX := 100.0
+const FED_START := 60.0
+const FED_DECAY := 0.3 # Per second: from full to starving in about five and a half minutes.
+const FED_FULL := 80.0 # She skips a meal at or above this.
+const MEAL_INTERVAL := 120.0
+const MEAL_VALUE := {"berries": 25.0, "mushroom": 30.0, "raw_meat": 50.0}
+const MEAL_NAMES := {"berries": "some berries", "mushroom": "a mushroom", "raw_meat": "some raw meat"}
+const HUNGRY_SPEED := 0.6 # Starving; normal speed at half fed.
+const FULL_SPEED := 1.2
+const FULL_STUN := 0.5 # Share of a stun she suffers when full; starving, the whole stun.
+# Hamlet villagers (#44): they wander their clearing and ignore Oravitsa.
+const CREATURES := "res://scenes/endless_woods/creatures/"
+const VILLAGER_LOOKS := ["farmer", "man", "woman_dress"]
+const VILLAGERS_PER_HAMLET := Vector2i(2, 4)
+const VILLAGER_APPEAR := 150.0 # Metres from a hamlet centre at which its villagers appear.
+const VILLAGER_LEAVE := 230.0
+const OFFER_RADIUS := 2.4 # Metres from the chieftain, who stands at his store tent.
+const CHIEF_HEIGHT := 1.7
+# Caves (#45, #46): a seeded first level behind each mouth, with giant rats
+# and spiders that bite (a stun, never an injury).
+const CAVE_LEVEL := preload("res://scenes/endless_woods/cave_level.gd")
+const CAVE_ENTER_RADIUS := 0.9
+const CAVE_REARM := 2.5
+const MONSTER_SIGHT := 9.0 # Metres at which a rat or spider notices Oravitsa.
+const BITE_STUN := 1.5
+const BITE_COOLDOWN := 3.5
 var origin_cells := Vector2i.ZERO
 var _harvested: Dictionary = {}
 var _cached_cells: Dictionary = {}
@@ -61,12 +93,33 @@ var save_path: String = SAVE_GAME.PATH
 var audio: Node
 var _ambience_button: Button
 var _animal_sound_button: Button
+var aura := 0
+var fed := FED_START
+var _meal_timer := MEAL_INTERVAL
+var _food_rng := RandomNumberGenerator.new() # Picks which bag item is eaten or offered.
+var _aura_badge: Control
+var _offer_button: Button
+var _villager_check := 0.0
+var _cave: Node3D = null
+var _surface_landscape: Node3D
+var _surface_animals: Array[Dictionary] = []
+var _cave_key := ""
+var _cave_progress: Dictionary = {} # "x,y" region -> {"checkpoints": [...], "killed": [...]}
+var _cave_return := Vector2.ZERO
+var _cave_armed := true
+var _cave_exit_armed := false
+var _lantern: OmniLight3D
+var _surface_light: Dictionary = {}
 
 
 func _generate_map() -> void:
 	objects = {}
 	terrain = {}
 	_animal_heights[WOLF] = 0.95
+	_animal_heights[RAT] = 0.55
+	_animal_heights[SPIDER] = 0.5
+	_animal_heights[VILLAGER] = 1.55
+	_food_rng.randomize()
 
 
 func _build_world() -> void:
@@ -81,7 +134,22 @@ func _build_world() -> void:
 	_animal_sound_button = _hud_toggle(canvas, func():
 		audio.cycle_animals()
 		_update_hud())
+	_aura_badge = Control.new()
+	_aura_badge.set_script(load("res://scenes/endless_woods/aura_badge.gd"))
+	_aura_badge.name = "Aura"
+	canvas.add_child(_aura_badge)
+	_offer_button = _hud_toggle(canvas, _offer_food)
+	_offer_button.visible = false
 	_layout_hud()
+
+
+func _layout_hud() -> void:
+	super._layout_hud()
+	if is_instance_valid(_aura_badge):
+		var viewport_size := get_viewport_rect().size
+		_aura_badge.position = Vector2(viewport_size.x * 0.5 - _aura_badge.ICON * 0.5, 10)
+		_offer_button.size = Vector2(236, 34)
+		_offer_button.position = Vector2(viewport_size.x * 0.5 - 118, viewport_size.y - 156)
 
 
 func _fit_help_panel() -> void:
@@ -95,20 +163,34 @@ func _fit_help_panel() -> void:
 
 func _update_hud() -> void:
 	super._update_hud()
+	var keys := _input_mode != "controller" and _input_mode != "touch"
+	if in_cave() and player_stun <= 0.0 and _stunned_monster_near(HARE_NOTICE_RADIUS) >= 0:
+		var monster: String = ANIMAL_NAMES[_animals[_stunned_monster_near(HARE_NOTICE_RADIUS)]["kind"]].to_lower()
+		if _input_mode == "controller":
+			_inventory.set("pickup_prompt", ("A / Cross: finish the " + monster) if _stunned_monster_near(HARE_PICKUP_RADIUS) >= 0 else "Get closer to the " + monster)
+		else:
+			_inventory.set("pickup_prompt", "Walk to the stunned " + monster + " to finish it")
+	if is_instance_valid(_aura_badge):
+		_aura_badge.aura = aura
+		_aura_badge.fed = fed / FED_MAX
+		_aura_badge.queue_redraw()
+		_offer_button.visible = _offer_ready()
+		_offer_button.text = "Give food to the chieftain" + (" [A]" if _input_mode == "controller" else (" [O]" if keys else ""))
 	if not is_instance_valid(_ambience_button) or audio == null:
 		return
 	_ambience_button.visible = _instructions_visible
 	_animal_sound_button.visible = _instructions_visible
-	var keys := _input_mode != "controller" and _input_mode != "touch"
 	_ambience_button.text = "Forest " + audio.level_text(audio.ambience_level) + (" [9]" if keys else "")
 	_animal_sound_button.text = "Animals " + audio.level_text(audio.animal_level) + (" [0]" if keys else "")
 	if keys:
-		_hint_label.text += "\n9 / 0: forest / animal volume"
+		_hint_label.text += "\nO: give food to a village chieftain\n9 / 0: forest / animal volume"
 	_fit_help_panel()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_9, KEY_0]:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_O:
+		_offer_food()
+	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_9, KEY_0]:
 		if event.keycode == KEY_9:
 			audio.cycle_ambience()
 		else:
@@ -411,7 +493,7 @@ func _update_aggression(delta: float) -> void:
 			if distance <= ANIMAL_RADIUS[data["kind"]] + PLAYER_RADIUS + AGGRO_REACH:
 				# An already stunned Oravitsa is not stunned again by a second animal.
 				if player_stun <= 0:
-					player_stun = AGGRO_PLAYER_STUN
+					player_stun = _player_stun_time(AGGRO_PLAYER_STUN)
 					_show_notice("The %s knocked Oravitsa down!" % ANIMAL_NAMES[data["kind"]].to_lower())
 				data["velocity"] = Vector2.ZERO
 				_end_aggression(id, AGGRO_COOLDOWN)
@@ -474,10 +556,10 @@ func _seed_animals() -> void:
 
 
 func _make_animal_sprite(id: int) -> AnimatedSprite2D:
-	if _animals[id]["kind"] != WOLF:
+	if _animals[id]["kind"] not in [WOLF, RAT, SPIDER, VILLAGER]:
 		return super._make_animal_sprite(id)
-	# Invisible animation driver only; the wolf's actual visual is its rigged
-	# CC0 wolf mesh, never a substitute fox/heroine displayed in the world.
+	# Invisible animation driver only; the actual visual is a rigged CC0 mesh,
+	# never a substitute fox/heroine displayed in the world.
 	var sprite := AnimatedSprite2D.new()
 	sprite.sprite_frames = PLAYER_WALK
 	_world.add_child(sprite)
@@ -708,9 +790,13 @@ func _open_ground_near(point: Vector2, actor_radius: float, outside_settlements:
 
 ## Bounded game state: absolute positions, timers and depleted food only. The
 ## world itself regenerates from its seeds; nothing like a world map is stored.
+## Underground, the frozen surface is saved with Oravitsa at the cave mouth,
+## plus where she and the living monsters are, relative to the way out.
 func save_state() -> Dictionary:
 	var animals := []
-	for data in _animals:
+	for data in (_surface_animals if in_cave() else _animals):
+		if data["kind"] == VILLAGER:
+			continue # Villagers regenerate from their hamlet's seed.
 		var record := {"kind": data["kind"], "alive": data["alive"], "gone": data["gone"], "state": data["state"]}
 		for field in ["position", "home", "target"]:
 			record[field] = _absolute_point(data[field])
@@ -720,22 +806,37 @@ func save_state() -> Dictionary:
 	var harvested := []
 	for record in _harvested.values():
 		harvested.append([record["cell"].x, record["cell"].y, record["ready_at"]])
-	return {
+	var ground := [_cave_return.x, _cave_return.y] if in_cave() else _absolute_point(player_position)
+	var state := {
 		"format": SAVE_GAME.FORMAT,
 		"version": SAVE_GAME.VERSION,
 		"game": ProjectSettings.get_setting("application/config/version", ""),
 		"world": WORLD_ID,
-		"player": {"ground": _absolute_point(player_position), "stun": player_stun, "shoo_cooldown": shoo_cooldown, "sling_cooldown": sling_cooldown, "active_skill": active_skill},
+		"player": {"ground": ground, "stun": player_stun, "shoo_cooldown": shoo_cooldown, "sling_cooldown": sling_cooldown, "active_skill": active_skill},
 		"inventory": {"mushrooms": basket, "berries": berries_basket, "raw_meat": raw_meat},
 		"clock": {"food": _food_clock, "population_tick": _population_tick, "fight_tick": _fight_tick},
 		"harvested": harvested,
 		"animals": animals,
+		"aura": aura,
+		"fed": {"level": fed, "meal_timer": _meal_timer},
+		"caves": _cave_progress.duplicate(true),
 	}
+	if in_cave():
+		var offset: Vector2 = to_ground(player_position) - _cave.entrance
+		var monsters := []
+		for data in _animals:
+			if data["alive"]:
+				var at: Vector2 = to_ground(data["position"]) - _cave.entrance
+				monsters.append([data["cave_index"], at.x, at.y, data["stun"]])
+		state["underground"] = {"cave": _cave_key, "offset": [offset.x, offset.y], "monsters": monsters}
+	return state
 
 
 ## Applies an already validated save. Game-time timers resume where they were:
 ## nothing advances while the game is closed.
 func apply_state(data: Dictionary) -> void:
+	if in_cave():
+		_exit_cave(true)
 	var ground: Array = data["player"]["ground"]
 	var target := Vector2(ground[0], ground[1])
 	_shift_origin(Vector2i(roundi(target.x / 912.0), roundi(target.y / 912.0)) * 512 - origin_cells)
@@ -807,11 +908,54 @@ func apply_state(data: Dictionary) -> void:
 	_food_clock = float(data["clock"]["food"])
 	_population_tick = int(data["clock"]["population_tick"])
 	_fight_tick = int(data["clock"]["fight_tick"])
+	# Saves from before aura and feeding (version 1) start at zero, part fed.
+	aura = int(data.get("aura", 0))
+	var feeding: Dictionary = data.get("fed", {})
+	fed = float(feeding.get("level", FED_START))
+	_meal_timer = float(feeding.get("meal_timer", MEAL_INTERVAL))
+	_cave_progress = {}
+	var caves: Dictionary = data.get("caves", {})
+	for key in caves:
+		_cave_progress[key] = {"checkpoints": caves[key]["checkpoints"].map(func(v): return int(v)), "killed": caves[key]["killed"].map(func(v): return int(v))}
+	_villager_check = 0.0
 	_regrowth_check = 0.0
 	view.position = to_world(player_position) + CAMERA_OFFSET
 	_refresh_visible()
 	_sync_presentation(0.0)
+	var underground: Dictionary = data.get("underground", {})
+	if not underground.is_empty():
+		_resume_cave(underground)
 	_update_hud()
+
+
+## Re-enters the saved cave and puts Oravitsa and its monsters back where
+## they were. A cave that no longer exists at its key leaves her at its mouth.
+func _resume_cave(underground: Dictionary) -> void:
+	var parts: PackedStringArray = String(underground["cave"]).split(",")
+	var cave: Dictionary = landscape.cave_at(Vector2i(int(parts[0]), int(parts[1])))
+	if cave.is_empty():
+		return
+	_enter_cave(cave, true)
+	var offset := Vector2(underground["offset"][0], underground["offset"][1])
+	if _cave.can_walk(_cave.entrance + offset, PLAYER_RADIUS / METRE):
+		player_position = from_ground(_cave.entrance + offset)
+	_cave_exit_armed = offset.length() > 3.0
+	var saved := {}
+	for record in underground["monsters"]:
+		saved[int(record[0])] = record
+	for data in _animals:
+		if not saved.has(data["cave_index"]):
+			continue
+		var record: Array = saved[data["cave_index"]]
+		var spot: Vector2 = _cave.entrance + Vector2(record[1], record[2])
+		if _cave.can_walk(spot, ANIMAL_RADIUS[data["kind"]] / METRE):
+			data["position"] = from_ground(spot)
+			data["target"] = data["position"]
+		data["stun"] = float(record[3])
+	_loaded_center = Vector2i(-999, -999)
+	_refresh_cave_creatures()
+	view.position = to_world(player_position) + CAMERA_OFFSET
+	_sync_presentation(0.0)
 
 
 func _save_game() -> void:
@@ -842,9 +986,632 @@ func _load_game() -> void:
 
 
 func _process(delta: float) -> void:
+	if in_cave():
+		_process_cave(delta)
+		return
 	_rebase_if_needed()
 	_update_food_regrowth(delta)
+	_update_hunger(delta)
+	_villager_check -= delta
+	if _villager_check <= 0.0:
+		_villager_check = 0.5
+		_update_villagers()
 	super._process(delta)
+	_check_cave_mouth()
+
+
+func in_cave() -> bool:
+	return _cave != null
+
+
+func _refresh_visible() -> void:
+	if in_cave():
+		_loaded_center = Vector2i(-999, -999)
+		_refresh_cave_creatures()
+	else:
+		super._refresh_visible()
+
+
+## Walking into a cave mouth enters its level; stepping back out re-arms it.
+func _check_cave_mouth() -> void:
+	var here := absolute_ground(player_position)
+	var cave: Dictionary = landscape.cave_at(Vector2i(floori(here.x / 256), floori(here.y / 128)))
+	if cave.is_empty():
+		_cave_armed = true
+		return
+	var distance := here.distance_to(cave["mouth"])
+	if distance > CAVE_REARM:
+		_cave_armed = true
+	elif distance < CAVE_ENTER_RADIUS and _cave_armed and player_stun <= 0.0:
+		_enter_cave(cave)
+
+
+## The surface freezes while Oravitsa is underground: its landscape, food and
+## wildlife are hidden and kept as they are, then restored on the way out.
+func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
+	var region: Vector2i = cave["region"]
+	_cave_key = "%d,%d" % [region.x, region.y]
+	if not _cave_progress.has(_cave_key):
+		_cave_progress[_cave_key] = {"checkpoints": [], "killed": []}
+	var progress: Dictionary = _cave_progress[_cave_key]
+	_cave_return = cave["mouth"] + cave["facing"] * 2.2
+	var mouth: Vector2 = cave["mouth"] - landscape.origin
+	for sprite in _active_animals.values():
+		sprite.queue_free()
+	_active_animals.clear()
+	_sync_animal_lifecycle()
+	_surface_animals = _animals
+	var creatures: Array[Dictionary] = []
+	_animals = creatures
+	_stones.clear()
+	selected_target = -1
+	_status_peaks.clear()
+	_surface_landscape = landscape
+	landscape.visible = false
+	for node in _forage_visuals.values():
+		node.visible = false
+	var level: Node3D = CAVE_LEVEL.new()
+	level.name = "Cave"
+	level.setup(region, mouth, RAT, SPIDER)
+	stage.add_child(level)
+	level.build()
+	landscape = level
+	_cave = level
+	for i in level.spawns.size():
+		if i in progress["killed"]:
+			continue
+		var spot: Vector3 = level.spawns[i]
+		var data := _animal_record(int(spot.z), from_ground(Vector2(spot.x, spot.y)))
+		data["cave_index"] = i
+		data["bite_cooldown"] = 0.0
+		data["attack_time"] = 0.0
+		data["state"] = "roam"
+		_animals.append(data)
+	for i in progress["checkpoints"]:
+		level.checkpoint_collected(int(i))
+	player_position = from_ground(level.entrance)
+	_cave_exit_armed = false
+	_set_cave_lighting(true)
+	_loaded_center = Vector2i(-999, -999)
+	_refresh_cave_creatures()
+	view.position = to_world(player_position) + CAMERA_OFFSET
+	if not quiet:
+		_show_notice("Oravitsa enters the cave: find its glowing checkpoints", 3.5)
+	_update_hud()
+
+
+func _exit_cave(quiet: bool = false) -> void:
+	for sprite in _active_animals.values():
+		sprite.queue_free()
+	_active_animals.clear()
+	_sync_animal_lifecycle()
+	_animals = _surface_animals
+	var none: Array[Dictionary] = []
+	_surface_animals = none
+	_stones.clear()
+	selected_target = -1
+	_status_peaks.clear()
+	_cave.queue_free()
+	_cave = null
+	landscape = _surface_landscape
+	landscape.visible = true
+	for node in _forage_visuals.values():
+		node.visible = true
+	_set_cave_lighting(false)
+	player_position = _local_point([_cave_return.x, _cave_return.y])
+	_cave_armed = false
+	view.position = to_world(player_position) + CAMERA_OFFSET
+	_refresh_visible()
+	_sync_presentation(0.0)
+	if not quiet:
+		_show_notice("Back in the woods")
+	_update_hud()
+
+
+func _set_cave_lighting(underground: bool) -> void:
+	var environment: Environment = null
+	var sun: DirectionalLight3D = null
+	for child in stage.get_children():
+		if child is WorldEnvironment:
+			environment = child.environment
+		elif child is DirectionalLight3D:
+			sun = child
+	if underground:
+		_surface_light = {"background": environment.background_color, "ambient": environment.ambient_light_energy, "ambient_color": environment.ambient_light_color, "sun": sun.light_energy}
+		environment.background_color = Color("050505")
+		environment.ambient_light_color = Color("7a7f8f")
+		environment.ambient_light_energy = 0.32
+		sun.light_energy = 0.0
+		if _lantern == null:
+			_lantern = OmniLight3D.new()
+			_lantern.name = "Lantern"
+			_lantern.light_color = Color("ffd9a0")
+			_lantern.light_energy = 2.2
+			_lantern.omni_range = 11.0
+			stage.add_child(_lantern)
+		_lantern.visible = true
+		_lantern.position = to_world(player_position) + Vector3.UP * 1.7
+	elif not _surface_light.is_empty():
+		environment.background_color = _surface_light["background"]
+		environment.ambient_light_energy = _surface_light["ambient"]
+		environment.ambient_light_color = _surface_light["ambient_color"]
+		sun.light_energy = _surface_light["sun"]
+		_lantern.visible = false
+
+
+func _refresh_cave_creatures() -> void:
+	var cell := _world_cell(player_position)
+	if cell == _loaded_center:
+		return
+	_loaded_center = cell
+	_loaded_half = _stream_half()
+	_refresh_animals(cell)
+	_sync_animal_lifecycle()
+
+
+## Underground only Oravitsa, her skills and the cave's monsters run; the
+## surface simulation waits, unchanged, for her return.
+func _process_cave(delta: float) -> void:
+	_update_player(delta)
+	if not in_cave():
+		return
+	_refresh_cave_creatures()
+	_move_cave_creatures(delta)
+	_update_sling(delta)
+	_update_hunger(delta)
+	_check_cave_points()
+	if not in_cave():
+		return
+	_update_hud()
+	_minimap.queue_redraw()
+	_sync_presentation(delta)
+
+
+func _check_cave_points() -> void:
+	var here := to_ground(player_position)
+	var progress: Dictionary = _cave_progress[_cave_key]
+	for i in _cave.checkpoints.size():
+		if i not in progress["checkpoints"] and here.distance_to(_cave.checkpoints[i]) <= _cave.CHECKPOINT_RADIUS:
+			progress["checkpoints"].append(i)
+			_cave.checkpoint_collected(i)
+			_add_aura(AURA["checkpoint"], "cave checkpoint %d of %d" % [progress["checkpoints"].size(), _cave.checkpoints.size()])
+	var to_exit := here.distance_to(_cave.entrance)
+	if to_exit > 3.0:
+		_cave_exit_armed = true
+	elif _cave_exit_armed and to_exit < _cave.EXIT_RADIUS:
+		_exit_cave()
+
+
+## Giant rats and spiders roam near where they lair, chase Oravitsa when they
+## see her and bite, which only stuns her. Shoo drives one off; Sling stuns
+## one so it can be finished for aura.
+func _move_cave_creatures(delta: float) -> void:
+	for id in _active_animals.keys():
+		var data := _animals[id]
+		if not data["alive"]:
+			continue
+		var sprite: AnimatedSprite2D = _active_animals[id]
+		for timer in ["stun", "shoo", "bite_cooldown", "attack_time"]:
+			data[timer] = maxf(0.0, data[timer] - delta)
+		var position: Vector2 = data["position"]
+		if data["stun"] > 0.0 or data["attack_time"] > 0.0:
+			data["velocity"] = Vector2.ZERO
+			continue
+		var kind: int = data["kind"]
+		var to_player := player_position - position
+		var distance := to_player.length()
+		var speed: float = ANIMAL_SPEEDS[kind]
+		var target: Vector2 = data["target"]
+		if data["shoo"] > 0.0:
+			target = position - to_player.normalized() * 300.0
+			speed *= 1.6
+			data["state"] = "scared"
+		elif distance < MONSTER_SIGHT * METRE:
+			data["state"] = "hunt"
+			target = player_position
+			if distance <= ANIMAL_RADIUS[kind] + PLAYER_RADIUS + 10.0 and data["bite_cooldown"] <= 0.0 and player_stun <= 0.0:
+				player_stun = _player_stun_time(BITE_STUN)
+				data["bite_cooldown"] = BITE_COOLDOWN
+				data["attack_time"] = 0.6
+				data["velocity"] = Vector2.ZERO
+				_show_notice("The %s bit Oravitsa!" % ANIMAL_NAMES[kind].to_lower())
+				continue
+		else:
+			data["state"] = "roam"
+			speed *= 0.35
+			data["timeout"] = float(data["timeout"]) - delta
+			if position.distance_to(target) < 12.0 or data["timeout"] <= 0.0:
+				data["turn"] += 1
+				var home: Vector2 = data["home"]
+				var spot: Vector2 = home + Vector2.from_angle(_hash(id, data["turn"], 1801) * TAU) * _hash(id, data["turn"], 1802) * 3.0 * METRE
+				target = spot if _can_stand(spot, ANIMAL_RADIUS[kind]) else position
+				data["target"] = target
+				data["timeout"] = 2.0 + _hash(id, data["turn"], 1803) * 4.0
+		var heading := position.direction_to(target) if position.distance_to(target) > 4.0 else Vector2.ZERO
+		var velocity: Vector2 = data["velocity"]
+		velocity = velocity.move_toward(heading * speed, 600.0 * delta)
+		var step := velocity * delta
+		var candidate := position
+		if _can_animal_move(id, candidate + Vector2(step.x, 0)):
+			candidate.x += step.x
+		if _can_animal_move(id, candidate + Vector2(0, step.y)):
+			candidate.y += step.y
+		if candidate.distance_squared_to(position) < 0.01:
+			velocity = Vector2.ZERO
+		data["velocity"] = velocity
+		data["position"] = candidate
+		sprite.position = candidate
+
+
+func _animation_override(id: int, wanted: String, animator: AnimationPlayer) -> String:
+	if float(_animals[id].get("attack_time", 0.0)) > 0.0 and animator.has_animation("Attack"):
+		return "Attack"
+	if float(_animals[id].get("thanks", 0.0)) > 0.0 and animator.has_animation("Wave"):
+		return "Wave"
+	return wanted
+
+
+## Nearest stunned giant rat or spider within reach; only those can be killed.
+func _stunned_monster_near(radius: float) -> int:
+	var nearest := -1
+	var best := radius
+	for id in _active_animals:
+		var data := _animals[id]
+		if data["alive"] and data["kind"] in [RAT, SPIDER] and data["stun"] > 0.0:
+			var distance := player_position.distance_to(data["position"])
+			if distance <= best:
+				best = distance
+				nearest = id
+	return nearest
+
+
+func _collect_nearby() -> void:
+	if not in_cave():
+		super._collect_nearby()
+		return
+	var id := _stunned_monster_near(HARE_PICKUP_RADIUS)
+	if id >= 0 and player_stun <= 0.0:
+		_kill_monster(id)
+
+
+## A stunned giant rat or spider is finished off once, for aura; its Death
+## clip plays and it stays dead in this cave.
+func _kill_monster(id: int) -> void:
+	var data := _animals[id]
+	if not data["alive"] or data["kind"] not in [RAT, SPIDER] or data["stun"] <= 0.0:
+		return
+	data["alive"] = false
+	data["stun"] = 0.0
+	data["velocity"] = Vector2.ZERO
+	_cave_progress[_cave_key]["killed"].append(int(data["cave_index"]))
+	if _animal_models.has(id):
+		var model: Node3D = _animal_models[id]
+		var animator: AnimationPlayer = _animal_players.get(id)
+		_animal_models.erase(id)
+		_animal_players.erase(id)
+		_animal_stars[id].queue_free()
+		_animal_stars.erase(id)
+		_animal_shadows[id].queue_free()
+		_animal_shadows.erase(id)
+		if animator != null and animator.has_animation("Death"):
+			animator.speed_scale = 1.0
+			animator.play("Death")
+			get_tree().create_timer(2.5).timeout.connect(func():
+				if is_instance_valid(model):
+					model.queue_free())
+		else:
+			model.queue_free()
+	if _active_animals.has(id):
+		_active_animals[id].queue_free()
+		_active_animals.erase(id)
+	if selected_target == id:
+		selected_target = -1
+	_add_aura(AURA["rat"] if data["kind"] == RAT else AURA["spider"], "defeated a " + ANIMAL_NAMES[data["kind"]].to_lower())
+
+
+func is_hungry() -> bool:
+	return fed <= 0.0
+
+
+## Starving she walks at HUNGRY_SPEED, half fed at normal speed, and full at
+## FULL_SPEED.
+func fed_speed() -> float:
+	var level := fed / FED_MAX
+	return lerpf(HUNGRY_SPEED, 1.0, level * 2.0) if level < 0.5 else lerpf(1.0, FULL_SPEED, level * 2.0 - 1.0)
+
+
+func _move_speed() -> float:
+	return SPEED * fed_speed()
+
+
+func _player_stun_time(seconds: float) -> float:
+	return seconds * lerpf(1.0, FULL_STUN, fed / FED_MAX)
+
+
+## Aura, the game's points: every gain or loss shows a notice and flashes the
+## HUD badge.
+func _add_aura(amount: int, reason: String) -> void:
+	aura += amount
+	_show_notice("%+d aura · %s" % [amount, reason])
+	if is_instance_valid(_aura_badge):
+		_aura_badge.show_change(amount)
+	_update_hud()
+
+
+## One item picked at random from the bag (each item equally likely), removed
+## from it; "" when the bag is empty.
+func _take_random_food() -> String:
+	var total := berries_basket + basket + raw_meat
+	if total <= 0:
+		return ""
+	var pick := _food_rng.randi_range(0, total - 1)
+	if pick < berries_basket:
+		berries_basket -= 1
+		return "berries"
+	if pick < berries_basket + basket:
+		basket -= 1
+		return "mushroom"
+	raw_meat -= 1
+	return "raw_meat"
+
+
+## She grows hungrier steadily and eats a random bag item each MEAL_INTERVAL
+## unless she is full. A due meal waits for food, and once she is starving
+## she eats whatever she finds at once.
+func _update_hunger(delta: float) -> void:
+	var was_hungry := is_hungry()
+	fed = maxf(0.0, fed - FED_DECAY * delta)
+	_meal_timer = maxf(0.0, _meal_timer - delta)
+	if _meal_timer > 0.0 and fed > 0.0:
+		return
+	if fed >= FED_FULL:
+		_meal_timer = MEAL_INTERVAL
+		return
+	var meal := _take_random_food()
+	if meal.is_empty():
+		if is_hungry() and not was_hungry:
+			_show_notice("Oravitsa is starving and slower: find food", 3.0)
+			_update_hud()
+		return
+	fed = minf(FED_MAX, fed + MEAL_VALUE[meal])
+	_meal_timer = MEAL_INTERVAL
+	_show_notice("Oravitsa ate " + MEAL_NAMES[meal] + ("; she is no longer starving" if was_hungry else ""))
+	_update_hud()
+
+
+## The hamlet chieftain Oravitsa can give food to: close by, awake and calm.
+func _offer_chief() -> int:
+	for id in _active_animals:
+		var data := _animals[id]
+		if data.get("chief", false) and data["alive"] and data["stun"] <= 0.0 and data["shoo"] <= 0.0 and player_position.distance_to(data["position"]) <= OFFER_RADIUS * METRE:
+			return id
+	return -1
+
+
+func _offer_ready() -> bool:
+	return not in_cave() and player_stun <= 0.0 and basket + berries_basket + raw_meat > 0 and _offer_chief() >= 0
+
+
+## Gives one random bag item to the chieftain for aura; raw meat is worth
+## most. He waves his thanks.
+func _offer_food() -> void:
+	if not _offer_ready():
+		return
+	var chief := _offer_chief()
+	var meal := _take_random_food()
+	_animals[chief]["thanks"] = 1.8
+	_animals[chief]["velocity"] = Vector2.ZERO
+	_add_aura(AURA["meat"] if meal == "raw_meat" else AURA["food"], "gave " + MEAL_NAMES[meal] + " to the chieftain")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Beside a chieftain, A gives him food instead of picking up.
+	if event is InputEventJoypadButton and event.pressed and event.is_action_pressed("pick_up") and _offer_ready():
+		_offer_food()
+		get_viewport().set_input_as_handled()
+		return
+	super._unhandled_input(event)
+
+
+func _on_shooed(id: int) -> void:
+	if _animals[id]["kind"] == VILLAGER:
+		_add_aura(AURA["shoo_villager"], "never shoo villagers")
+
+
+func _on_sling_hit(id: int) -> void:
+	if _animals[id]["kind"] == VILLAGER:
+		_add_aura(AURA["hit_villager"], "never hit villagers")
+
+
+func _passes_through(id: int) -> bool:
+	return _animals[id]["kind"] == VILLAGER
+
+
+func _moves_itself(id: int, delta: float) -> bool:
+	if _animals[id]["kind"] != VILLAGER:
+		return false
+	_move_villager(id, delta)
+	return true
+
+
+## Villagers stroll around their clearing, pause, and ignore Oravitsa: she
+## walks through them and they through her. Shoo makes one run off; Sling
+## stuns one. Both cost aura. The chieftain keeps to his post at the store tent.
+func _move_villager(id: int, delta: float) -> void:
+	var data := _animals[id]
+	var sprite: AnimatedSprite2D = _active_animals[id]
+	data["stun"] = maxf(0.0, data["stun"] - delta)
+	data["shoo"] = maxf(0.0, data["shoo"] - delta)
+	data["thanks"] = maxf(0.0, data.get("thanks", 0.0) - delta)
+	var position: Vector2 = data["position"]
+	if data["stun"] > 0.0 or data["thanks"] > 0.0:
+		data["velocity"] = Vector2.ZERO
+		return
+	var speed: float = ANIMAL_SPEEDS[VILLAGER]
+	var target: Vector2 = data["target"]
+	if data["shoo"] > 0.0:
+		var away: Vector2 = (position - player_position).normalized()
+		if away.length_squared() < 0.01:
+			away = Vector2.DOWN
+		target = position + away * 300.0
+		speed *= 3.0
+		data["state"] = "scared"
+	else:
+		if data["state"] == "scared":
+			data["state"] = "roam"
+			data["timeout"] = 0.0
+		data["timeout"] = float(data["timeout"]) - delta
+		if data.get("chief", false):
+			target = data["home"]
+			data["target"] = target
+		elif position.distance_to(target) < 10.0 or data["timeout"] <= 0.0:
+			data["turn"] += 1
+			var home: Vector2 = data["home"]
+			target = position # Pauses are part of strolling.
+			if _hash(id, data["turn"], 1701) >= 0.35:
+				var reach: float = (4.0 + _hash(id, data["turn"], 1702) * (landscape.HAMLET_RADIUS - 9.0)) * METRE
+				var spot: Vector2 = home + Vector2.from_angle(_hash(id, data["turn"], 1703) * TAU) * reach
+				if _can_stand(spot, ANIMAL_RADIUS[VILLAGER]):
+					target = spot
+			data["target"] = target
+			data["timeout"] = 3.0 + _hash(id, data["turn"], 1704) * 6.0
+			data["state"] = "roam"
+	var heading := position.direction_to(target) if position.distance_to(target) > 6.0 else Vector2.ZERO
+	var velocity: Vector2 = data["velocity"]
+	velocity = velocity.move_toward(heading * speed, 220.0 * delta)
+	var step := velocity * delta
+	var candidate := position
+	if _can_animal_move(id, candidate + Vector2(step.x, 0)):
+		candidate.x += step.x
+	if _can_animal_move(id, candidate + Vector2(0, step.y)):
+		candidate.y += step.y
+	if candidate.distance_squared_to(position) < 0.01:
+		velocity = Vector2.ZERO
+	data["velocity"] = velocity
+	data["position"] = candidate
+	sprite.position = candidate
+
+
+## Villagers appear at hamlets near Oravitsa and leave once she is far away.
+## They are not wildlife and are never saved: each hamlet regenerates its
+## own seeded villagers.
+func _update_villagers() -> void:
+	var here := absolute_ground(player_position)
+	var block := Vector2i(floori(here.x / landscape.HAMLET_BLOCK.x), floori(here.y / landscape.HAMLET_BLOCK.y))
+	var wanted := {}
+	for dz in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			var hamlet: Dictionary = landscape.hamlet_at(block + Vector2i(dx, dz))
+			if not hamlet.is_empty() and here.distance_to(hamlet["center"]) < VILLAGER_APPEAR:
+				wanted[hamlet["block"]] = hamlet
+	var present := {}
+	var changed := false
+	for id in _animals.size():
+		var data := _animals[id]
+		if data["kind"] != VILLAGER or not data["alive"]:
+			continue
+		var home: Dictionary = landscape.hamlet_at(data["hamlet"])
+		if home.is_empty() or here.distance_to(home["center"]) > VILLAGER_LEAVE:
+			data["alive"] = false
+			data["gone"] = true
+			data["respawn"] = 0.0
+			if _active_animals.has(id):
+				_active_animals[id].queue_free()
+				_active_animals.erase(id)
+			if selected_target == id:
+				selected_target = -1
+			changed = true
+		else:
+			present[data["hamlet"]] = true
+	for key in wanted:
+		if not present.has(key):
+			_spawn_villagers(wanted[key])
+			changed = true
+	if changed:
+		_refresh_animals(_loaded_center)
+		_sync_animal_lifecycle()
+
+
+## Each hamlet has its chieftain, at his post before the entrance of his store
+## tent, and two to four villagers.
+func _spawn_villagers(hamlet: Dictionary) -> void:
+	var block: Vector2i = hamlet["block"]
+	var span := VILLAGERS_PER_HAMLET.y - VILLAGERS_PER_HAMLET.x + 1
+	var count := VILLAGERS_PER_HAMLET.x + mini(span - 1, int(landscape.random_at(block, 140) * span))
+	var center: Vector2 = hamlet["center"]
+	var store: Vector2 = hamlet["store"]
+	for attempt in 8:
+		var q: Vector2 = store + Vector2.from_angle(PI * 0.5 + attempt * TAU / 8.0) * (landscape.STORE_HALF + 0.9)
+		var post := _local_point([q.x, q.y])
+		if _can_stand(post, ANIMAL_RADIUS[VILLAGER]):
+			var chief := _animal_record(VILLAGER, post)
+			chief["home"] = post
+			chief["target"] = post
+			chief["state"] = "roam"
+			chief["hamlet"] = block
+			chief["chief"] = true
+			_add_villager(chief)
+			break
+	for i in count:
+		for attempt in 30:
+			var angle: float = landscape.random_at(block + Vector2i(i, attempt), 141) * TAU
+			var reach: float = 5.0 + landscape.random_at(block + Vector2i(attempt, i), 142) * (landscape.HAMLET_RADIUS - 11.0)
+			var q: Vector2 = center + Vector2.from_angle(angle) * reach
+			var spot := _local_point([q.x, q.y])
+			if not _can_stand(spot, ANIMAL_RADIUS[VILLAGER]):
+				continue
+			var data := _animal_record(VILLAGER, spot)
+			data["home"] = _local_point([center.x, center.y])
+			data["target"] = spot
+			data["state"] = "roam"
+			data["hamlet"] = block
+			data["look"] = (int(landscape.random_at(block, 143) * VILLAGER_LOOKS.size()) + i) % VILLAGER_LOOKS.size()
+			_add_villager(data)
+			break
+
+
+func _add_villager(data: Dictionary) -> void:
+	for id in _animals.size():
+		if _animals[id]["kind"] == VILLAGER and _animals[id]["gone"] and not _active_animals.has(id):
+			_animals[id] = data
+			return
+	_animals.append(data)
+
+
+## Villagers, giant rats and giant spiders use CC0 Quaternius models; their
+## clips are aliased to the Idle/Walk/Attack/Death names the stage plays.
+func _animal_model(id: int) -> Node3D:
+	var kind: int = _animals[id]["kind"]
+	if kind not in [RAT, SPIDER, VILLAGER]:
+		return super._animal_model(id)
+	var file: String = {RAT: "rat", SPIDER: "spider"}.get(kind, VILLAGER_LOOKS[int(_animals[id].get("look", 0)) % VILLAGER_LOOKS.size()])
+	var height: float = _animal_heights[kind]
+	if _animals[id].get("chief", false):
+		file = "chieftain"
+		height = CHIEF_HEIGHT
+	var model: Node3D = load(CREATURES + file + ".glb").instantiate()
+	stage.add_child(model)
+	var bounds := _model_bounds(model)
+	model.scale = Vector3.ONE * height / maxf(bounds.size.y, 0.01)
+	var animator := _find_animator(model)
+	if animator != null:
+		_alias_clips(animator)
+		animator.play("Idle")
+		_animal_players[id] = animator
+	return model
+
+
+func _alias_clips(animator: AnimationPlayer) -> void:
+	var library := animator.get_animation_library(animator.get_animation_library_list()[0])
+	for clip in ["Idle", "Walk", "Attack", "Death", "Wave"]:
+		if library.has_animation(clip):
+			continue
+		for clip_name in animator.get_animation_list():
+			if clip_name.ends_with("|" + clip) or clip_name.ends_with("_" + clip):
+				var animation: Animation = animator.get_animation(clip_name)
+				animation.loop_mode = Animation.LOOP_NONE if clip in ["Attack", "Death", "Wave"] else Animation.LOOP_LINEAR
+				library.add_animation(clip, animation)
+				break
 
 
 ## Fights and provocation take precedence over stun and fear icons; each is
@@ -862,8 +1629,26 @@ func _status_states(id: int) -> Array:
 
 func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
+	if in_cave():
+		if is_instance_valid(_lantern):
+			_lantern.position = heroine.position + Vector3.UP * 1.7
+		for id in _animal_stars:
+			_animal_stars[id].set_on_top(true) # Readable against the monsters' dark bodies.
+		var near_exit: bool = to_ground(player_position).distance_to(_cave.entrance) < 3.0
+		_landmark_label.text = "Way out to the woods" if near_exit else "Cave · first level"
+		return
 	if audio != null:
 		audio.update(delta)
+	var near_chief := false
+	for id in _animal_models:
+		var data: Dictionary = _animals[id]
+		if data.get("chief", false) and data["velocity"].length_squared() < 1:
+			# At his post he turns to Oravitsa when she comes close.
+			var to_her: Vector2 = player_position - data["position"]
+			if to_her.length() < 7.0 * METRE:
+				near_chief = true
+				var facing: Vector3 = to_world(player_position) - _animal_models[id].position
+				_animal_models[id].rotation.y = atan2(facing.x, facing.z)
 	for id in _animal_stars:
 		var data: Dictionary = _animals[id]
 		var marker: Node3D = _animal_stars[id]
@@ -888,7 +1673,7 @@ func _sync_presentation(delta: float) -> void:
 		_landmark_label.text = ["Forgotten homestead", "Old standing stones", "Abandoned woodcutters’ camp", "Mossy cairns"][site["kind"]]
 	var hamlet: Dictionary = landscape.hamlet_near(absolute)
 	if not hamlet.is_empty() and absolute.distance_to(hamlet["center"]) < landscape.HAMLET_RADIUS:
-		_landmark_label.text = "Empty hamlet"
+		_landmark_label.text = "Hamlet · the chieftain’s store" if near_chief else "Hamlet"
 	var cave: Dictionary = landscape.cave_at(Vector2i(floori(absolute.x / 256), floori(absolute.y / 128)))
 	if not cave.is_empty() and absolute.distance_to(cave["mouth"]) < 8:
 		_landmark_label.text = "Cave mouth"

@@ -130,6 +130,8 @@ func call_now(id: int) -> bool:
 	if slot < 0:
 		return false
 	var kind: int = forest._animals[id]["kind"]
+	if not _calls.has(kind):
+		return false # Villagers and cave monsters have no recorded calls.
 	var voice := _voices[slot]
 	voice.stream = load(AUDIO + _calls[kind] + ".wav")
 	voice.volume_db = _volume[kind]

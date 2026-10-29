@@ -41,10 +41,11 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twenty smoke scripts, including targeted
+`verify.py` imports and runs all twenty-two smoke scripts, including targeted
 Shoo, endless-world travel/rebasing/ecology/food regrowth, fox foraging, hare
-collection, aggression, fights, save/load, audio wiring, empty hamlets and
-cave mouths, queued streaming,
+collection, aggression, fights, save/load, audio wiring, hamlets and
+cave mouths, aura/feeding/villagers/chieftain gifts, cave levels and their
+monsters, queued streaming,
 offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
@@ -65,22 +66,45 @@ Record unavailable checks as untested, never as passed.
 
 ## Gameplay contracts
 
-- Oravitsa never injures animals, and hares are the only ones she kills:
+- Oravitsa never injures wildlife, and hares are the only wildlife she kills:
   unchecked, hares would multiply out of control. Sling stuns; Shoo repels. A
   hare that is currently stunned and within 75 px can be collected (walk-over,
   or A on a controller). It is removed exactly once and immediately becomes
-  one raw meat; no other species can be killed or collected.
+  one raw meat; no other wildlife species can be killed or collected. The
+  giant rats and spiders of cave levels are monsters, not wildlife: a stunned
+  one within 75 px can be finished the same way, once, for aura.
   Sling and Shoo use the selected animal. Shoo applies five seconds of visible
   scared status and fast escape, with a seven-second cooldown; invalid casts do
   not spend cooldown. It interrupts feeding/hunting and existing animal stun.
   Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
 - Oravitsa walks through stunned animals with no bump. Walking into an awake
-  animal stuns both for 1.2 seconds. Stepping out of an animal she overlaps
+  animal stuns both for 1.2 seconds (Oravitsa less when well fed, above). Stepping out of an animal she overlaps
   (one that woke up under her) is never a bump, and such an animal can step
   away from her but never further in.
 - Animal states (stunned, scared, angry, charging, fighting) are shown as
   icons above the animal, never as text. Timed states have a time-left bar,
   and stun and fear can show together.
+- Aura is the endless world's points: a HUD icon with the number on top.
+  Gains: finishing a giant rat (+5) or spider (+10), a cave checkpoint (+20,
+  once each) and food given to a hamlet's chieftain (+1 berries/mushroom, +3
+  raw meat). Losses: shooing (−5) or hitting (−10) a villager or chieftain.
+- Feeding: a fed level from 0 to 100, shown beside aura, falls 0.3 per
+  second. Every 120 s Oravitsa eats one random bag item (berries +25,
+  mushroom +30, raw meat +50) unless she is at 80 or more; starving (0), she
+  eats as soon as she has food. Her speed runs from 60% starving through
+  100% half fed to 120% full, and the stuns she suffers (bumps, charges,
+  bites) shrink from full length starving to half when full. Hunger never
+  harms her.
+- Hamlet villagers ignore Oravitsa: neither blocks or bumps the other. Each
+  hamlet's chieftain keeps to his post at his store tent and takes food gifts, one
+  random bag item each (not while stunned or scared). Villagers and
+  chieftains are seeded per hamlet and never saved.
+- Each cave mouth leads to its seeded first level. The surface freezes while
+  Oravitsa is underground. Saving works there: the save keeps the surface,
+  her spot in the cave and the living monsters' positions and stuns. Rats
+  and spiders bite, which only stuns her (1.5 s at most); there is still no
+  health or death. Killed monsters and collected checkpoints persist per cave
+  in the save.
 - In the endless world wolves/lynxes are more frequent, sprint in longer and
   faster spurts, hunt both prey species and despawn after 180 hungry seconds.
   Endless foxes also hunt hares but rarely catch them. The finite scenes

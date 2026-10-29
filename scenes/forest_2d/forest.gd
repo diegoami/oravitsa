@@ -33,9 +33,13 @@ const FOX := 2
 const LYNX := 3
 const HARE := 4
 const WOLF := 5
-const ANIMAL_NAMES := {BOAR: "Boar", DEER: "Deer", FOX: "Fox", LYNX: "Lynx", HARE: "Hare", WOLF: "Wolf"}
-const ANIMAL_SPEEDS := {BOAR: 52.0, DEER: 96.0, FOX: 112.0, LYNX: 91.0, HARE: 108.0, WOLF: 120.0}
-const ANIMAL_RADIUS := {BOAR: 30.0, DEER: 25.0, FOX: 22.0, LYNX: 25.0, HARE: 19.0, WOLF: 30.0}
+# Endless-world only: cave monsters and hamlet villagers, never wildlife.
+const RAT := 6
+const SPIDER := 7
+const VILLAGER := 8
+const ANIMAL_NAMES := {BOAR: "Boar", DEER: "Deer", FOX: "Fox", LYNX: "Lynx", HARE: "Hare", WOLF: "Wolf", RAT: "Giant rat", SPIDER: "Giant spider", VILLAGER: "Villager"}
+const ANIMAL_SPEEDS := {BOAR: 52.0, DEER: 96.0, FOX: 112.0, LYNX: 91.0, HARE: 108.0, WOLF: 120.0, RAT: 150.0, SPIDER: 120.0, VILLAGER: 46.0}
+const ANIMAL_RADIUS := {BOAR: 30.0, DEER: 25.0, FOX: 22.0, LYNX: 25.0, HARE: 19.0, WOLF: 30.0, RAT: 26.0, SPIDER: 30.0, VILLAGER: 20.0}
 const LYNX_BURST_SPEED := 220.0
 const LYNX_BURST_TIME := 1.5
 const LYNX_BURST_RECOVERY := 3.4
@@ -137,23 +141,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	player_stun = maxf(0.0, player_stun - delta)
-	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
-	_notice_time = maxf(0.0, _notice_time - delta)
-	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	direction = (direction + _touch_controls.direction).limit_length()
-	var before_move := player_position
-	if direction.length_squared() > 0.0 and player_stun <= 0.0:
-		var step := direction * SPEED * delta
-		if not _try_move(step) and player_stun <= 0.0:
-			_try_move(Vector2(step.x, 0.0))
-			_try_move(Vector2(0.0, step.y))
-	_update_player_walk(player_position - before_move)
-	_player.modulate = Color(0.66, 0.78, 0.91) if player_stun > 0.0 else Color.WHITE
-	_player.position = player_position
-	_camera.position = player_position
-	if _input_mode != "controller":
-		_collect_nearby()
+	_update_player(delta)
 	var cell := _world_cell(player_position)
 	if cell != _loaded_center or _stream_half() != _loaded_half:
 		_refresh_visible()
@@ -166,6 +154,39 @@ func _process(delta: float) -> void:
 		_replenish_local_animals()
 	_update_hud()
 	_minimap.queue_redraw()
+
+
+## Oravitsa's timers, movement, walk animation and walk-over pickups.
+func _update_player(delta: float) -> void:
+	player_stun = maxf(0.0, player_stun - delta)
+	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
+	_notice_time = maxf(0.0, _notice_time - delta)
+	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	direction = (direction + _touch_controls.direction).limit_length()
+	var before_move := player_position
+	if direction.length_squared() > 0.0 and player_stun <= 0.0:
+		var step := direction * _move_speed() * delta
+		if not _try_move(step) and player_stun <= 0.0:
+			_try_move(Vector2(step.x, 0.0))
+			_try_move(Vector2(0.0, step.y))
+	_update_player_walk(player_position - before_move)
+	_player.modulate = Color(0.66, 0.78, 0.91) if player_stun > 0.0 else Color.WHITE
+	_player.position = player_position
+	_camera.position = player_position
+	if _input_mode != "controller":
+		_collect_nearby()
+
+
+## Oravitsa's walking speed; in the endless woods it depends on how well fed
+## she is.
+func _move_speed() -> float:
+	return SPEED
+
+
+## How long a stun of `seconds` lasts for Oravitsa; being well fed in the
+## endless woods shortens it.
+func _player_stun_time(seconds: float) -> float:
+	return seconds
 
 
 func _update_player_walk(motion: Vector2) -> void:
@@ -400,6 +421,7 @@ func _update_sling(delta: float) -> void:
 			_active_animals[id].stop()
 			_active_animals[id].modulate = Color(0.66, 0.78, 0.91)
 			_stones.remove_at(index)
+			_on_sling_hit(id)
 		else:
 			stone["heading"] = position.direction_to(destination)
 			stone["position"] = position.move_toward(destination, step)
@@ -957,7 +979,7 @@ func _can_animal_move(id: int, candidate: Vector2) -> bool:
 	# Oravitsa may stand over an animal that was stunned; once awake it can
 	# still step away from her, never further in.
 	var distance := candidate.distance_to(player_position)
-	if distance < ANIMAL_RADIUS[kind] + PLAYER_RADIUS and distance < _animals[id]["position"].distance_to(player_position):
+	if not _passes_through(id) and distance < ANIMAL_RADIUS[kind] + PLAYER_RADIUS and distance < _animals[id]["position"].distance_to(player_position):
 		return false
 	for other_id in _active_animals.keys():
 		if other_id == id or not _animals[other_id]["alive"]:
@@ -986,12 +1008,32 @@ func _shoo() -> void:
 	data["catch_time"] = 0.0
 	data["timeout"] = 0.0
 	data["velocity"] = away * SHOO_FLEE_SPEED
+	_on_shooed(selected_target)
 	if data.has("route"):
 		data["route"] = PackedVector2Array()
 		data["nav_cooldown"] = 0.0
 		data["stuck"] = 0.0
 		data["progress_time"] = 0.0
 		data["progress_origin"] = data["position"]
+
+
+## Hooks for scenes that score skills (the endless woods' aura).
+func _on_shooed(_id: int) -> void:
+	pass
+
+
+func _on_sling_hit(_id: int) -> void:
+	pass
+
+
+## Actors that move themselves (villagers, cave monsters) skip the wildlife AI.
+func _moves_itself(_id: int, _delta: float) -> bool:
+	return false
+
+
+## Actors Oravitsa neither bumps nor blocks (villagers ignore her entirely).
+func _passes_through(_id: int) -> bool:
+	return false
 
 
 func _shoo_ready() -> bool:
@@ -1193,6 +1235,8 @@ func _move_animals(delta: float) -> void:
 	for id in _active_animals.keys():
 		if not _active_animals.has(id) or not _animals[id]["alive"]:
 			continue
+		if _moves_itself(id, delta):
+			continue
 		var data := _animals[id]
 		# Only consecutive frames holding the same prey retain catch progress.
 		var previous_catch_target: int = data["catch_target"]
@@ -1368,11 +1412,11 @@ func _try_move(step: Vector2) -> bool:
 func _bump_animal(candidate: Vector2) -> bool:
 	for id in _active_animals.keys():
 		var animal := _animals[id]
-		if not animal["alive"] or animal["stun"] > 0.0:
+		if not animal["alive"] or animal["stun"] > 0.0 or _passes_through(id):
 			continue
 		var distance := candidate.distance_to(animal["position"])
 		if distance < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]] and distance < player_position.distance_to(animal["position"]):
-			player_stun = CONTACT_STUN_TIME
+			player_stun = _player_stun_time(CONTACT_STUN_TIME)
 			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
 			animal["velocity"] = Vector2.ZERO
 			return true

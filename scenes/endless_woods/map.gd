@@ -2,11 +2,14 @@ extends Control
 var forest: Node2D
 var _map_texture: ImageTexture
 var _map_center := Vector2(INF, INF)
-const COLORS := [Color("ad7460"), Color("e8c690"), Color("f59a52"), Color("d6ad53"), Color("eee7cc"), Color("a8b5bc")]
+const COLORS := [Color("ad7460"), Color("e8c690"), Color("f59a52"), Color("d6ad53"), Color("eee7cc"), Color("a8b5bc"), Color("8c7f8e"), Color("6c5a78"), Color("7fc7e8")]
 
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color("172538"))
+	if forest.in_cave():
+		draw_string(ThemeDB.fallback_font, Vector2(20, 130), "Underground: no map", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color("e5d6ad"))
+		return
 	var center: Vector2 = forest.absolute_ground(forest.player_position)
 	if _map_texture == null or center.distance_to(_map_center) > 2:
 		_map_center = center

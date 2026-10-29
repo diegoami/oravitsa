@@ -6,8 +6,13 @@ six, bare gardens, no wildlife inside, and the proposed names and icons. It
 is implemented in the endless woods (see the world guide). Two implementation
 details differ from the sketch below: hamlets are at least 256 m apart (one
 per 512 × 384 m block), and cave mouths always open south toward the fixed
-camera. Interiors (option B) remain unbuilt. Caves and villages stay **uninhabited**: no NPCs, quests, shops,
-enemies or settlement systems.
+camera.
+
+Update 2026-10-29: the owner extended this. Hamlets now have wandering
+villagers and a chieftain who takes food gifts at his store tent, which
+replaced the hamlet well. Each cave mouth leads to a seeded
+first level with checkpoints and giant rats and spiders (issues #44–#46; see
+the world guide). There are still no quests, shops or settlement systems.
 
 ## How they would fit the current world
 
