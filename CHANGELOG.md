@@ -1,6 +1,9 @@
 # Changes
 
-## Unreleased
+## 0.2.0-alpha.2 — hamlets and caves (candidate)
+
+This release supersedes the unreleased 0.2.0-alpha.1 candidate and includes
+all of its changes, listed in the next section.
 
 - Oravitsa walks through stunned animals with no bump. Stepping out of an
   animal that woke up under her is never a bump either, and it can step away.
@@ -11,14 +14,13 @@
   side.
 - The hare exception is now stated with its reason: hares are the only
   animals Oravitsa kills, because unchecked they would multiply out of control.
-
 - Empty hamlets at one road crossing in six: 3–6 closed, weathered cottages, a
   well and a bare clearing. Exterior cave mouths on high ground in about one
   landmark region in three. Both are seeded and solid, with walkable trails,
   map icons and labels (#22). Saves from before hamlets load with Oravitsa
   and animals moved off any new house to the nearest open ground.
 
-## 0.2.0-alpha.1 — living woods (candidate)
+## 0.2.0-alpha.1 — living woods (never released; included in 0.2.0-alpha.2)
 
 - Sparser endless woods: food and wildlife at about a third of v0.1 density
   (#21); finite scenes unchanged.
