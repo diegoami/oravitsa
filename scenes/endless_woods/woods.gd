@@ -846,13 +846,16 @@ func _process(delta: float) -> void:
 	super._process(delta)
 
 
-## Fights and provocation take precedence over stun and fear icons.
+## Fights and provocation take precedence over stun and fear icons; each is
+## timed, so its bar shows the time left of that phase.
 func _status_states(id: int) -> Array:
 	var data: Dictionary = _animals[id]
 	if data["alive"] and data["fight_with"] >= 0:
-		return [["fighting", -1.0]]
-	if data["alive"] and data["aggro"] != AGGRO_NONE:
-		return [["angry" if data["aggro"] == AGGRO_WARN else "charging", -1.0]]
+		return [["fighting", clampf(data["fight_time"] / FIGHT_TIME, 0.0, 1.0)]]
+	if data["alive"] and data["aggro"] == AGGRO_WARN:
+		return [["angry", clampf(data["aggro_time"] / AGGRO_WARN_TIME, 0.0, 1.0)]]
+	if data["alive"] and data["aggro"] == AGGRO_CHARGE:
+		return [["charging", clampf(data["aggro_time"] / AGGRO_CHARGE_TIME, 0.0, 1.0)]]
 	return super._status_states(id)
 
 
