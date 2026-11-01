@@ -1,6 +1,24 @@
 # Changes
 
-## Unreleased
+## 0.2.0-alpha.3 — livelier caves (candidate)
+
+- Animals no longer get stuck in loops (#52). They used to turn back and forth
+  at the edge of their home range, wander straight back into what had just
+  scared them, and press forever against food or a way home they could not
+  reach. Now they walk well back inside their range, stay clear of what scared
+  them, and give up on what they cannot reach.
+- Shoo sends animals off at a less extreme speed, about 1.4 times Oravitsa's
+  normal walking speed instead of 1.8 (#53).
+- Giant rats and spiders are much more active (#50). They scurry around their
+  lairs, find their way to Oravitsa around walls, notice her by walking
+  distance instead of through walls, and move faster; spiders lunge when she
+  is close. After a bite the pack backs off and none can bite again until two
+  seconds after the stun, so she can always get away.
+- About a third of the stuns Oravitsa would suffer now make her panic instead:
+  she runs for two seconds, away from what hit her or toward the cave's way
+  out, and cannot be stunned or blocked meanwhile. This breaks chains of stuns.
+- Giant rats are smaller, with a matching smaller collision size (#51).
+- Eating boars no longer get provoked (#48).
 
 - **Aura**, the game's points: a glowing HUD icon with the number on top (#42).
 - **Feeding**: a fed meter beside aura. Oravitsa eats a random bag item every
