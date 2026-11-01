@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+import re
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -11,6 +12,19 @@ import package_release
 import export as exporter
 
 COMMIT = "a" * 40
+
+
+class VersionDeclarationTests(unittest.TestCase):
+    def test_windows_resource_matches_project_version(self):
+        """Protects: a release whose Windows executable reports the previous version."""
+        root = Path(__file__).resolve().parents[1]
+        version = re.search(r'^config/version="([^"]+)"', (root / "project.godot").read_text(), re.MULTILINE)[1]
+        parts = re.fullmatch(r"(\d+\.\d+\.\d+)(?:-[a-z]+\.(\d+))?", version)
+        self.assertIsNotNone(parts, version)
+        expected = f"{parts[1]}.{parts[2] or 0}"
+        declared = re.findall(r'^application/(?:file|product)_version="([^"]+)"',
+                              (root / "export_presets.cfg").read_text(), re.MULTILINE)
+        self.assertEqual(declared, [expected, expected])
 
 
 class PackageReleaseTests(unittest.TestCase):
