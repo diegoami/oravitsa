@@ -43,6 +43,7 @@ func _run() -> void:
 	root.add_child(world)
 	current_scene = world
 	world.set_process(false)
+	world.fright_chance = 0.0 # Panic has its own check below.
 	await process_frame
 	for sprite in world._active_animals.values():
 		sprite.queue_free()
@@ -174,5 +175,29 @@ func _run() -> void:
 	_dwell(world, 1, 10.0, near)
 	assert(world._animals[1]["aggro"] == world.AGGRO_NONE and world._animals[1]["provoke"] == 0.0)
 	assert(world._charge_speed(world.BOAR) < world.SPEED, "Oravitsa can outrun a charging boar")
-	print("Aggression smoke test passed: dwell approach/retreat, failed chance retry delay, warning pause, collision-safe charge, hit stun, hunting override, disengagement cooldown, miss timeout, Shoo/stun interruption, no provocation while eating, three species only")
+	# A charge can scare her instead: she runs from it, and it still ends.
+	world.fright_chance = 1.0
+	_reset(world, 0, Vector2(40, 0))
+	world._refresh_visible()
+	assert(world._active_animals.has(0))
+	wolf["aggro"] = world.AGGRO_CHARGE
+	wolf["aggro_time"] = world.AGGRO_CHARGE_TIME
+	world._update_aggression(1.0 / 30.0)
+	assert(world.player_fright > 0.0 and world.player_stun == 0.0 and not world._fright_to_exit, "A charge can panic her")
+	assert(wolf["aggro"] == world.AGGRO_NONE and wolf["aggro_cooldown"] > 20, "The attack is over either way")
+	var gap: float = wolf["position"].distance_to(world.player_position)
+	for frame in 15:
+		world._update_player(1.0 / 30.0)
+		assert(world._can_stand(world.player_position, world.PLAYER_RADIUS), "Panic stays on open ground")
+	assert(wolf["position"].distance_to(world.player_position) > gap + 30.0, "She runs from what hit her")
+	world.player_fright = 0.0
+	# Walking into an animal can scare her too; the animal is still stunned.
+	_reset(world, 1, Vector2(50, 0))
+	world._refresh_visible()
+	assert(world._active_animals.has(1))
+	assert(not world._try_move(Vector2(10, 0)) and world.player_fright > 0.0 and world.player_stun == 0.0, "A bump can panic her")
+	assert(world._animals[1]["stun"] > 0.0, "What she bumped is still stunned")
+	world.player_fright = 0.0
+	world.fright_chance = 0.0
+	print("Aggression smoke test passed: dwell approach/retreat, failed chance retry delay, warning pause, collision-safe charge, hit stun, hunting override, disengagement cooldown, miss timeout, Shoo/stun interruption, no provocation while eating, three species only, and charges and bumps that panic her instead")
 	quit()

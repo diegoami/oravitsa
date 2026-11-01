@@ -41,9 +41,9 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twenty-two smoke scripts, including targeted
-Shoo, endless-world travel/rebasing/ecology/food regrowth, fox foraging, hare
-collection, aggression, fights, save/load, audio wiring, hamlets and
+`verify.py` imports and runs all twenty-three smoke scripts, including targeted
+Shoo, endless-world travel/rebasing/ecology/food regrowth, wildlife behaviour
+loops, fox foraging, hare collection, aggression, fights, save/load, audio wiring, hamlets and
 cave mouths, aura/feeding/villagers/chieftain gifts, cave levels and their
 monsters, queued streaming,
 offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot
@@ -77,6 +77,14 @@ Record unavailable checks as untested, never as passed.
   scared status and fast escape, with a seven-second cooldown; invalid casts do
   not spend cooldown. It interrupts feeding/hunting and existing animal stun.
   Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
+- Wildlife must not flip between behaviours at a single limit or press forever
+  against what it cannot reach: home range, fear and giving up all have
+  separate start and stop values or timers.
+- In the endless world about a third of the stuns she would suffer (bumps,
+  charges, bites) become panic instead: for two seconds she runs by herself,
+  faster, away from what hit her or, in a cave, half the time toward the way
+  out, with a scared icon and time bar. While panicking she cannot be stunned
+  and animals neither block nor bump her; her skills still work.
 - Oravitsa walks through stunned animals with no bump. Walking into an awake
   animal stuns both for 1.2 seconds (Oravitsa less when well fed, above). Stepping out of an animal she overlaps
   (one that woke up under her) is never a bump, and such an animal can step
@@ -102,8 +110,10 @@ Record unavailable checks as untested, never as passed.
 - Each cave mouth leads to its seeded first level. The surface freezes while
   Oravitsa is underground. Saving works there: the save keeps the surface,
   her spot in the cave and the living monsters' positions and stuns. Rats
-  and spiders bite, which only stuns her (1.5 s at most); there is still no
-  health or death. Killed monsters and collected checkpoints persist per cave
+  and spiders find their way around walls and bite, which only stuns her
+  (1.5 s at most); there is still no health or death. After a bite the pack
+  backs off and no monster can bite until two seconds after the stun, so she
+  can always get away. Killed monsters and collected checkpoints persist per cave
   in the save.
 - In the endless world wolves/lynxes are more frequent, sprint in longer and
   faster spurts, hunt both prey species and despawn after 180 hungry seconds.

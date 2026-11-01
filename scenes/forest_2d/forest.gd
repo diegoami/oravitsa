@@ -38,8 +38,8 @@ const RAT := 6
 const SPIDER := 7
 const VILLAGER := 8
 const ANIMAL_NAMES := {BOAR: "Boar", DEER: "Deer", FOX: "Fox", LYNX: "Lynx", HARE: "Hare", WOLF: "Wolf", RAT: "Giant rat", SPIDER: "Giant spider", VILLAGER: "Villager"}
-const ANIMAL_SPEEDS := {BOAR: 52.0, DEER: 96.0, FOX: 112.0, LYNX: 91.0, HARE: 108.0, WOLF: 120.0, RAT: 150.0, SPIDER: 120.0, VILLAGER: 46.0}
-const ANIMAL_RADIUS := {BOAR: 30.0, DEER: 25.0, FOX: 22.0, LYNX: 25.0, HARE: 19.0, WOLF: 30.0, RAT: 26.0, SPIDER: 30.0, VILLAGER: 20.0}
+const ANIMAL_SPEEDS := {BOAR: 52.0, DEER: 96.0, FOX: 112.0, LYNX: 91.0, HARE: 108.0, WOLF: 120.0, RAT: 185.0, SPIDER: 140.0, VILLAGER: 46.0}
+const ANIMAL_RADIUS := {BOAR: 30.0, DEER: 25.0, FOX: 22.0, LYNX: 25.0, HARE: 19.0, WOLF: 30.0, RAT: 20.0, SPIDER: 30.0, VILLAGER: 20.0}
 const LYNX_BURST_SPEED := 220.0
 const LYNX_BURST_TIME := 1.5
 const LYNX_BURST_RECOVERY := 3.4
@@ -57,7 +57,21 @@ const PLAYER_RADIUS := 24.0
 const SHOO_RANGE := 600.0
 const SHOO_COOLDOWN := 7.0
 const SHOO_FEAR_TIME := 5.0
-const SHOO_FLEE_SPEED := SPEED * 1.8
+const SHOO_FLEE_SPEED := SPEED * 1.4
+# Wildlife behaviour limits have two values each, so an animal cannot flip
+# between behaviours at one line (#52). Beyond HOME_LEASH it walks back until
+# within HOME_RETURNED; it only sets out for what lies within HOME_REACH.
+const HOME_LEASH := 850.0
+const HOME_RETURNED := 620.0
+const HOME_REACH := 790.0
+const FLEE_KEEP := 1.35 # A fleeing animal runs until this much past what scared it.
+const CALM_MARGIN := 1.5 # A calm animal stays this much farther from what scares it.
+# An animal that makes no headway for GIVE_UP_AFTER seconds drops what it wanted
+# and ignores it for GIVE_UP_TIME, rather than pressing against an obstacle.
+const PROGRESS_CHECK := 1.0
+const PROGRESS_MIN := 24.0
+const GIVE_UP_AFTER := 3
+const GIVE_UP_TIME := 10.0
 const SLING_RANGE := 600.0
 const SLING_COOLDOWN := 4.0
 const SLING_STUN_TIME := 4.5
@@ -163,6 +177,9 @@ func _update_player(delta: float) -> void:
 	_notice_time = maxf(0.0, _notice_time - delta)
 	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	direction = (direction + _touch_controls.direction).limit_length()
+	var panic := _panic_direction(delta)
+	if panic != Vector2.ZERO:
+		direction = panic
 	var before_move := player_position
 	if direction.length_squared() > 0.0 and player_stun <= 0.0:
 		var step := direction * _move_speed() * delta
@@ -187,6 +204,18 @@ func _move_speed() -> float:
 ## endless woods shortens it.
 func _player_stun_time(seconds: float) -> float:
 	return seconds
+
+
+## Stuns Oravitsa, returning whether she was stunned; the endless woods can
+## turn a stun into panic, away from `_source`.
+func _stun_player(seconds: float, _source: Vector2) -> bool:
+	player_stun = _player_stun_time(seconds)
+	return true
+
+
+## Where panic is driving Oravitsa, overriding the controls; ZERO if she isn't.
+func _panic_direction(_delta: float) -> Vector2:
+	return Vector2.ZERO
 
 
 func _update_player_walk(motion: Vector2) -> void:
@@ -858,7 +887,11 @@ func _animal_record(kind: int, position: Vector2) -> Dictionary:
 		"burst": 0.0,
 		"burst_cooldown": 0.0,
 		"catch_target": -1,
-		"catch_time": 0.0
+		"catch_time": 0.0,
+		"give_up": 0.0,
+		"blocked": 0,
+		"blocked_clock": 0.0,
+		"blocked_from": position
 	}
 
 
@@ -922,7 +955,7 @@ func _choose_animal_target(id: int) -> void:
 		var angle := _hash(id, turn + attempt, 201) * TAU
 		var distance := 2 + int(_hash(id, turn + attempt, 202) * 5.0)
 		var target_cell := cell + Vector2i(roundi(cos(angle) * distance), roundi(sin(angle) * distance))
-		if _in_bounds(target_cell) and _can_stand(_cell_center(target_cell)) and _cell_center(target_cell).distance_to(data["home"]) < 720.0:
+		if _in_bounds(target_cell) and _can_stand(_cell_center(target_cell)) and _cell_center(target_cell).distance_to(data["home"]) < 720.0 and not _feels_unsafe(id, _cell_center(target_cell)):
 			data["target"] = _cell_center(target_cell)
 			data["timeout"] = 5.0 + _hash(id, turn, 203) * 3.0
 			data["state"] = "roam"
@@ -945,7 +978,8 @@ func _nearest_animal(position: Vector2, kinds: Array, except_id: int, radius: fl
 	return nearest
 
 
-func _nearest_food(position: Vector2, kind: int) -> Vector2i:
+## With an animal id, only food that animal would set out for counts.
+func _nearest_food(position: Vector2, kind: int, id: int = -1) -> Vector2i:
 	var center := _world_cell(position)
 	var best := 99999999.0
 	var result := Vector2i(-1, -1)
@@ -957,10 +991,61 @@ func _nearest_food(position: Vector2, kind: int) -> Vector2i:
 			if objects[_index(cell)] not in _food_kinds(kind):
 				continue
 			var distance := position.distance_squared_to(_cell_center(cell))
-			if distance < best:
+			if distance < best and (id < 0 or _worth_going_to(id, _cell_center(cell))):
 				best = distance
 				result = cell
 	return result
+
+
+func _player_avoid_radius(id: int, kind: int) -> float:
+	if kind == BOAR:
+		return 80.0 if _hash(id, 0, 451) < 0.45 else 135.0
+	return 235.0
+
+
+func _threat_radius(kind: int) -> float:
+	return 310.0 if kind == FOX else 340.0
+
+
+## Whether a spot lies where the animal would flee again on arriving.
+func _feels_unsafe(id: int, point: Vector2) -> bool:
+	var kind: int = _animals[id]["kind"]
+	if point.distance_to(player_position) < _player_avoid_radius(id, kind) * CALM_MARGIN:
+		return true
+	var threats := _threat_kinds(kind)
+	return not threats.is_empty() and _nearest_animal(point, threats, id, _threat_radius(kind) * CALM_MARGIN) >= 0
+
+
+func _worth_going_to(id: int, point: Vector2) -> bool:
+	return point.distance_to(_animals[id]["home"]) <= HOME_REACH and not _feels_unsafe(id, point)
+
+
+## Gives up on food, prey, an escape or a way home the animal cannot reach.
+func _note_progress(id: int, delta: float) -> void:
+	var data := _animals[id]
+	data["blocked_clock"] += delta
+	if data["blocked_clock"] < PROGRESS_CHECK:
+		return
+	data["blocked_clock"] = 0.0
+	var moved: float = data["position"].distance_to(data["blocked_from"])
+	data["blocked_from"] = data["position"]
+	if moved >= PROGRESS_MIN or data["state"] not in ["flee", "forage", "hunt", "return"]:
+		data["blocked"] = 0
+		return
+	data["blocked"] += 1
+	if data["blocked"] < GIVE_UP_AFTER:
+		return
+	data["blocked"] = 0
+	if data["state"] == "return":
+		data["home"] = data["position"] # It cannot get back, so it settles here.
+	else:
+		data["give_up"] = GIVE_UP_TIME
+		data["food_cell"] = Vector2i(-1, -1)
+		data["eat_time"] = 0.0
+	data["state"] = "idle"
+	data["timeout"] = 0.0
+	if data.has("route"):
+		data["route"] = PackedVector2Array()
 
 
 func _consume_food(cell: Vector2i) -> void:
@@ -1248,10 +1333,14 @@ func _move_animals(delta: float) -> void:
 		var sprite: AnimatedSprite2D = _active_animals[id]
 		data["stun"] = maxf(0.0, data["stun"] - delta)
 		data["shoo"] = maxf(0.0, data["shoo"] - delta)
-		sprite.speed_scale = 2.2 if data["shoo"] > 0 else 1.0
+		data["give_up"] = maxf(0.0, data["give_up"] - delta)
+		sprite.speed_scale = 1.7 if data["shoo"] > 0 else 1.0
 		if data["shoo"] <= 0.0 and data["state"] == "scared":
 			data["state"] = "idle"
 			data["timeout"] = 0.0
+			# Driven past its range, it settles here rather than walking back at her.
+			if position.distance_to(data["home"]) > HOME_LEASH:
+				data["home"] = position
 		var was_feeding: bool = data["feeding"] > 0.0
 		data["feeding"] = maxf(0.0, data["feeding"] - delta)
 		if was_feeding and data["feeding"] <= 0.0:
@@ -1272,14 +1361,22 @@ func _move_animals(delta: float) -> void:
 		var speed: float = ANIMAL_SPEEDS[kind]
 		var threat := -1
 		var threats := _threat_kinds(kind)
-		if not threats.is_empty():
-			threat = _nearest_animal(position, threats, id, 310.0 if kind == FOX else 340.0)
+		var gave_up: bool = data["give_up"] > 0.0
+		var keep: float = FLEE_KEEP if data["state"] == "flee" else 1.0
+		if not threats.is_empty() and not gave_up:
+			threat = _nearest_animal(position, threats, id, _threat_radius(kind) * keep)
 		# Hunters with no prey in reach fall through to foraging or roaming.
-		var prey := _nearest_animal(position, _prey_kinds(kind), id, 650.0) if _wants_to_hunt(id) else -1
-		var player_distance := position.distance_to(player_position)
-		var avoid_player := player_distance < (135.0 if kind == BOAR else 235.0)
-		if kind == BOAR and _hash(id, 0, 451) < 0.45 and player_distance > 80.0:
-			avoid_player = false
+		var prey := _nearest_animal(position, _prey_kinds(kind), id, 650.0) if _wants_to_hunt(id) and not gave_up else -1
+		if prey >= 0 and data["state"] != "hunt" and not _worth_going_to(id, _animals[prey]["position"]):
+			prey = -1
+		var avoid_player: bool = not gave_up and position.distance_to(player_position) < _player_avoid_radius(id, kind) * keep
+		var home_distance: float = position.distance_to(data["home"])
+		if data["state"] == "return" and home_distance <= HOME_RETURNED:
+			data["state"] = "idle"
+			data["timeout"] = 0.0
+		elif data["state"] == "flee" and threat < 0 and not avoid_player and home_distance > HOME_LEASH:
+			data["home"] = position # Chased out of its range, it settles here.
+			home_distance = 0.0
 		if data["shoo"] > 0.0:
 			var away: Vector2 = (position - player_position).normalized()
 			if away.length_squared() < 0.01:
@@ -1313,7 +1410,7 @@ func _move_animals(delta: float) -> void:
 				target = position + away.normalized() * 300.0
 			data["state"] = "flee"
 			speed *= 1.35 if kind != BOAR else 1.1
-		elif position.distance_to(data["home"]) > 850.0:
+		elif home_distance > HOME_LEASH or data["state"] == "return":
 			target = data["home"]
 			data["state"] = "return"
 		elif prey >= 0:
@@ -1332,10 +1429,10 @@ func _move_animals(delta: float) -> void:
 				data["burst"] = burst.y
 				data["burst_cooldown"] = burst.z
 			speed = burst.x if data["burst"] > 0.0 or data["catch_target"] == prey else ANIMAL_SPEEDS[kind]
-		elif not _food_kinds(kind).is_empty():
+		elif not _food_kinds(kind).is_empty() and not gave_up:
 			var food_cell: Vector2i = data["food_cell"]
-			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in _food_kinds(kind):
-				food_cell = _nearest_food(position, kind)
+			if not _in_bounds(food_cell) or objects[_index(food_cell)] not in _food_kinds(kind) or not _worth_going_to(id, _cell_center(food_cell)):
+				food_cell = _nearest_food(position, kind, id)
 				data["food_cell"] = food_cell
 			if _in_bounds(food_cell):
 				target = _cell_center(food_cell)
@@ -1386,6 +1483,7 @@ func _move_animals(delta: float) -> void:
 				sprite.play(base)
 		else:
 			sprite.stop()
+		_note_progress(id, delta)
 
 
 func _steer_animal(_id: int, heading: Vector2, _target: Vector2, _delta: float) -> Vector2:
@@ -1416,7 +1514,7 @@ func _bump_animal(candidate: Vector2) -> bool:
 			continue
 		var distance := candidate.distance_to(animal["position"])
 		if distance < PLAYER_RADIUS + ANIMAL_RADIUS[animal["kind"]] and distance < player_position.distance_to(animal["position"]):
-			player_stun = _player_stun_time(CONTACT_STUN_TIME)
+			_stun_player(CONTACT_STUN_TIME, animal["position"])
 			animal["stun"] = maxf(animal["stun"], CONTACT_STUN_TIME)
 			animal["velocity"] = Vector2.ZERO
 			return true

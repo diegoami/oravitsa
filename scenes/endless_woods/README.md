@@ -206,14 +206,28 @@ and checkpoint crystals glow blue.
 - **Checkpoints.** Two or three, in the rooms farthest from the entrance.
   Reaching one gives +20 aura once; its crystal then dims to gold.
 - **Giant rats and spiders.** Four to six rats and two or three spiders, at
-  least 10 m from the entrance, drawn with CC0 Quaternius models. They roam
-  near their lair, chase Oravitsa within 9 m and bite at reach. A bite stuns
-  her for 1.5 s, less when she is well fed (no health or injury), and plays the Attack clip, with a 3.5 s
-  cooldown. Shoo drives one off. Sling stuns one, which can then be finished
-  by walking to it (controller: A) for aura (rat +5, spider +10). Its Death
-  clip plays. Awake ones cannot be killed, and stunned ones can be walked
-  through. They chase in straight lines and slide along walls; there is no
-  pathfinding.
+  least 10 m from the entrance, drawn with CC0 Quaternius models. They scurry
+  cell by cell around their lair (rats up to five cells, spiders three). They
+  notice Oravitsa by walking distance, never through walls (rats 14 m, spiders
+  10 m), chase her around corners using a map of walking steps to her, and
+  keep at it until she is half as far again. They settle where a chase ends.
+  Within 4 m a spider lunges at 1.8× speed for 0.7 s, every 4 s. A bite stuns
+  her for 1.5 s, less when she is well fed (no health or injury), and plays
+  the Attack clip, with a 3.5 s cooldown. The biter then scuttles back, the
+  pack keeps 2.5 m away, and no monster can bite until two seconds after the
+  stun, so she can always get away. Rats are faster (185 px/s) than spiders
+  (140 px/s), but a half-fed Oravitsa outruns both. Shoo drives one off along
+  the tunnels. Sling stuns one, which can then be finished by walking to it
+  (controller: A) for aura (rat +5, spider +10). Its Death clip plays. Awake
+  ones cannot be killed, and stunned ones can be walked through.
+- **Panic.** Anywhere in the endless world, about a third of the stuns she
+  would suffer (bumps, charges, bites) become panic instead, which breaks
+  chains of stuns. For two seconds she runs by herself at 1.25× speed, away
+  from what hit her or, in a cave, half the time toward the way out, turning
+  along walls. A scared icon with a time bar floats above her. She cannot be
+  stunned meanwhile, animals neither block nor bump her, and her skills still
+  work. A cave mouth does not take her in while she panics, and panic is not
+  saved. An animal she bumps is still stunned.
 - **Freezing and saving.** While Oravitsa is underground, the surface
   landscape, food and wildlife are hidden and kept exactly as they were. The
   map shows "Underground". The sunlit way out returns her just outside the

@@ -35,9 +35,214 @@ func _creature(world: Node2D, kind: int) -> int:
 	return -1
 
 
+func _reset_monster(world: Node2D, id: int, offset: Vector2) -> void:
+	_put(world, id, offset)
+	for timer in ["stun", "shoo", "bite_cooldown", "attack_time", "burst", "burst_cooldown"]:
+		world._animals[id][timer] = 0.0
+
+
+## Runs the monsters while her stun wears off, up to `seconds` or until `done`.
+func _run_cave(world: Node2D, seconds: float, done: Callable, each: Callable = func(): pass) -> bool:
+	var elapsed := 0.0
+	while elapsed < seconds:
+		world._move_cave_creatures(1.0 / 30.0)
+		world.player_stun = maxf(0.0, world.player_stun - 1.0 / 30.0)
+		each.call()
+		elapsed += 1.0 / 30.0
+		if done.call():
+			return true
+	return false
+
+
+## Active monsters (#50) at their reduced size (#51): they find their way to
+## her, leave her room after a bite and never push against walls.
+## Protects: monsters stuck on walls, noticing her through them, and stun-locks.
+func _monster_behaviour(world: Node2D, level: Node3D, rat: int, spider: int) -> void:
+	assert(world._animal_heights[world.RAT] < world._animal_heights[world.FOX], "A giant rat is smaller than a fox")
+	assert(world.ANIMAL_RADIUS[world.RAT] < world.ANIMAL_RADIUS[world.SPIDER] and world.ANIMAL_SPEEDS[world.RAT] > world.ANIMAL_SPEEDS[world.SPIDER])
+	assert(world.ANIMAL_SPEEDS[world.RAT] < world.SPEED, "A half-fed Oravitsa can outrun them")
+	var here: Vector2 = world.to_ground(world.player_position)
+	var flow: Dictionary = level.distances_to(level.cell_at(here))
+	assert(not flow.is_empty() and flow[level.cell_at(here)] == 0)
+	# A rat with a wall in the straight line still reaches her.
+	var around := Vector2i(-1, -1)
+	for cell in flow:
+		if flow[cell] * level.CELL > world.MONSTER_SIGHT[world.RAT] or flow[cell] < 4:
+			continue
+		var blocked := false
+		for part in 20:
+			blocked = blocked or not level.is_open(level.cell_center(cell).lerp(here, part / 20.0))
+		if blocked:
+			around = cell
+	assert(around.x >= 0, "This level has a corner to test")
+	_reset_monster(world, rat, world.from_ground(level.cell_center(around)) - world.player_position)
+	var on_floor := func(): assert(world._can_stand(world._animals[rat]["position"], world.ANIMAL_RADIUS[world.RAT]), "Monsters stay on the floor")
+	assert(_run_cave(world, 15.0, func(): return world.player_stun > 0.0, on_floor), "A rat finds its way around the wall")
+	world.player_stun = 0.0
+	world._bite_grace = 0.0
+	# Beyond walking reach it does not notice her, however close in a straight line.
+	var limit: float = world.MONSTER_SIGHT[world.RAT] * world.MONSTER_LOSE
+	var pair: Array[Vector2i] = []
+	var cells: Array = level.open.keys()
+	cells.sort()
+	for from in cells:
+		var walking: Dictionary = level.distances_to(from)
+		for cell in walking:
+			if pair.is_empty() and walking[cell] * level.CELL > limit and level.cell_center(cell).distance_to(level.cell_center(from)) < world.MONSTER_SIGHT[world.RAT]:
+				pair = [from, cell]
+	assert(pair.size() == 2, "This level has cells near in a line but far on foot")
+	world.player_position = world.from_ground(level.cell_center(pair[0]))
+	_reset_monster(world, rat, world.from_ground(level.cell_center(pair[1])) - world.player_position)
+	world._animals[rat]["state"] = "roam"
+	world._move_cave_creatures(1.0 / 30.0)
+	assert(world._animals[rat]["state"] == "roam", "Out of walking reach it only roams")
+	# Calm monsters scurry about their lair on the floor.
+	var far_flow: Dictionary = level.distances_to(pair[0])
+	var far_cell: Vector2i = pair[1]
+	for cell in far_flow:
+		if far_flow[cell] > far_flow[far_cell]:
+			far_cell = cell
+	_reset_monster(world, rat, world.from_ground(level.cell_center(far_cell)) - world.player_position)
+	world._animals[rat]["home"] = world._animals[rat]["position"]
+	world._animals[rat]["roam_from"] = far_cell
+	world._animals[rat]["timeout"] = 0.0
+	var lair: Vector2 = world._animals[rat]["position"]
+	var strayed := {"most": 0.0}
+	_run_cave(world, 15.0, func(): return false, func():
+		strayed["most"] = maxf(strayed["most"], world._animals[rat]["position"].distance_to(lair))
+		on_floor.call())
+	var reach: float = (world.MONSTER_ROAM[world.RAT] + 1) * level.CELL * world.METRE * sqrt(2.0)
+	assert(strayed["most"] > level.CELL * world.METRE and strayed["most"] <= reach, "It scurries around its lair: %.0f px" % strayed["most"])
+	# Spiders lunge once she is close.
+	world.player_position = world.from_ground(here)
+	_reset_monster(world, rat, Vector2(5000, 5000))
+	_reset_monster(world, spider, Vector2(150, 0))
+	world._animals[spider]["state"] = "roam"
+	assert(world.fed_speed() > 0.0)
+	world._move_cave_creatures(1.0 / 30.0)
+	assert(world._animals[spider]["burst"] > 0.0 and world._animals[spider]["burst_cooldown"] > 0.0, "A close spider lunges")
+	var fastest := 0.0
+	for frame in 20:
+		world._move_cave_creatures(1.0 / 30.0)
+		fastest = maxf(fastest, world._animals[spider]["velocity"].length())
+	assert(fastest > world.ANIMAL_SPEEDS[world.SPIDER] * 1.1, "It lunges faster than it walks: %.0f" % fastest)
+	# After a bite the pack backs off and she has time to get away.
+	world.player_stun = 0.0
+	world._bite_grace = 0.0
+	world.fed = world.FED_MAX
+	_reset_monster(world, rat, Vector2(50, 0))
+	_reset_monster(world, spider, Vector2(-60, 0))
+	assert(_run_cave(world, 3.0, func(): return world.player_stun > 0.0), "One of them bites")
+	var first_stun: float = world.player_stun
+	assert(absf(world._bite_grace - first_stun - world.BITE_GRACE) < 0.1, "A bite starts the grace time")
+	var free := {"time": 0.0, "closest": INF}
+	_run_cave(world, first_stun + world.BITE_GRACE - 0.1, func(): return false, func():
+		assert(world.player_stun < first_stun, "No second bite during the grace time")
+		if world.player_stun <= 0.0:
+			free["time"] += 1.0 / 30.0
+			free["closest"] = minf(world._animals[rat]["position"].distance_to(world.player_position), world._animals[spider]["position"].distance_to(world.player_position)))
+	assert(free["time"] >= 1.8, "She always gets two free seconds: %.1f" % free["time"])
+	assert(free["closest"] > world.ANIMAL_RADIUS[world.RAT] + world.PLAYER_RADIUS + 10.0, "The pack has backed off out of reach")
+	assert(_run_cave(world, 5.0, func(): return world.player_stun > 0.0), "Then they come for her again")
+	# Shoo drives a monster away along the floor.
+	world.player_stun = 0.0
+	world._bite_grace = 0.0
+	_reset_monster(world, spider, Vector2(5000, 5000))
+	_reset_monster(world, rat, Vector2(80, 0))
+	world._animals[rat]["shoo"] = 2.0
+	var near: float = world._animals[rat]["position"].distance_to(world.player_position)
+	_run_cave(world, 1.0, func(): return false, on_floor)
+	assert(world._animals[rat]["position"].distance_to(world.player_position) > near and world._animals[rat]["state"] == "scared", "Shoo drives it off")
+	_reset_monster(world, rat, Vector2(90, 0))
+	world._animals[rat]["state"] = "roam"
+	world.player_stun = 0.0
+	world._bite_grace = 0.0
+	await process_frame
+
+
+## A stun may become panic, which breaks chains of stuns.
+## Protects: stun-locks, being stunned while panicking and pinned panic runs.
+func _panic(world: Node2D, level: Node3D, rat: int, spider: int) -> void:
+	var start: Vector2 = world.from_ground(level.checkpoints[0])
+	world.player_position = start
+	world.player_stun = 0.0
+	world._bite_grace = 0.0
+	world.fed = 50.0
+	var walking: float = world._move_speed()
+	_reset_monster(world, spider, Vector2(5000, 5000))
+	_reset_monster(world, rat, Vector2(50, 0))
+	world.fright_chance = 1.0
+	assert(_run_cave(world, 3.0, func(): return world.player_fright > 0.0), "A bite can scare her")
+	assert(world.player_stun == 0.0 and world._animals[rat]["attack_time"] > 0.0, "Instead of stunning her")
+	assert(world._move_speed() > walking * 1.15, "She runs faster")
+	world._sync_presentation(0.0)
+	assert(world._player_marker.visible and world._player_marker.icons == ["scared"] and world._player_marker.fractions[0] > 0.9, "Her fear shows as an icon with a time bar")
+	# While scared nothing can stun her, and animals neither stop nor bump her.
+	world.fright_chance = 0.0
+	assert(not world._stun_player(1.0, world._animals[rat]["position"]) and world.player_stun == 0.0, "No stun while scared")
+	world.fright_chance = 1.0
+	assert(world._passes_through(rat), "She runs through animals")
+	_reset_monster(world, rat, Vector2(30, 0))
+	world._animals[rat]["bite_cooldown"] = 0.0
+	world._bite_grace = 0.0
+	world._move_cave_creatures(1.0 / 30.0)
+	assert(world.player_stun == 0.0 and world._animals[rat]["attack_time"] == 0.0, "Nothing bites her while scared")
+	assert(world._try_move(Vector2(10, 0)) and world.player_stun == 0.0, "No bump while scared")
+	# She runs away from what hit her, by herself and on the floor.
+	world.player_position = start
+	world.player_fright = world.FRIGHT_TIME
+	world._fright_to_exit = false
+	world._fright_away = Vector2.RIGHT
+	for frame in 15:
+		world._update_player(1.0 / 30.0)
+		assert(world._can_stand(world.player_position, world.PLAYER_RADIUS), "Panic stays on the floor")
+	assert((world.player_position - start).x > 30.0, "She runs without any input")
+	# Or for the way out, walking the tunnels rather than into walls.
+	world.player_position = start
+	world.player_fright = world.FRIGHT_TIME
+	world._fright_to_exit = true
+	var steps_before: int = world._cave_exit_flow[level.cell_at(world.to_ground(start))]
+	assert(steps_before > 3)
+	for frame in int((world.FRIGHT_TIME - 0.1) * 30.0):
+		world._update_player(1.0 / 30.0)
+		assert(world._can_stand(world.player_position, world.PLAYER_RADIUS), "Panic stays on the floor")
+	assert(world._cave_exit_flow[level.cell_at(world.to_ground(world.player_position))] < steps_before - 2, "She heads for the way out")
+	# It wears off, and she can be stunned again.
+	world._update_player(0.2)
+	assert(world.player_fright == 0.0)
+	world._sync_presentation(0.0)
+	assert(not world._player_marker.visible, "The icon goes with it")
+	world.fright_chance = 0.0
+	assert(world._stun_player(1.0, start) and world.player_stun > 0.0, "Stuns return after panic")
+	world.player_stun = 0.0
+	# Over many stuns about a third become panic, half of those for the way out.
+	world._fright_rng.seed = 7
+	world.fright_chance = world.FRIGHT_CHANCE
+	var scares := 0
+	var exits := 0
+	for roll in 1000:
+		world.player_fright = 0.0
+		world.player_stun = 0.0
+		world._stun_player(1.0, start)
+		if world.player_fright > 0.0:
+			scares += 1
+			exits += 1 if world._fright_to_exit else 0
+		else:
+			assert(world.player_stun > 0.0, "Every roll is a stun or panic")
+	assert(scares > 290 and scares < 410 and exits > scares * 0.35 and exits < scares * 0.65, "Odds: %d scares, %d for the exit" % [scares, exits])
+	world.fright_chance = 0.0
+	world.player_fright = 0.0
+	world.player_stun = 0.0
+	world.fed = world.FED_MAX
+	world.player_position = start
+	_reset_monster(world, rat, Vector2(90, 0))
+	world._animals[rat]["state"] = "roam"
+
+
 func _run() -> void:
 	var world = load("res://scenes/endless_woods/woods.tscn").instantiate()
 	world.save_path = "user://cave_smoke_save.json"
+	world.fright_chance = 0.0 # Panic is checked separately.
 	root.add_child(world)
 	current_scene = world
 	world.set_process(false)
@@ -132,6 +337,8 @@ func _run() -> void:
 	world._sync_presentation(0.0)
 	assert(world._animal_players[rat].current_animation == "Attack")
 	world.player_stun = 0.0
+	await _monster_behaviour(world, level, rat, spider)
+	_panic(world, level, rat, spider)
 	# Awake monsters cannot be finished; Sling stuns, then walk-over kills.
 	world._input_mode = "keyboard"
 	_put(world, rat, Vector2(40, 0))
@@ -248,6 +455,21 @@ func _run() -> void:
 	assert(world._animals.size() == rats + spiders - 2 and world._surface_animals.size() == state["animals"].size())
 	world.apply_state(below)
 	assert(world.in_cave(), "Loading underground from underground")
+	# Panic is not saved, ends on leaving and never carries her into a cave.
+	world.player_fright = 1.0
+	world._exit_cave(true)
+	assert(world.player_fright == 0.0, "Leaving ends panic")
+	world.player_fright = 1.0
+	world.apply_state(state)
+	assert(not world.in_cave() and world.player_fright == 0.0, "Loading on the surface ends panic")
+	world.player_position = world.from_ground(cave["mouth"] - world.landscape.origin)
+	world._cave_armed = true
+	world.player_fright = 1.0
+	world._check_cave_mouth()
+	assert(not world.in_cave(), "A panicking Oravitsa runs past cave mouths")
+	world.player_fright = 0.0
+	world._check_cave_mouth()
+	assert(world.in_cave(), "Calm again, the mouth works")
 	world.apply_state(state)
 	assert(not world.in_cave() and world.landscape.visible and not world._lantern.visible, "Loading a surface save leaves the cave")
 	bad = below.duplicate(true)
@@ -256,5 +478,5 @@ func _run() -> void:
 	bad = below.duplicate(true)
 	bad["underground"]["cave"] = "no,cave"
 	assert(world.SAVE_GAME.validate(bad) != "")
-	print("Cave smoke test passed: seeded connected level (", cells, " cells, ", rats, " rats, ", spiders, " spiders, ", checkpoint_count, " checkpoints), entry/exit through the mouth, frozen surface, dark lantern lighting, bites only stun (shorter when well fed), Sling then walk-over/controller-A kills for aura with Death clips, once-only checkpoints, persistence across visits and saves, saving and loading underground")
+	print("Cave smoke test passed: seeded connected level (", cells, " cells, ", rats, " rats, ", spiders, " spiders, ", checkpoint_count, " checkpoints), entry/exit through the mouth, frozen surface, dark lantern lighting, monsters that find their way around walls by walking distance, scurry, lunge and leave her room after a bite, panic instead of stuns, bites only stun (shorter when well fed), Sling then walk-over/controller-A kills for aura with Death clips, once-only checkpoints, persistence across visits and saves, saving and loading underground")
 	quit()
