@@ -27,6 +27,7 @@ SMOKES = (
     ("scenes/endless_woods/shoo_smoke_test.gd", "Targeted Shoo smoke test passed:"),
     ("scenes/endless_woods/fox_forage_smoke_test.gd", "Fox forage smoke test passed:"),
     ("scenes/endless_woods/hare_meat_smoke_test.gd", "Hare meat smoke test passed:"),
+    ("scenes/endless_woods/behavior_smoke_test.gd", "Behaviour loop smoke test passed:"),
     ("scenes/endless_woods/aggression_smoke_test.gd", "Aggression smoke test passed:"),
     ("scenes/endless_woods/fight_smoke_test.gd", "Fight smoke test passed:"),
     ("scenes/endless_woods/save_smoke_test.gd", "Save smoke test passed:"),

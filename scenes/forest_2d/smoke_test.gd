@@ -217,7 +217,7 @@ func _run() -> void:
 		forest._move_animals(1.0 / 60.0)
 	assert(forest._animals[0]["position"] != before)
 	for id in forest._active_animals.keys():
-		assert(forest._can_stand(forest._animals[id]["position"]))
+		assert(forest._can_stand(forest._animals[id]["position"], forest.ANIMAL_RADIUS[forest._animals[id]["kind"]]))
 	var found := {}
 	var mushroom := Vector2i(-1, -1)
 	var berries := Vector2i(-1, -1)

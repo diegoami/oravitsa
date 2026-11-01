@@ -53,6 +53,9 @@ func _run() -> void:
 	assert(target["catch_target"] == -1 and target["catch_time"] == 0 and target["route"].is_empty())
 	assert(world._animals[1]["shoo"] == 0 and world._animals[2]["shoo"] == 0, "Shoo affects only the selected animal")
 	assert(target["velocity"].length() > world.SPEED)
+	assert(world.SHOO_FLEE_SPEED < world.SPEED * 1.5, "A shooed animal flees, not teleports (#53)")
+	for kind in [world.BOAR, world.DEER, world.FOX, world.LYNX, world.HARE, world.WOLF]:
+		assert(world.ANIMAL_SPEEDS[kind] * 2.4 <= world.SHOO_FLEE_SPEED, "Every species flees at the same tuned speed")
 	assert(target["velocity"].dot(position - world.player_position) > 0)
 	var fear: float = target["shoo"]
 	world._use_skill(0)

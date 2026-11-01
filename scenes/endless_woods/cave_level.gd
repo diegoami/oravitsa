@@ -137,6 +137,23 @@ func _generate(rat_kind: int, spider_kind: int) -> void:
 					break
 
 
+## Walking steps from every floor cell to `goal`, for finding a way around walls.
+func distances_to(goal: Vector2i) -> Dictionary:
+	if not open.has(goal):
+		return {}
+	var steps := {goal: 0}
+	var frontier: Array[Vector2i] = [goal]
+	var head := 0
+	while head < frontier.size():
+		var cell: Vector2i = frontier[head]
+		head += 1
+		for step in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			if open.has(cell + step) and not steps.has(cell + step):
+				steps[cell + step] = steps[cell] + 1
+				frontier.append(cell + step)
+	return steps
+
+
 func is_open(p: Vector2) -> bool:
 	return open.has(cell_at(p))
 

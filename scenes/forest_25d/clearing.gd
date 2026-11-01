@@ -583,7 +583,7 @@ func _sync_presentation(delta: float) -> void:
 			wanted = _animation_override(id, wanted, animator)
 			if animator.current_animation != wanted:
 				animator.play(wanted, 0.2)
-			animator.speed_scale = 0.0 if data["stun"] > 0 else (1.4 if data["shoo"] > 0 else 1.0)
+			animator.speed_scale = 0.0 if data["stun"] > 0 else (1.1 if data["shoo"] > 0 else 1.0)
 		_animal_shadows[id].position = model.position + Vector3.UP * 0.015
 		var stars: Node3D = _animal_stars[id]
 		stars.position = model.position + Vector3.UP * (_animal_heights[kind] + 0.35 + sin(Time.get_ticks_msec() * 0.005) * 0.05)

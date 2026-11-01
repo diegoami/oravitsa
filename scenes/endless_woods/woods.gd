@@ -77,9 +77,27 @@ const CHIEF_HEIGHT := 1.7
 const CAVE_LEVEL := preload("res://scenes/endless_woods/cave_level.gd")
 const CAVE_ENTER_RADIUS := 0.9
 const CAVE_REARM := 2.5
-const MONSTER_SIGHT := 9.0 # Metres at which a rat or spider notices Oravitsa.
+const MONSTER_SIGHT := {RAT: 14.0, SPIDER: 10.0} # Metres of walking, so never through walls.
+const MONSTER_LOSE := 1.5 # A chasing monster keeps at it until she is this much farther.
+const MONSTER_ROAM := {RAT: 5, SPIDER: 3} # Cells a calm monster strays from its lair.
+const MONSTER_ROAM_SPEED := {RAT: 0.6, SPIDER: 0.45}
+const MONSTER_PAUSE := 0.25 # Chance a roaming monster stops for a moment.
+const SPIDER_LUNGE_RANGE := 4.0 # Metres.
+const SPIDER_LUNGE := Vector3(1.8, 0.7, 4.0) # Speed factor, seconds, recovery seconds.
 const BITE_STUN := 1.5
 const BITE_COOLDOWN := 3.5
+const BITE_ATTACK := 0.6 # A biting monster stands still for its Attack clip...
+const BITE_RECOIL := 1.2 # ...then scuttles back, so it does not sit on top of her.
+const BITE_GRACE := 2.0 # Seconds after a bite's stun when no monster can bite, to get away.
+const BITE_SPACE := 2.5 # Metres the pack backs off to during that time, so she is not hemmed in.
+# Panic: a stun may instead scare Oravitsa, breaking chains of stuns. She runs
+# by herself, away from what hit her or (in a cave, half the time) toward the
+# way out, and cannot be stunned or blocked by animals until it wears off.
+const FRIGHT_CHANCE := 0.35
+const FRIGHT_TIME := 2.0
+const FRIGHT_SPEED := 1.25
+const FRIGHT_TO_EXIT := 0.5
+const FRIGHT_TURNS := [0.0, PI / 4, -PI / 4, PI / 2, -PI / 2, PI * 0.75, -PI * 0.75]
 var origin_cells := Vector2i.ZERO
 var _harvested: Dictionary = {}
 var _cached_cells: Dictionary = {}
@@ -108,6 +126,16 @@ var _cave_progress: Dictionary = {} # "x,y" region -> {"checkpoints": [...], "ki
 var _cave_return := Vector2.ZERO
 var _cave_armed := true
 var _cave_exit_armed := false
+var _cave_flow: Dictionary = {} # Floor cell -> walking steps to Oravitsa.
+var _cave_flow_cell := Vector2i(-999, -999)
+var _bite_grace := 0.0
+var _cave_exit_flow: Dictionary = {} # Floor cell -> walking steps to the way out.
+var player_fright := 0.0
+var fright_chance := FRIGHT_CHANCE
+var _fright_rng := RandomNumberGenerator.new()
+var _fright_to_exit := false
+var _fright_away := Vector2.DOWN
+var _player_marker: Node3D
 var _lantern: OmniLight3D
 var _surface_light: Dictionary = {}
 
@@ -116,7 +144,7 @@ func _generate_map() -> void:
 	objects = {}
 	terrain = {}
 	_animal_heights[WOLF] = 0.95
-	_animal_heights[RAT] = 0.55
+	_animal_heights[RAT] = 0.38
 	_animal_heights[SPIDER] = 0.5
 	_animal_heights[VILLAGER] = 1.55
 	_food_rng.randomize()
@@ -492,8 +520,7 @@ func _update_aggression(delta: float) -> void:
 			data["aggro_time"] -= delta
 			if distance <= ANIMAL_RADIUS[data["kind"]] + PLAYER_RADIUS + AGGRO_REACH:
 				# An already stunned Oravitsa is not stunned again by a second animal.
-				if player_stun <= 0:
-					player_stun = _player_stun_time(AGGRO_PLAYER_STUN)
+				if player_stun <= 0 and _stun_player(AGGRO_PLAYER_STUN, data["position"]):
 					_show_notice("The %s knocked Oravitsa down!" % ANIMAL_NAMES[data["kind"]].to_lower())
 				data["velocity"] = Vector2.ZERO
 				_end_aggression(id, AGGRO_COOLDOWN)
@@ -726,7 +753,7 @@ func _shift_origin(shift_cells: Vector2i) -> void:
 	origin_cells += shift_cells
 	player_position -= shift
 	for data in _animals:
-		for field in ["position", "home", "target", "progress_origin", "route_goal"]:
+		for field in ["position", "home", "target", "progress_origin", "route_goal", "blocked_from"]:
 			data[field] -= shift
 		if data["food_cell"] != Vector2i(-1, -1):
 			data["food_cell"] -= shift_cells
@@ -899,6 +926,7 @@ func apply_state(data: Dictionary) -> void:
 	_stones.clear()
 	selected_target = -1
 	player_stun = float(data["player"]["stun"])
+	player_fright = 0.0
 	shoo_cooldown = float(data["player"]["shoo_cooldown"])
 	sling_cooldown = float(data["player"]["sling_cooldown"])
 	active_skill = int(data["player"]["active_skill"])
@@ -1022,7 +1050,7 @@ func _check_cave_mouth() -> void:
 	var distance := here.distance_to(cave["mouth"])
 	if distance > CAVE_REARM:
 		_cave_armed = true
-	elif distance < CAVE_ENTER_RADIUS and _cave_armed and player_stun <= 0.0:
+	elif distance < CAVE_ENTER_RADIUS and _cave_armed and player_stun <= 0.0 and player_fright <= 0.0:
 		_enter_cave(cave)
 
 
@@ -1057,6 +1085,10 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	level.build()
 	landscape = level
 	_cave = level
+	_cave_flow_cell = Vector2i(-999, -999)
+	_cave_exit_flow = level.distances_to(level.cell_at(level.entrance))
+	_bite_grace = 0.0
+	player_fright = 0.0
 	for i in level.spawns.size():
 		if i in progress["killed"]:
 			continue
@@ -1081,6 +1113,7 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 
 
 func _exit_cave(quiet: bool = false) -> void:
+	player_fright = 0.0
 	for sprite in _active_animals.values():
 		sprite.queue_free()
 	_active_animals.clear()
@@ -1182,16 +1215,67 @@ func _check_cave_points() -> void:
 		_exit_cave()
 
 
-## Giant rats and spiders roam near where they lair, chase Oravitsa when they
-## see her and bite, which only stuns her. Shoo drives one off; Sling stuns
+## The next cell centre toward Oravitsa (`direction` -1) or away from her (+1),
+## choosing among equally short ways the one most in line with her.
+func _monster_step(position: Vector2, cell: Vector2i, steps: int, direction: int) -> Vector2:
+	if direction < 0 and steps <= 1:
+		return player_position
+	var wanted := position.direction_to(player_position) * -direction
+	var best := position
+	var best_fit := -INF
+	for step in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		if _cave_flow.get(cell + step, -1) != steps + direction:
+			continue
+		var spot := from_ground(_cave.cell_center(cell + step))
+		var fit := wanted.dot(position.direction_to(spot))
+		if fit > best_fit:
+			best_fit = fit
+			best = spot
+	return best
+
+
+## Calm monsters scurry cell by cell around their lair, so they never push
+## against a wall, stopping now and then.
+func _monster_roam_target(id: int, cell: Vector2i) -> Vector2:
+	var data := _animals[id]
+	data["turn"] += 1
+	var turn: int = data["turn"]
+	data["timeout"] = 0.6 + _hash(id, turn, 1803) * 1.2
+	if _hash(id, turn, 1801) < MONSTER_PAUSE:
+		return data["position"]
+	var lair: Vector2i = _cave.cell_at(to_ground(data["home"]))
+	var reach: int = MONSTER_ROAM[data["kind"]]
+	var back: Vector2i = data.get("roam_from", cell)
+	var choices: Array[Vector2i] = []
+	for step in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		var next: Vector2i = cell + step
+		if _cave.open.has(next) and next != back and absi(next.x - lair.x) <= reach and absi(next.y - lair.y) <= reach:
+			choices.append(next)
+	if choices.is_empty():
+		if not _cave.open.has(back) or back == cell:
+			return data["position"]
+		choices.append(back)
+	data["roam_from"] = cell
+	data["timeout"] = 3.0
+	return from_ground(_cave.cell_center(choices[int(_hash(id, turn, 1802) * choices.size()) % choices.size()]))
+
+
+## Giant rats and spiders scurry around where they lair, find their way to
+## Oravitsa when she is within walking reach and bite, which only stuns her;
+## after a bite she has a moment to get away. Shoo drives one off; Sling stuns
 ## one so it can be finished for aura.
 func _move_cave_creatures(delta: float) -> void:
+	var player_cell: Vector2i = _cave.cell_at(to_ground(player_position))
+	if player_cell != _cave_flow_cell:
+		_cave_flow_cell = player_cell
+		_cave_flow = _cave.distances_to(player_cell)
+	_bite_grace = maxf(0.0, _bite_grace - delta)
 	for id in _active_animals.keys():
 		var data := _animals[id]
 		if not data["alive"]:
 			continue
 		var sprite: AnimatedSprite2D = _active_animals[id]
-		for timer in ["stun", "shoo", "bite_cooldown", "attack_time"]:
+		for timer in ["stun", "shoo", "bite_cooldown", "attack_time", "burst", "burst_cooldown"]:
 			data[timer] = maxf(0.0, data[timer] - delta)
 		var position: Vector2 = data["position"]
 		if data["stun"] > 0.0 or data["attack_time"] > 0.0:
@@ -1202,31 +1286,44 @@ func _move_cave_creatures(delta: float) -> void:
 		var distance := to_player.length()
 		var speed: float = ANIMAL_SPEEDS[kind]
 		var target: Vector2 = data["target"]
+		var cell: Vector2i = _cave.cell_at(to_ground(position))
+		var steps: int = _cave_flow.get(cell, -1)
+		var sight: float = MONSTER_SIGHT[kind] * (MONSTER_LOSE if data["state"] == "hunt" else 1.0)
 		if data["shoo"] > 0.0:
-			target = position - to_player.normalized() * 300.0
+			target = _monster_step(position, cell, steps, 1) if steps >= 0 else position - to_player.normalized() * 300.0
 			speed *= 1.6
 			data["state"] = "scared"
-		elif distance < MONSTER_SIGHT * METRE:
+			data["timeout"] = 0.0
+		elif data["bite_cooldown"] > BITE_COOLDOWN - BITE_ATTACK - BITE_RECOIL or (_bite_grace > 0.0 and distance < BITE_SPACE * METRE):
+			target = _monster_step(position, cell, steps, 1) if steps >= 0 else position
+			data["timeout"] = 0.0
+		elif steps >= 0 and steps * _cave.CELL <= sight:
 			data["state"] = "hunt"
-			target = player_position
-			if distance <= ANIMAL_RADIUS[kind] + PLAYER_RADIUS + 10.0 and data["bite_cooldown"] <= 0.0 and player_stun <= 0.0:
-				player_stun = _player_stun_time(BITE_STUN)
+			data["timeout"] = 0.0
+			if distance <= ANIMAL_RADIUS[kind] + PLAYER_RADIUS + 10.0 and data["bite_cooldown"] <= 0.0 and player_stun <= 0.0 and player_fright <= 0.0 and _bite_grace <= 0.0:
+				var stunned := _stun_player(BITE_STUN, position)
+				_bite_grace = player_stun + player_fright + BITE_GRACE
 				data["bite_cooldown"] = BITE_COOLDOWN
-				data["attack_time"] = 0.6
+				data["attack_time"] = BITE_ATTACK
 				data["velocity"] = Vector2.ZERO
-				_show_notice("The %s bit Oravitsa!" % ANIMAL_NAMES[kind].to_lower())
+				if stunned:
+					_show_notice("The %s bit Oravitsa!" % ANIMAL_NAMES[kind].to_lower())
 				continue
+			target = _monster_step(position, cell, steps, -1)
+			if kind == SPIDER and data["burst_cooldown"] <= 0.0 and distance <= SPIDER_LUNGE_RANGE * METRE:
+				data["burst"] = SPIDER_LUNGE.y
+				data["burst_cooldown"] = SPIDER_LUNGE.z
+			if data["burst"] > 0.0:
+				speed *= SPIDER_LUNGE.x
 		else:
-			data["state"] = "roam"
-			speed *= 0.35
+			if data["state"] != "roam":
+				data["home"] = position # It settles where the chase ended.
+				data["state"] = "roam"
+			speed *= MONSTER_ROAM_SPEED[kind]
 			data["timeout"] = float(data["timeout"]) - delta
 			if position.distance_to(target) < 12.0 or data["timeout"] <= 0.0:
-				data["turn"] += 1
-				var home: Vector2 = data["home"]
-				var spot: Vector2 = home + Vector2.from_angle(_hash(id, data["turn"], 1801) * TAU) * _hash(id, data["turn"], 1802) * 3.0 * METRE
-				target = spot if _can_stand(spot, ANIMAL_RADIUS[kind]) else position
+				target = _monster_roam_target(id, cell)
 				data["target"] = target
-				data["timeout"] = 2.0 + _hash(id, data["turn"], 1803) * 4.0
 		var heading := position.direction_to(target) if position.distance_to(target) > 4.0 else Vector2.ZERO
 		var velocity: Vector2 = data["velocity"]
 		velocity = velocity.move_toward(heading * speed, 600.0 * delta)
@@ -1321,7 +1418,48 @@ func fed_speed() -> float:
 
 
 func _move_speed() -> float:
-	return SPEED * fed_speed()
+	return SPEED * fed_speed() * (FRIGHT_SPEED if player_fright > 0.0 else 1.0)
+
+
+func _stun_player(seconds: float, source: Vector2) -> bool:
+	if player_fright > 0.0:
+		return false
+	if _fright_rng.randf() >= fright_chance:
+		return super._stun_player(seconds, source)
+	player_fright = FRIGHT_TIME
+	player_stun = 0.0
+	var away := source.direction_to(player_position)
+	_fright_away = away if away != Vector2.ZERO else Vector2.DOWN
+	_fright_to_exit = in_cave() and _fright_rng.randf() < FRIGHT_TO_EXIT
+	_show_notice("Oravitsa panics and runs!")
+	return false
+
+
+func _panic_direction(delta: float) -> Vector2:
+	if player_fright <= 0.0:
+		return Vector2.ZERO
+	player_fright = maxf(0.0, player_fright - delta)
+	if player_fright <= 0.0:
+		return Vector2.ZERO
+	var wanted := _fright_away
+	if _fright_to_exit:
+		wanted = player_position.direction_to(_step_to_exit())
+	for turn in FRIGHT_TURNS:
+		var heading: Vector2 = wanted.rotated(turn)
+		if _can_stand(player_position + heading * 24.0, PLAYER_RADIUS):
+			if not _fright_to_exit:
+				_fright_away = heading # She keeps running along whatever turned her.
+			return heading
+	return wanted
+
+
+func _step_to_exit() -> Vector2:
+	var cell: Vector2i = _cave.cell_at(to_ground(player_position))
+	var steps: int = _cave_exit_flow.get(cell, 0)
+	for step in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+		if _cave_exit_flow.get(cell + step, -1) == steps - 1:
+			return from_ground(_cave.cell_center(cell + step))
+	return from_ground(_cave.entrance)
 
 
 func _player_stun_time(seconds: float) -> float:
@@ -1424,7 +1562,7 @@ func _on_sling_hit(id: int) -> void:
 
 
 func _passes_through(id: int) -> bool:
-	return _animals[id]["kind"] == VILLAGER
+	return player_fright > 0.0 or _animals[id]["kind"] == VILLAGER
 
 
 func _moves_itself(id: int, delta: float) -> bool:
@@ -1629,6 +1767,14 @@ func _status_states(id: int) -> Array:
 
 func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
+	if _player_marker == null:
+		_player_marker = Node3D.new()
+		_player_marker.set_script(STATUS_MARKER)
+		stage.add_child(_player_marker)
+	_player_marker.position = heroine.position + Vector3.UP * 2.35
+	_player_marker.show_states([["scared", player_fright / FRIGHT_TIME]] if player_fright > 0.0 else [])
+	_player_marker.visible = player_fright > 0.0
+	_player_marker.set_on_top(true)
 	if in_cave():
 		if is_instance_valid(_lantern):
 			_lantern.position = heroine.position + Vector3.UP * 1.7
