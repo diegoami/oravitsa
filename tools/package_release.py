@@ -56,7 +56,8 @@ Slow: E (halves the selected animal's speed). Cure: R (ends Oravitsa's stun or
 panic).
 Controller: LT casts Shoo, RT casts Sling, LB casts Slow, RB casts Cure;
 A collects; right-stick flicks cycle targets. Map/help: M/H or
-Select/Start. Both start hidden.
+Select/Start. Both start hidden. Press Map twice for the world map; zoom it
+with + / -, the mouse wheel, its buttons or right-stick flicks.
 Pause: the Pause button, P/Esc, or R3 (right-stick click); Resume carries on.
 Sprint (endless woods): hold Shift, or click the left stick (L3); it makes
 Oravitsa hungrier.

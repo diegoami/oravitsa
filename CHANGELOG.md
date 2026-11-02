@@ -15,6 +15,9 @@
 - A mount or pet walking home no longer presses against what is in its way
   (#104): once it stops making progress it plans a short detour around
   houses, trees and walls, as wildlife does, and walks the rest of the way.
+- The world map zooms (#105) from 1 to 32 m per pixel: + / −, the mouse
+  wheel, the + / − buttons on it, or right-stick flicks while it is open. The
+  footer shows the scale, and place names that would overlap are left out.
 - `SHA256SUMS.txt` and `release-manifest.json` always use LF line endings, so
   `sha256sum -c SHA256SUMS.txt` works on Linux without stripping CRs (#107).
 

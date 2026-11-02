@@ -289,6 +289,43 @@ func _run() -> void:
 	world._toggle_map()
 	assert(not world._minimap.visible and world._world_map.visible, "The second press opens the world map")
 	await process_frame # Draws it.
+	# Protects: a world map stuck at one scale, a zoom input that misses one
+	# of keyboard / wheel / button / stick, zooming past its limits, and keys
+	# or flicks that zoom while the map is closed (#105).
+	var atlas: Control = world._world_map
+	assert(atlas.metres_per_pixel() == 4.0, "It opens at 4 m per pixel")
+	var zoom_press := func(code: Key) -> void:
+		var zoom_key := InputEventKey.new()
+		zoom_key.keycode = code
+		zoom_key.pressed = true
+		world._unhandled_input(zoom_key)
+	zoom_press.call(KEY_EQUAL)
+	assert(atlas.metres_per_pixel() == 2.0, "+ zooms in")
+	zoom_press.call(KEY_KP_SUBTRACT)
+	zoom_press.call(KEY_MINUS)
+	assert(atlas.metres_per_pixel() == 8.0, "− zooms out")
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	atlas._gui_input(wheel)
+	assert(atlas.metres_per_pixel() == 16.0, "The wheel zooms")
+	world._cycle_sling_target(1)
+	assert(atlas.metres_per_pixel() == 32.0 and atlas._zoom_out.disabled and not atlas.zoom_by(1), "A flick zooms out, up to the widest scale")
+	await process_frame # Draws the widest scale.
+	for i in 6:
+		atlas._zoom_in.pressed.emit()
+	assert(atlas.metres_per_pixel() == 1.0 and atlas._zoom_in.disabled, "The + button zooms in, down to the closest scale")
+	var names: Array[Rect2] = []
+	var font := ThemeDB.fallback_font
+	assert(atlas.claim_label(font, Vector2(100, 100), "Rantala", names) and not atlas.claim_label(font, Vector2(104, 106), "Zmiieva Pechera", names), "A crowded place name is left out")
+	assert(atlas.claim_label(font, Vector2(100, 160), "Zmiieva Pechera", names) and names.size() == 2, "Clear names are all drawn")
+	await process_frame # Draws the closest scale.
+	atlas.zoom_by(atlas.DEFAULT_ZOOM)
+	world._world_map_visible = false
+	zoom_press.call(KEY_EQUAL)
+	world._cycle_sling_target(1)
+	assert(atlas.metres_per_pixel() == 4.0, "Closed, keys and flicks leave the zoom alone")
+	world._world_map_visible = true
 	world._enter_cave(cave, true)
 	world._update_hud()
 	assert(world.map_center() == world._cave_return)

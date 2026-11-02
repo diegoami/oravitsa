@@ -198,7 +198,9 @@ Record unavailable checks as untested, never as passed.
   beside a chieftain it gives food, and beside a cat or dog (keyboard G, or the
   Adopt button) it adopts it or sends a following pet home.
   Map/Help start hidden (M/H; Select/Start). In the endless woods M/Select
-  cycles the local map, the explored world map and none; exploration and
+  cycles the local map, the explored world map and none; the open world map
+  zooms from 1 to 32 m per pixel (#105) with + / −, the wheel, its buttons or
+  right-stick flicks (which then do not cycle targets); exploration and
   discovered hamlets and caves are absolute and saved. Pause (the HUD button, P/Esc;
   R3) freezes the whole game, surface and caves, until Resume. L3 sprints.
 - Keep the approved eight-direction Oravitsa walk and movement-driven gait.
