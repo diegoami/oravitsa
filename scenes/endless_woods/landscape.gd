@@ -19,8 +19,12 @@ const HOUSE_SIZE := Vector2(4.2, 3.4)
 const STORE_HALF := 1.3 # Half-width of the square footprint of the chieftain's store tent.
 const CAVE_CHANCE := 0.8
 const CAVE_MIN_HEIGHT := 0.55
+const PLACE_NAMES := preload("res://scenes/endless_woods/place_names.gd")
+const SIGN_REACH := 600.0 # Metres a signpost looks for a hamlet or cave.
+const SIGN_MIN := 40.0 # Closer than this it is already in sight: no sign.
 var _hamlet_cache: Dictionary = {}
 var _cave_cache: Dictionary = {}
+var _sign_cache := {} # Vector2i(column, row) -> signpost_at result.
 
 
 func build() -> void:
@@ -95,6 +99,88 @@ func crossing(column: int, row: int) -> Vector2:
 		z = road_z(x, row)
 		x = road_x(z, column)
 	return Vector2(x, z)
+
+
+## The signpost at a road crossing (#55): a spot on an off-road corner and up
+## to two arms, one to the nearest hamlet and one to the nearest cave mouth
+## within SIGN_REACH, each {"kind", "name", "target", "distance"} in absolute
+## metres; {} when nothing is near or no corner is free. Built from absolute
+## coordinates only, so streaming and rebasing always rebuild the same sign.
+func signpost_at(column: int, row: int) -> Dictionary:
+	var key := Vector2i(column, row)
+	if not _sign_cache.has(key):
+		_sign_cache[key] = _find_signpost(column, row)
+	return _sign_cache[key]
+
+
+func _find_signpost(column: int, row: int) -> Dictionary:
+	var at := crossing(column, row)
+	var spot := Vector2.INF
+	for corner in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		var q: Vector2 = at + corner * 3.6
+		if _road_distance(q) > 2.4 and water_edge(q - origin) > 1.5:
+			spot = q
+			break
+	if spot == Vector2.INF:
+		return {}
+	var arms: Array[Dictionary] = []
+	var best := {}
+	var home := Vector2i(floori(at.x / HAMLET_BLOCK.x), floori(at.y / HAMLET_BLOCK.y))
+	for by in range(-2, 3):
+		for bx in range(-2, 3):
+			var hamlet := hamlet_at(home + Vector2i(bx, by))
+			if hamlet.is_empty():
+				continue
+			var distance: float = spot.distance_to(hamlet["center"])
+			if distance >= SIGN_MIN and distance <= SIGN_REACH and (best.is_empty() or distance < best["distance"]):
+				best = {"kind": "hamlet", "name": PLACE_NAMES.hamlet(hamlet["block"]), "target": hamlet["center"], "distance": distance}
+	if not best.is_empty():
+		arms.append(best)
+	best = {}
+	var region := Vector2i(floori(at.x / 256), floori(at.y / 128))
+	for rz in range(-4, 5):
+		for rx in range(-2, 3):
+			var cave := cave_at(region + Vector2i(rx, rz))
+			if cave.is_empty():
+				continue
+			var distance: float = spot.distance_to(cave["mouth"])
+			if distance >= SIGN_MIN and distance <= SIGN_REACH and (best.is_empty() or distance < best["distance"]):
+				best = {"kind": "cave", "name": PLACE_NAMES.cave(cave["region"]), "target": cave["mouth"], "distance": distance}
+	if not best.is_empty():
+		arms.append(best)
+	if arms.is_empty():
+		return {}
+	return {"position": spot, "arms": arms}
+
+
+## A wooden post with one board per arm, each turned toward its destination
+## and labelled with the name, kind and distance. No collision: it never
+## blocks a path.
+func _signpost(sign: Dictionary) -> void:
+	var p: Vector2 = sign["position"] - origin
+	var y := height_at(p)
+	box(Vector3(p.x, y + 1.0, p.y), Vector3(0.14, 2.0, 0.14), "6a553c")
+	for i in sign["arms"].size():
+		var arm: Dictionary = sign["arms"][i]
+		var heading: Vector2 = (arm["target"] - sign["position"]).normalized()
+		var height: float = y + 1.75 - i * 0.42
+		var center := p + heading * 0.62
+		var board := box(Vector3(center.x, height, center.y), Vector3(1.15, 0.3, 0.07), "a98a5d" if arm["kind"] == "hamlet" else "6e7378")
+		board.rotation.y = -heading.angle()
+		var tip := p + heading * 1.2
+		var point := box(Vector3(tip.x, height, tip.y), Vector3(0.21, 0.21, 0.07), "a98a5d" if arm["kind"] == "hamlet" else "6e7378")
+		point.rotation = Vector3(0, -heading.angle(), PI * 0.25)
+		var label := Label3D.new()
+		label.text = "%s %s · %d m" % [arm["name"], "hamlet" if arm["kind"] == "hamlet" else "cave", int(roundf(arm["distance"] / 10.0) * 10)]
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.pixel_size = 0.009
+		label.font_size = 40
+		label.outline_size = 10
+		label.modulate = Color("fff1c9") if arm["kind"] == "hamlet" else Color("d6e4f0")
+		label.outline_modulate = Color("1d150c")
+		label.position = Vector3(p.x, height + 1.3 - i * 0.05, p.y)
+		label.name = "Sign_%s" % arm["name"]
+		_build_parent.add_child(label)
 
 
 ## The empty hamlet of an absolute block, or {} when its site is unusable.
@@ -440,6 +526,9 @@ func stream(center: Vector2, half: Vector2) -> bool:
 	for key in _cave_cache.keys():
 		if absf(key.x * 256 - center.x - origin.x) > 600 or absf(key.y * 128 - center.y - origin.y) > 400:
 			_cave_cache.erase(key)
+	for key in _sign_cache.keys():
+		if absf(key.x * 256 - center.x - origin.x) > 600 or absf(key.y * 128 - center.y - origin.y) > 400:
+			_sign_cache.erase(key)
 	return changed
 
 
@@ -524,6 +613,13 @@ func _landmark_chunk(key: Vector2i) -> void:
 				var p := pos + Vector2(side * 3, end * 1.45).rotated(bridge.z)
 				box(Vector3(p.x, 0.55, p.y), Vector3(0.14, 1.1, 0.14), "645540")
 	var region := Vector2i(floori(center.x / 256), floori(center.y / 128))
+	var column := roundi((center.x - 70) / 256.0)
+	var row := roundi((center.y - 5) / 128.0)
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var sign := signpost_at(column + dx, row + dz)
+			if not sign.is_empty() and _in_chunk(sign["position"], key):
+				_signpost(sign)
 	_hamlet_chunk(key, hamlet_near(center))
 	_cave_chunk(key, cave_at(region))
 	var feature := landmark_at(region)

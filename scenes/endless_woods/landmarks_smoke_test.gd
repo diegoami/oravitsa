@@ -187,12 +187,49 @@ func _run() -> void:
 		assert(names.cave(c["region"]) in names.CAVES)
 		seen[names.cave(c["region"])] = true
 	assert(seen.size() > (hamlets.size() + caves.size()) / 3, "Names vary between places")
+	# Signposts (#55) at road crossings point to real hamlets and caves by
+	# name, stand off the road, and are rebuilt identically after rebasing.
+	# Protects: signs to places that do not exist, wrong names, signs that
+	# block the road, and signs that change with streaming.
+	var signs := {}
+	for row in range(-3, 4):
+		for column in range(-2, 3):
+			var found: Dictionary = land.signpost_at(column, row)
+			if not found.is_empty():
+				signs[Vector2i(column, row)] = found.duplicate(true)
+	assert(signs.size() >= 4, "Several crossings have signposts")
+	var kinds := {}
+	for key in signs:
+		var found: Dictionary = signs[key]
+		assert(land._road_distance(found["position"]) > 2.4, "A signpost stands off the road")
+		for arm in found["arms"]:
+			kinds[arm["kind"]] = true
+			assert(arm["distance"] >= land.SIGN_MIN and arm["distance"] <= land.SIGN_REACH)
+			if arm["kind"] == "hamlet":
+				var target: Dictionary = land.hamlet_near(arm["target"])
+				assert(target["center"] == arm["target"] and names.hamlet(target["block"]) == arm["name"], "A sign names a real hamlet")
+			else:
+				var target: Dictionary = land.cave_at(Vector2i(floori(arm["target"].x / 256), floori(arm["target"].y / 128)))
+				assert(target["mouth"] == arm["target"] and names.cave(target["region"]) == arm["name"], "A sign names a real cave")
+	assert(kinds.size() == 2, "Signs point to both hamlets and caves")
 	await _assert_rendered(world, after, {})
 	var cave: Dictionary = caves[0]
 	await _travel(world, cave["mouth"] + cave["facing"] * 2)
 	assert(world._landmark_label.text == names.cave(cave["region"]) + " · cave mouth")
 	assert(world.absolute_ground(world.player_position).distance_to(cave["mouth"]) < 3)
 	await _assert_rendered(world, {}, cave)
+	land._sign_cache.clear()
+	for key in signs:
+		assert(land.signpost_at(key.x, key.y) == signs[key], "Signposts are rebuilt identically after rebasing")
+	var sign_key: Vector2i = signs.keys()[0]
+	await _travel(world, signs[sign_key]["position"] + Vector2(0, 3))
+	for frame in 30:
+		world._sync_presentation(1.0 / 30.0)
+		await process_frame
+	var labels := land.find_children("Sign_*", "Label3D", true, false)
+	var texts: Array = labels.map(func(label: Label3D) -> String: return label.text)
+	for arm in signs[sign_key]["arms"]:
+		assert(texts.any(func(text: String) -> bool: return text.begins_with(arm["name"] + " " + arm["kind"])), "The sign's boards are built and labelled: %s" % [texts])
 	# A save from before hamlets existed can put Oravitsa or an animal where a
 	# house now stands, or a home in a clearing: loading moves them to the
 	# nearest open ground, and leaves already valid positions exactly as saved.
@@ -248,5 +285,5 @@ func _run() -> void:
 			moves += 1
 		world.player_position = start
 	assert(moves >= 3, "Oravitsa can walk away beside the boar")
-	print("Landmarks smoke test passed: ", hamlets.size(), " hamlets (", houses, " closed houses) and ", caves.size(), " cave mouths; solid houses/store tents/rock matching their drawn meshes (", open_samples, " open samples beside rock), open entrances and crossings, passable door and cave trails, bare clearings, no spawns inside, deterministic after rebasing, bounded caches, labels with stable themed names, and old saves moved out of new houses")
+	print("Landmarks smoke test passed: ", hamlets.size(), " hamlets (", houses, " closed houses) and ", caves.size(), " cave mouths; solid houses/store tents/rock matching their drawn meshes (", open_samples, " open samples beside rock), open entrances and crossings, passable door and cave trails, bare clearings, no spawns inside, deterministic after rebasing, bounded caches, labels with stable themed names, signposts naming real hamlets and caves, and old saves moved out of new houses")
 	quit()

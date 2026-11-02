@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Signposts at road crossings (#55) point to the nearest hamlet and cave,
+  with their names and distances, such as "Koivula hamlet · 260 m". They
+  stand beside the road and never block it.
 - Hamlets and caves have names (#56) in Finnish, Swedish and Ukrainian styles,
   such as Koivula, Björkby, Sosnivka, Hiidenluola, Trollgrottan and Vovcha
   Pechera. The location label and the cave notice use them, and each place

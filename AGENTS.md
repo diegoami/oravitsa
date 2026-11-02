@@ -117,7 +117,9 @@ Record unavailable checks as untested, never as passed.
   chieftains are seeded per hamlet and never saved.
 - Hamlets and caves have Finnish, Swedish or Ukrainian-style names
   (`place_names.gd`) chosen from their absolute block or region, so a name
-  never changes with streaming, rebasing or loading.
+  never changes with streaming, rebasing or loading. Signposts at road
+  crossings name and point to the nearest real hamlet and cave within
+  600 m, stand off the road and have no collision.
 - Each cave mouth leads to its seeded first level. The surface freezes while
   Oravitsa is underground. Saving works there: the save keeps the surface,
   her spot in the cave and the living monsters' positions and stuns. Rats
