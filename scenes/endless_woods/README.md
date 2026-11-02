@@ -140,7 +140,8 @@ rock is built in the chunk that holds its centre.
   Names step through the pool on an x + 5y lattice, so neighbours differ: two
   caves sharing a name are at least about 690 m apart, two hamlets 1.9 km.
   The location label shows "Koivula · hamlet", "Hiidenluola · cave mouth" and,
-  underground, "Hiidenluola · first level"; entering a cave names it.
+  underground, "Hiidenluola · first level" or "· second level"; entering a
+  cave or its second level names it.
 - **World map (#66).** Walking marks the absolute 32 m cells within two cells
   of Oravitsa as explored, and coming within 60 m of a hamlet's centre or a
   cave mouth discovers it. M / Select cycles the local map, the world map and
@@ -278,6 +279,49 @@ and checkpoint crystals glow blue.
   offset from the way out and each living monster's index, offset and stun.
   Loading re-enters that cave and puts them back; loading any save while
   underground first leaves the cave.
+
+### Second level (#62)
+
+Each first level has one **way down**: a dark shaft ringed with stones and lit
+amber, on the floor cell farthest on foot from the way out that lies inside a
+room and at least 4 m from every checkpoint. Walking onto it (within 1 m, not
+while stunned or panicking) enters the cave's second level: the same
+generator with a different salt, a 30 × 24 grid, six to eight rooms, slate
+floor and walls and a darker ground. Its arrival spot, a pale stone ring under
+a cold light, is the **way up**, which returns her to the way down. Like a
+cave mouth, the spot she arrives on works only after she has stepped 3 m
+away. The first level's monsters are kept exactly as they were while she is
+below; the second level starts from its seed on every descent, as the first
+does on every entry. The surface stays frozen throughout. The label reads
+"Way down", "Way up" and "Hiidenluola · second level".
+
+- **Checkpoints.** Two or three, +30 aura once each, saved per cave in its
+  `deep` list.
+- **Goblins** (Quaternius Goblin, CC0, 0.95 m): two or three packs of two or
+  three. They hunt by walking distance like rats, slower (165 px/s) but from
+  farther (20 m), and club her with the bite rules: a stun of at most 1.5 s,
+  less when well fed, the Attack clip, then they back off and nobody can club
+  or bite until two seconds after the stun.
+- **Kobolds** (Quaternius Blue Demon, CC0, 0.75 m): two packs of two or three,
+  fast (200 px/s) and timid. Within 16 m on foot, a kobold alone backs off
+  when she is closer than 2.6 m, creeps up when she is farther than 4 m and
+  waits in between. When three awake, calm kobolds are within 6 m of her they
+  dart in, each for at most 2.5 s. One that touches her snatches one random
+  bag item (the chieftain's random pick; no stun), shows a notice, plays its
+  Punch clip and runs off for 4 s; for 3 s after a theft the others hang back.
+  With an empty bag it just runs off.
+- Sling, Shoo and Slow work on both; a stunned or scared one neither clubs,
+  steals, bumps nor blocks her. Neither can be killed and neither has a call.
+- **Saving.** The `underground` section also stores `level` (1 or 2); offsets
+  and monster indices are relative to that level's arrival spot. Saves without
+  it load on the first level. Saving below does not store the first level's
+  waiting monsters: after loading there they start from their lairs.
+
+`cave_level2_smoke_test.gd` covers the way down on many caves, identical and
+connected second levels, both ways without bouncing, the waiting first level,
+goblin chases, clubs and back-off, kobold distance-keeping, pack theft of
+exactly one item, no theft while stunned or scared, deep checkpoints, and
+saving, loading and older saves.
 
 `cave_smoke_test.gd` covers seeding and variety, connectivity, entry and
 exit, the frozen surface, lighting, bites, monsters that cannot be killed and leave
