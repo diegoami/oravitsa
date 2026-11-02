@@ -98,7 +98,8 @@ random item from the bag for aura: raw meat +3, a mushroom or berries +1. Aura
 fades by one point per minute while it is above zero.
 
 On higher ground there are **cave mouths**, each with its own name (Hiidenluola,
-Trollgrottan, Vovcha Pechera…). Walk into one to enter that cave's
+Trollgrottan, Vovcha Pechera…). Signposts at road crossings point the way to
+the nearest hamlet and cave, with their names and distances. Walk into one to enter that cave's
 first level: dark tunnels and rooms lit by Oravitsa's lantern. Glowing
 checkpoints give +20 aura once each. Giant rats and spiders chase her and
 bite, which only stuns her for a moment. Sling stuns one and Shoo drives one

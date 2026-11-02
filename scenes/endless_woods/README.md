@@ -133,6 +133,15 @@ rock is built in the chunk that holds its centre.
   landmark region. Nothing is stored: the same place always gets the same name.
   The location label shows "Koivula · hamlet", "Hiidenluola · cave mouth" and,
   underground, "Hiidenluola · first level"; entering a cave names it.
+- **Signposts (#55).** At a road crossing with a hamlet or cave mouth between
+  40 and 600 m away, `landscape.signpost_at` places a post on the first free
+  off-road corner (3.6 m diagonally from the crossing, over 2.4 m from any
+  road and clear of water). It has one board to the nearest hamlet (light
+  wood) and one to the nearest cave (grey stone), each turned toward its
+  destination, with a billboard label such as "Koivula hamlet · 260 m".
+  Signs come from absolute coordinates and are cached per crossing like the
+  other features, so streaming and rebasing rebuild them identically. They
+  have no collision.
 - **Cave mouths.** Each leads to a seeded first level (see below). A landmark
   region without a homestead gets a cave with an 80% chance, on the highest of
   14 seeded candidate spots at least 0.55 m above the base terrain. Candidates
