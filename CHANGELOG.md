@@ -12,6 +12,9 @@
   walking home never steps further into a monster, an animal or a villager
   (it can always step away from one that walked into it). A pet still bites
   the monster it hunts.
+- A mount or pet walking home no longer presses against what is in its way
+  (#104): once it stops making progress it plans a short detour around
+  houses, trees and walls, as wildlife does, and walks the rest of the way.
 - `SHA256SUMS.txt` and `release-manifest.json` always use LF line endings, so
   `sha256sum -c SHA256SUMS.txt` works on Linux without stripping CRs (#107).
 

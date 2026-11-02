@@ -135,6 +135,8 @@ Record unavailable checks as untested, never as passed.
   mount's nose clear too. A pet, or a mount walking home, never steps
   further into a live creature (it may always step away); a hunting pet is
   exempt only from its prey. Creatures do not avoid pets or mounts.
+  A pet or mount walking home that stops making progress plans a short
+  detour around what blocks it (#104) instead of pressing on in a line.
 - Pets (#65): about three hamlets in five keep one seeded pet near the
   clearing's edge: a cat (most common), a Shiba Inu or a husky (rare), with an
   aura threshold seeded in its band (20–40, 40–65, 65–90). The adopt prompt
