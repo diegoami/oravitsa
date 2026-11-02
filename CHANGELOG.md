@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Aura slowly fades (#64): one point per minute of play while it is positive,
+  on the surface and in caves. Decay alone never takes it below zero, saves
+  keep the partial minute, and it stops while the game is paused.
 - Wolves, lynxes and boars hit by the sling bear a grudge (#63): when the stun
   ends they give their usual warning and charge, unless Shoo has settled it or
   Oravitsa is far away. They never attack while stunned. They are also a

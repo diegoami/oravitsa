@@ -159,7 +159,9 @@ negative ones. Its checks:
 - **Aura** is the game's points: a glowing HUD badge at the top centre with
   the number drawn on top (`aura_badge.gd`, `hud_icons/`). Every change
   shows a "+N aura · reason" notice and flashes the badge. Aura can go below
-  zero.
+  zero. Positive aura fades by one point per minute of play (#64), on the
+  surface and underground, silently and without a flash; decay stops at zero,
+  the partial minute is kept in the save (`aura_decay`), and pausing stops it.
 - **Feeding.** A fed level from 0 (starving) to 100 (full), drawn beside the
   aura badge as a bowl and a meter. It starts at 60 and falls 0.3 per second.
   Every 120 s Oravitsa eats one random bag item (each item equally likely):

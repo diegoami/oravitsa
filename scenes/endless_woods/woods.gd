@@ -53,6 +53,9 @@ const SAVED_ANIMAL_COUNTERS := ["turn", "hunt_attempts", "aggro_rolls"]
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
 const MUSHROOM_REGROW_SECONDS := Vector2(300, 540)
 # Aura is the game's points (#42).
+# Aura fades by one point every AURA_DECAY_SECONDS of play (#64), never below
+# zero by itself; the fraction carries over, also through saves.
+const AURA_DECAY_SECONDS := 60.0
 const AURA := {"checkpoint": 20, "food": 1, "meat": 3, "shoo_villager": -5, "hit_villager": -10}
 # How well fed Oravitsa is (#43), from 0 (starving) to FED_MAX. It falls
 # steadily; every MEAL_INTERVAL she eats one random bag item unless she is
@@ -118,6 +121,7 @@ var audio: Node
 var _ambience_button: Button
 var _animal_sound_button: Button
 var aura := 0
+var _aura_decay := 0.0 # Seconds of decay not yet taken off as a whole point.
 var fed := FED_START
 var sprinting := false # Running faster this frame, at a hunger cost (#58).
 var _sprint_wanted := false
@@ -867,6 +871,7 @@ func save_state() -> Dictionary:
 		"harvested": harvested,
 		"animals": animals,
 		"aura": aura,
+		"aura_decay": _aura_decay,
 		"fed": {"level": fed, "meal_timer": _meal_timer},
 		"caves": _cave_progress.duplicate(true),
 	}
@@ -962,6 +967,7 @@ func apply_state(data: Dictionary) -> void:
 	_fight_tick = int(data["clock"]["fight_tick"])
 	# Saves from before aura and feeding (version 1) start at zero, part fed.
 	aura = int(data.get("aura", 0))
+	_aura_decay = float(data.get("aura_decay", 0.0))
 	var feeding: Dictionary = data.get("fed", {})
 	fed = float(feeding.get("level", FED_START))
 	_meal_timer = float(feeding.get("meal_timer", MEAL_INTERVAL))
@@ -1044,6 +1050,7 @@ func _process(delta: float) -> void:
 	_rebase_if_needed()
 	_update_food_regrowth(delta)
 	_update_hunger(delta)
+	_update_aura_decay(delta)
 	_villager_check -= delta
 	if _villager_check <= 0.0:
 		_villager_check = 0.5
@@ -1217,6 +1224,7 @@ func _process_cave(delta: float) -> void:
 	_update_sling(delta)
 	_tick_slow(delta)
 	_update_hunger(delta)
+	_update_aura_decay(delta)
 	_check_cave_points()
 	if not in_cave():
 		return
@@ -1464,6 +1472,19 @@ func _step_to_exit() -> Vector2:
 
 func _player_stun_time(seconds: float) -> float:
 	return seconds * lerpf(1.0, FULL_STUN, fed / FED_MAX)
+
+
+## Positive aura slowly fades; at zero or below the clock stops, so decay
+## alone never makes it negative and a later gain starts a fresh minute.
+func _update_aura_decay(delta: float) -> void:
+	if aura <= 0:
+		_aura_decay = 0.0
+		return
+	_aura_decay += delta
+	if _aura_decay >= AURA_DECAY_SECONDS:
+		_aura_decay -= AURA_DECAY_SECONDS
+		aura -= 1
+		_update_hud()
 
 
 ## Aura, the game's points: every gain or loss shows a notice and flashes the

@@ -118,6 +118,9 @@ static func validate(data: Dictionary) -> String:
 	if int(data["version"]) >= 2:
 		if not _number(data.get("aura"), -1e9, 1e9):
 			return "the saved aura is invalid"
+		# Saves from before aura decay (#64) have no partial minute.
+		if data.has("aura_decay") and not _number(data.get("aura_decay"), 0, 60):
+			return "the saved aura is invalid"
 		var feeding = data.get("fed")
 		if not feeding is Dictionary or not _number(feeding.get("level"), 0, 100) or not _number(feeding.get("meal_timer"), 0, 3600):
 			return "the saved feeding is invalid"

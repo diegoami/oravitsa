@@ -94,7 +94,8 @@ the chieftain's canvas store tent, at about one road crossing in six. Villagers 
 and ignore Oravitsa, but shooing (−5) or hitting (−10) one costs aura. The
 hamlet's **chieftain**, crowned and armoured, stands at the tent's entrance. Next to
 him, press **O** (controller **A**, or the button that appears) to give him a
-random item from the bag for aura: raw meat +3, a mushroom or berries +1.
+random item from the bag for aura: raw meat +3, a mushroom or berries +1. Aura
+fades by one point per minute while it is above zero.
 
 On higher ground there are **cave mouths**. Walk into one to enter that cave's
 first level: dark tunnels and rooms lit by Oravitsa's lantern. Glowing
