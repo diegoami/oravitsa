@@ -134,8 +134,8 @@ const FRIGHT_TO_EXIT := 0.5
 const FRIGHT_TURNS := [0.0, PI / 4, -PI / 4, PI / 2, -PI / 2, PI * 0.75, -PI * 0.75]
 # Hamlet mounts (#67): donkeys, mules and horses she can ride with enough aura.
 const MOUNTS := preload("res://scenes/endless_woods/mounts.gd")
-# Hunter companions (#65): spear and bow hunters who follow her with enough aura.
-const HUNTERS := preload("res://scenes/endless_woods/hunters.gd")
+# Pets (#65): cats and dogs who follow her with enough aura and finish hindered monsters.
+const PETS := preload("res://scenes/endless_woods/pets.gd")
 var origin_cells := Vector2i.ZERO
 var _harvested: Dictionary = {}
 var _cached_cells: Dictionary = {}
@@ -167,14 +167,16 @@ var _explored_from := Vector2i(1 << 30, 1 << 30)
 var _offer_button: Button
 var mounts: Node
 var _mount_button: Button
-var hunters: Node
-var _hunter_button: Button
+var pets: Node
+var _pet_button: Button
 var _villager_check := 0.0
 var _cave: Node3D = null
 var _surface_landscape: Node3D
 var _surface_animals: Array[Dictionary] = []
 var _cave_key := ""
-var _cave_progress: Dictionary = {} # "x,y" region -> {"checkpoints": [...], "killed": [...]}; "killed" only comes from saves before #74.
+var _cave_progress: Dictionary = {} # "x,y" region -> {"checkpoints": [...], "killed": [...], "deep": [...], "killed_deep": [...]}: monsters killed by pets (#65) on the first and second level.
+var _dying_models: Array[Node3D] = [] # Death clips still playing in this cave level.
+var _cured_pets: Array[String] = [] # What the last Cure healed, for its notice.
 var _cave_return := Vector2.ZERO
 var _cave_armed := true
 var _cave_exit_armed := false
@@ -238,12 +240,12 @@ func _build_world() -> void:
 	mounts.setup(self)
 	_mount_button = _hud_toggle(canvas, func(): mounts.toggle())
 	_mount_button.visible = false
-	hunters = HUNTERS.new()
-	hunters.name = "HunterRules"
-	add_child(hunters)
-	hunters.setup(self)
-	_hunter_button = _hud_toggle(canvas, func(): hunters.toggle())
-	_hunter_button.visible = false
+	pets = PETS.new()
+	pets.name = "PetRules"
+	add_child(pets)
+	pets.setup(self)
+	_pet_button = _hud_toggle(canvas, func(): pets.toggle())
+	_pet_button.visible = false
 	_layout_hud()
 
 
@@ -256,8 +258,8 @@ func _layout_hud() -> void:
 		_offer_button.position = Vector2(viewport_size.x * 0.5 - 118, viewport_size.y - 156)
 		_mount_button.size = Vector2(320, 34)
 		_mount_button.position = Vector2(viewport_size.x * 0.5 - 160, viewport_size.y - 196)
-		_hunter_button.size = Vector2(420, 34)
-		_hunter_button.position = Vector2(viewport_size.x * 0.5 - 210, viewport_size.y - 236)
+		_pet_button.size = Vector2(420, 34)
+		_pet_button.position = Vector2(viewport_size.x * 0.5 - 210, viewport_size.y - 236)
 
 
 func _fit_help_panel() -> void:
@@ -289,7 +291,7 @@ func _update_hud() -> void:
 		_offer_button.visible = _offer_ready()
 		_offer_button.text = "Give food to the chieftain" + (" [A]" if _input_mode == "controller" else (" [O]" if keys else ""))
 		_update_mount_button(keys)
-		_update_hunter_button(keys)
+		_update_pet_button(keys)
 	if not is_instance_valid(_ambience_button) or audio == null:
 		return
 	_ambience_button.visible = _instructions_visible
@@ -297,11 +299,11 @@ func _update_hud() -> void:
 	_ambience_button.text = "Forest " + audio.level_text(audio.ambience_level) + (" [9]" if keys else "")
 	_animal_sound_button.text = "Animals " + audio.level_text(audio.animal_level) + (" [0]" if keys else "")
 	if keys:
-		_hint_label.text += "\nShift: sprint (hungrier)\nO: give food to a village chieftain\nT: ride or leave a donkey, mule or horse\nG: ask a hunter to follow, or send one home\n9 / 0: forest / animal volume"
+		_hint_label.text += "\nShift: sprint (hungrier)\nO: give food to a village chieftain\nT: ride or leave a donkey, mule or horse\nG: adopt a cat or dog, or send a pet home\nR (Cure) also heals pets within 6 m\n9 / 0: forest / animal volume"
 	elif _input_mode == "controller":
-		_hint_label.text += "\nLeft stick click (L3): sprint (hungrier)\nY: ride or leave a donkey, mule or horse\nA beside a hunter: ask it to follow, or send it home"
+		_hint_label.text += "\nLeft stick click (L3): sprint (hungrier)\nY: ride or leave a donkey, mule or horse\nA beside a cat or dog: adopt it, or send it home\nRB (Cure) also heals pets within 6 m"
 	else:
-		_hint_label.text += "\nTap Ride beside a donkey, mule or horse\nTap Ask beside a hunter to have it follow you"
+		_hint_label.text += "\nTap Ride beside a donkey, mule or horse\nTap Adopt beside a cat or dog to have it follow you\nCure also heals pets within 6 m"
 	_fit_help_panel()
 
 
@@ -321,30 +323,30 @@ func _update_mount_button(keys: bool) -> void:
 		_mount_button.disabled = true
 
 
-## The hunter button (#65): beside a hamlet hunter it asks it to follow, or
+## The pet button (#65): beside a hamlet pet it adopts it, or
 ## states the aura it needs; right beside a follower it sends it home.
-func _update_hunter_button(keys: bool) -> void:
+func _update_pet_button(keys: bool) -> void:
 	var key := " [A]" if _input_mode == "controller" else (" [G]" if keys else "")
-	var near: Dictionary = hunters.nearest()
-	var ask: String = hunters.prompt(near)
-	_hunter_button.visible = not ask.is_empty() and not _world_map_visible
-	_hunter_button.disabled = ask in ["aura", "full"]
+	var near: Dictionary = pets.nearest()
+	var ask: String = pets.prompt(near)
+	_pet_button.visible = not ask.is_empty() and not _world_map_visible
+	_pet_button.disabled = ask in ["aura", "full"]
 	match ask:
 		"dismiss":
-			_hunter_button.text = "Send the %s home%s" % [hunters.title(near), key]
+			_pet_button.text = "Send the %s home%s" % [pets.title(near), key]
 		"join":
-			_hunter_button.text = "Ask the %s to join (%d aura)%s" % [hunters.title(near), hunters.threshold(near), key]
+			_pet_button.text = "Adopt the %s (%d aura)%s" % [pets.title(near), pets.threshold(near), key]
 		"aura":
-			_hunter_button.text = "The %s follows only at %d aura (you have %d)" % [hunters.title(near), hunters.threshold(near), aura]
+			_pet_button.text = "The %s follows only at %d aura (you have %d)" % [pets.title(near), pets.threshold(near), aura]
 		"full":
-			_hunter_button.text = "Two hunters already follow Oravitsa"
+			_pet_button.text = "Two pets already follow Oravitsa"
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_O:
 		_offer_food()
 	elif event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_G or event.physical_keycode == KEY_G):
-		hunters.toggle()
+		pets.toggle()
 	elif event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_T or event.physical_keycode == KEY_T):
 		mounts.toggle()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_9, KEY_0]:
@@ -1012,7 +1014,7 @@ func save_state() -> Dictionary:
 		"explored": _flat_cells(explored.keys()),
 		"discovered": {"hamlets": _flat_cells(discovered_hamlets.keys()), "caves": _flat_cells(discovered_caves.keys())},
 		"mounts": mounts.save(),
-		"hunters": hunters.save(),
+		"pets": pets.save(),
 	}
 	if in_cave():
 		var offset: Vector2 = to_ground(player_position) - _cave.entrance
@@ -1116,6 +1118,8 @@ func apply_state(data: Dictionary) -> void:
 		_cave_progress[key] = {"checkpoints": caves[key]["checkpoints"].map(func(v): return int(v)), "killed": caves[key]["killed"].map(func(v): return int(v))}
 		# Saves from before the second level (#62) have no deep checkpoints.
 		_cave_progress[key]["deep"] = caves[key].get("deep", []).map(func(v): return int(v))
+		# Saves from before pets (#65) have no second-level kills.
+		_cave_progress[key]["killed_deep"] = caves[key].get("killed_deep", []).map(func(v): return int(v))
 	# Saves from before the world map (#66) start with nothing explored.
 	explored = {}
 	for cell in _cells(data.get("explored", [])):
@@ -1132,8 +1136,8 @@ func apply_state(data: Dictionary) -> void:
 	_regrowth_check = 0.0
 	# Saves from before mounts (#67) have none away from home and no ride.
 	mounts.apply(data.get("mounts", []), data.has("underground"))
-	# Saves from before hunters (#65) have no followers.
-	hunters.apply(data.get("hunters", []))
+	# Saves from before pets (#65) have no followers.
+	pets.apply(data.get("pets", []))
 	view.position = to_world(player_position) + CAMERA_OFFSET
 	_refresh_visible()
 	_sync_presentation(0.0)
@@ -1174,7 +1178,7 @@ func _resume_cave(underground: Dictionary) -> void:
 	_loaded_center = Vector2i(-999, -999)
 	_refresh_cave_creatures()
 	view.position = to_world(player_position) + CAMERA_OFFSET
-	hunters.arrive() # Her followers stand beside her where she was.
+	pets.arrive() # Her followers stand beside her where she was.
 	_sync_presentation(0.0)
 
 
@@ -1218,10 +1222,10 @@ func _process(delta: float) -> void:
 		_villager_check = 0.5
 		_update_villagers()
 		mounts.refresh()
-		hunters.refresh()
+		pets.refresh()
 	super._process(delta)
 	mounts.update(delta)
-	hunters.update(delta)
+	pets.update(delta)
 	_explore()
 	_check_cave_mouth()
 
@@ -1321,9 +1325,10 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	var region: Vector2i = cave["region"]
 	_cave_key = "%d,%d" % [region.x, region.y]
 	if not _cave_progress.has(_cave_key):
-		_cave_progress[_cave_key] = {"checkpoints": [], "killed": [], "deep": []}
-	if not _cave_progress[_cave_key].has("deep"):
-		_cave_progress[_cave_key]["deep"] = []
+		_cave_progress[_cave_key] = {"checkpoints": [], "killed": [], "deep": [], "killed_deep": []}
+	for field in ["deep", "killed_deep"]:
+		if not _cave_progress[_cave_key].has(field):
+			_cave_progress[_cave_key][field] = []
 	if audio != null:
 		audio.release_voices()
 		audio.set_underground(true)
@@ -1352,7 +1357,7 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	_loaded_center = Vector2i(-999, -999)
 	_refresh_cave_creatures()
 	view.position = to_world(player_position) + CAMERA_OFFSET
-	hunters.arrive() # Her followers come in beside her.
+	pets.arrive() # Her followers come in beside her.
 	if not quiet:
 		_show_notice("Oravitsa enters %s: find its glowing checkpoints" % _cave_name(), 3.5)
 	_update_hud()
@@ -1382,10 +1387,10 @@ func _open_level(region: Vector2i, mouth: Vector2, depth: int) -> void:
 			level.checkpoint_collected(int(i))
 
 
-## The current level's monsters, fresh from its seed. Monsters killed in saves
-## from before #74 stay absent from the first level.
+## The current level's monsters, fresh from its seed. Monsters killed by her
+## pets (#65), and in saves from before #74, stay dead on their level.
 func _spawn_monsters() -> void:
-	var killed: Array = _cave_progress[_cave_key]["killed"] if _cave_depth == 1 else []
+	var killed: Array = _cave_progress[_cave_key]["killed" if _cave_depth == 1 else "killed_deep"]
 	for i in _cave.spawns.size():
 		if i in killed:
 			continue
@@ -1412,6 +1417,7 @@ func _change_level(depth: int, quiet: bool = false) -> void:
 		sprite.queue_free()
 	_active_animals.clear()
 	_sync_animal_lifecycle()
+	_free_dying_models()
 	_stones.clear()
 	selected_target = -1
 	_status_peaks.clear()
@@ -1437,7 +1443,7 @@ func _change_level(depth: int, quiet: bool = false) -> void:
 	_loaded_center = Vector2i(-999, -999)
 	_refresh_cave_creatures()
 	view.position = to_world(player_position) + CAMERA_OFFSET
-	hunters.arrive()
+	pets.arrive()
 	_sync_presentation(0.0)
 	if not quiet:
 		if depth == 2:
@@ -1462,6 +1468,7 @@ func _exit_cave(quiet: bool = false) -> void:
 	_animals = _surface_animals
 	var none: Array[Dictionary] = []
 	_surface_animals = none
+	_free_dying_models()
 	_stones.clear()
 	selected_target = -1
 	_status_peaks.clear()
@@ -1476,7 +1483,7 @@ func _exit_cave(quiet: bool = false) -> void:
 	player_position = _local_point([_cave_return.x, _cave_return.y])
 	_cave_armed = false
 	view.position = to_world(player_position) + CAMERA_OFFSET
-	hunters.arrive()
+	pets.arrive()
 	_refresh_visible()
 	_sync_presentation(0.0)
 	if not quiet:
@@ -1533,7 +1540,7 @@ func _process_cave(delta: float) -> void:
 		return
 	_refresh_cave_creatures()
 	_move_cave_creatures(delta)
-	hunters.update(delta) # Followers keep up and stun monsters in reach.
+	pets.update(delta) # Pets keep up, finish hindered monsters and get bitten.
 	_update_sling(delta)
 	_tick_slow(delta)
 	_update_hunger(delta)
@@ -1622,7 +1629,8 @@ func _monster_roam_target(id: int, cell: Vector2i) -> Vector2:
 ## Giant rats and spiders scurry around where they lair, find their way to
 ## Oravitsa when she is within walking reach and bite, which only stuns her;
 ## after a bite she has a moment to get away. Shoo drives one off and Sling
-## stuns one; either way it leaves her alone meanwhile, and none can be killed.
+## stuns one; either way it leaves her alone meanwhile. Oravitsa never kills
+## one; her pets (#65) can, while it is stunned, scared or slowed.
 func _move_cave_creatures(delta: float) -> void:
 	var player_cell: Vector2i = _cave.cell_at(to_ground(player_position))
 	if player_cell != _cave_flow_cell:
@@ -1635,10 +1643,11 @@ func _move_cave_creatures(delta: float) -> void:
 		if not data["alive"]:
 			continue
 		var sprite: AnimatedSprite2D = _active_animals[id]
-		for timer in ["stun", "shoo", "bite_cooldown", "attack_time", "burst", "burst_cooldown", "flee", "dart"]:
+		for timer in ["stun", "shoo", "bite_cooldown", "attack_time", "burst", "burst_cooldown", "flee", "dart", "held"]:
 			data[timer] = maxf(0.0, data.get(timer, 0.0) - delta)
 		var position: Vector2 = data["position"]
-		if data["stun"] > 0.0 or data["attack_time"] > 0.0:
+		# A pet's bite (#65) holds a monster still until it lands.
+		if data["stun"] > 0.0 or data["attack_time"] > 0.0 or data["held"] > 0.0:
 			data["velocity"] = Vector2.ZERO
 			continue
 		var kind: int = data["kind"]
@@ -1755,10 +1764,62 @@ func _animation_override(id: int, wanted: String, animator: AnimationPlayer) -> 
 	return wanted
 
 
-## Underground there is nothing to collect: monsters cannot be killed (#74).
+## Underground there is nothing to collect: Oravitsa never kills a monster
+## (#74); only her pets do (#65).
 func _collect_nearby() -> void:
 	if not in_cave():
 		super._collect_nearby()
+
+
+## A pet's bite (#65) kills a cave monster: removed exactly once, it plays its
+## Death clip and stays dead on this level of this cave, saves included. Pets
+## earn no aura. Returns whether it died now.
+func pet_kill_monster(id: int, by: String) -> bool:
+	var data := _animals[id]
+	if not in_cave() or not data["alive"] or data["kind"] not in MONSTERS:
+		return false
+	data["alive"] = false
+	for timer in ["stun", "shoo", "slow", "held"]:
+		data[timer] = 0.0
+	data["velocity"] = Vector2.ZERO
+	_cave_progress[_cave_key]["killed" if _cave_depth == 1 else "killed_deep"].append(int(data["cave_index"]))
+	if _animal_models.has(id):
+		var model: Node3D = _animal_models[id]
+		var animator: AnimationPlayer = _animal_players.get(id)
+		_animal_models.erase(id)
+		_animal_players.erase(id)
+		_animal_stars[id].queue_free()
+		_animal_stars.erase(id)
+		_animal_shadows[id].queue_free()
+		_animal_shadows.erase(id)
+		if animator != null and animator.has_animation("Death"):
+			animator.speed_scale = 1.0
+			animator.play("Death")
+			_dying_models.append(model)
+			# Captures only the id: leaving the cave may free the model first (#71).
+			var model_id := model.get_instance_id()
+			get_tree().create_timer(2.5).timeout.connect(func():
+				var node := instance_from_id(model_id) as Node3D
+				if node != null:
+					_dying_models.erase(node)
+					node.queue_free())
+		else:
+			model.queue_free()
+	if _active_animals.has(id):
+		_active_animals[id].queue_free()
+		_active_animals.erase(id)
+	if selected_target == id:
+		selected_target = -1
+	_show_notice("The %s killed a %s" % [by, ANIMAL_NAMES[data["kind"]].to_lower()])
+	return true
+
+
+## Death clips belong to the cave level and must not outlive it (#71).
+func _free_dying_models() -> void:
+	for model in _dying_models:
+		if is_instance_valid(model):
+			model.queue_free()
+	_dying_models.clear()
 
 
 func is_hungry() -> bool:
@@ -1794,14 +1855,31 @@ func _update_player(delta: float) -> void:
 		_update_hud()
 
 
+## Cure has work when she is stunned or panicking, or a following pet within
+## 6 m is poisoned or wounded (#65).
 func _has_affliction() -> bool:
-	return player_stun > 0.0 or player_fright > 0.0
+	return player_stun > 0.0 or player_fright > 0.0 or (pets != null and not pets.afflicted_near().is_empty())
 
 
-## Cure ends panic as well as stun.
+## Cure ends panic as well as stun, and heals the pets near her.
 func _end_afflictions() -> void:
 	player_stun = 0.0
 	player_fright = 0.0
+	if pets != null:
+		_cured_pets = pets.cure_near()
+
+
+## The notice names what Cure ended: her stun or panic, and each pet healed.
+func _cure() -> void:
+	if not _cure_ready():
+		return
+	var herself := player_stun > 0.0 or player_fright > 0.0
+	_cured_pets.clear()
+	super._cure()
+	if _cured_pets.is_empty():
+		return
+	var healed := ", ".join(PackedStringArray(_cured_pets.slice(0, -1))) + (" and " if _cured_pets.size() > 1 else "") + _cured_pets[-1]
+	_show_notice(("Oravitsa shakes it off and cures " if herself else "Oravitsa cures ") + healed)
 
 
 ## While riding, a donkey halves the stun, a horse throws her off, and panic
@@ -1962,9 +2040,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		_offer_food()
 		get_viewport().set_input_as_handled()
 		return
-	# Beside a hunter, A asks it to follow or sends it home (#65).
-	if event is InputEventJoypadButton and event.pressed and event.is_action_pressed("pick_up") and hunters.can_ask():
-		hunters.toggle()
+	# Beside a pet, A adopts it or sends it home (#65).
+	if event is InputEventJoypadButton and event.pressed and event.is_action_pressed("pick_up") and pets.can_ask():
+		pets.toggle()
 		get_viewport().set_input_as_handled()
 		return
 	super._unhandled_input(event)
@@ -2204,8 +2282,8 @@ func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
 	if mounts != null:
 		mounts.sync(delta)
-	if hunters != null:
-		hunters.sync(delta)
+	if pets != null:
+		pets.sync(delta)
 	if _world_map_visible:
 		_landmark_label.visible = false
 	if _player_marker == null:

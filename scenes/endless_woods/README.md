@@ -85,7 +85,7 @@ used.) A notice reports every success or failure.
 The save is versioned JSON holding only bounded state: the world identity,
 Oravitsa's absolute ground position, stun, both cooldowns, the selected skill,
 inventory (berries, mushrooms, raw meat), aura, the fed level and meal timer,
-cave progress (collected checkpoints per cave, plus killed monsters from older saves), the food
+cave progress (collected checkpoints per cave and level, and monsters killed by pets, first level `killed` and second `killed_deep`), the food
 clock, depleted food records
 (absolute cell and deadline) and at most 208 animal records (absolute
 position/home/target plus status, hunger and cooldown timers). Terrain, trees and
@@ -283,58 +283,75 @@ prompt and refusal, T / Y / touch, speeds, stun effects, a real bump on a
 horse, panic, aura decay with the walk home, the cave mouth, rebasing without
 drift or duplicates, and save/load (riding, waiting, older and invalid saves).
 
-## Hunters
+## Pets
 
-`hunters.gd` (#65) gives about 60% of hamlets one seeded hunter, posted 26 m
-from the crossing (4 m inside the clearing's edge) on open ground, strolling up
-to 2.5 m around it and turning to Oravitsa when she is near. All use the CC0
-Quaternius farmer with the clothes recoloured per kind and a primitive weapon
-on the right wrist bone: a spear (shaft and iron tip) or a bow (an arc of
-staves and a string).
+`pets.gd` (#65) gives about 60% of hamlets one seeded pet, at home 26 m from
+the crossing (4 m inside the clearing's edge) on open ground, strolling up to
+2.5 m around it and turning to Oravitsa when she is near. The models are CC0
+Quaternius animals, unmodified and sized in code.
 
-| Kind | Share | Aura | Reach | Stun | Cooldown | Clip |
-| --- | --- | --- | --- | --- | --- | --- |
-| Spear hunter | 55% | 20–40 | 1.6 m | 2.5 s | 2.5 s | Sword_Slash |
-| Bow hunter | 33% | 45–70 | 6 m | 2.0 s | 3.0 s | Gun_Shoot + arrow |
-| Veteran bow hunter | 12% | 75–100 | 8 m | 3.0 s | 2.0 s | Gun_Shoot + arrow |
+| Kind | Share | Aura | Height | Reach | Bite | Rest | Run | Takes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Cat | 55% | 20–40 | 0.42 m | 0.9 m | 0.45 s | 1.4 s | 5.2 m/s | rats, spiders, kobolds |
+| Shiba Inu | 33% | 40–65 | 0.58 m | 1.1 m | 0.4 s | 1.0 s | 5.8 m/s | all four |
+| Husky | 12% | 65–90 | 0.76 m | 1.4 m | 0.3 s | 0.7 s | 6.5 m/s | all four |
 
-- **Asking.** Within 14 m a label reads "Bow hunter · 58 aura". Within 2.5 m
-  the Ask button reads "Ask the bow hunter to join (58 aura) [G]" ([A] on a
-  controller, no key on touch), or, disabled, "The bow hunter follows only at
-  58 aura (you have 41)", or "Two hunters already follow Oravitsa". G,
+- **Adopting.** Within 14 m a label reads "Shiba Inu · 52 aura". Within 2.5 m
+  the Adopt button reads "Adopt the Shiba Inu (52 aura) [G]" ([A] on a
+  controller, no key on touch), or, disabled, "The Shiba Inu follows only at
+  52 aura (you have 41)", or "Two pets already follow Oravitsa". G,
   controller A (after the chieftain's gift, before picking up) and the button
-  ask; notices report joining and refusals. Within 1.2 m of a follower (closer
-  than followers keep) the button reads "Send the bow hunter home" and sends it.
+  adopt; notices report joining and refusals. Within 1.2 m of a follower
+  (closer than followers keep) the button reads "Send the Shiba Inu home".
 - **Following.** A follower starts walking once she is over 3 m away and stops
   within 2.2 m (no jitter at one limit), at her current speed (riding and
-  sprint included), a quarter faster beyond 4.5 m. Two followers keep 0.9 m
-  apart. Farther than 25 m, off-screen beyond 8 m, or stuck for 1.5 s, it
-  appears just behind her. Hunters are not in the animal list: no collision
-  or bump with her, no Sling/Shoo/Slow target, no harm.
+  sprint included), a quarter faster beyond 4.5 m; a poisoned or wounded pet
+  keeps 60% of that. Two followers keep 0.9 m apart. Farther than 25 m,
+  off-screen beyond 8 m, or stuck for 1.5 s, it appears just behind her. Pets
+  are not in the animal list: no collision or bump with her, no
+  Sling/Shoo/Slow target.
 - **Leaving.** Aura below a follower's threshold (decay, villager penalties)
-  sends it home at once: "The spear hunter leaves: Oravitsa's aura fell below
-  30". It walks back at 1.4 m/s (far from her, or stuck out of sight, it simply
-  gets there); underground it leaves by the way out.
+  sends it home at once: "The cat leaves: Oravitsa's aura fell below 30". It
+  walks back at 1.4 m/s (far from her, or stuck out of sight, it simply gets
+  there); underground it leaves by the way out.
 - **Caves.** Entering, changing level, leaving and loading put her followers
   beside her on open floor. Underground they find their way around walls with
-  the monsters' walking map. Each strikes when its cooldown is over: the awake,
-  unscared monster within reach and nearest to Oravitsa, with the cave floor
-  open along the whole line (no shot or thrust through walls). The stun is
-  immediate (the arrow is only drawn), gives no aura and kills nothing; stunned
-  monsters then follow the usual rules. On the surface hunters never fight.
-- **Streaming and saves.** Records hold absolute ground positions. Hamlet
-  hunters appear and leave with the villagers; a hamlet never shows a hunter
-  that is following her. The save's optional `hunters` list holds at most two
-  followers (hamlet block, kind, threshold); on loading they stand beside her,
-  also underground. A record that no longer matches its hamlet's seed is
-  dropped; saves from before have none.
+  the monsters' walking map. A healthy pet off its rest picks the nearest
+  monster it may take that is stunned, scared or slowed, within 8 m of it,
+  10 m of her and 12 m of walking, runs at it and, within reach along open
+  floor, bites. The bite holds the monster still and kills it when it lands:
+  `woods.gd` `pet_kill_monster` removes it once, plays its Death clip (the
+  model is kept in `_dying_models` and freed when she leaves the level), adds
+  its index to the cave's `killed` (first level) or `killed_deep` (second
+  level) list, so it never respawns, and gives no aura. Awake, unhindered
+  monsters are never attacked; stuck for 1.5 s, a pet gives up for its rest.
+- **Bites and Cure.** An awake, unscared, unstunned rat, spider or goblin that
+  touches a follower (and is not held by a bite) bites it on the usual 3.5 s
+  cooldown with its Attack clip: a spider poisons the pet, a rat or goblin
+  wounds it; kobolds never bite. A bite cuts the pet's own bite short. A
+  poisoned or wounded pet shows `poisoned.svg` / `wounded.svg` above it, never
+  hunts and follows at 60% until Cure (R; RB) heals it: Cure is ready when she
+  is stunned or panicking or a following pet within 6 m is afflicted, ends all
+  of these at once, and its notice names them ("Oravitsa shakes it off and
+  cures the husky's poison"). There is no health and no death. On the surface
+  pets never hunt.
+- **Streaming and saves.** Records hold absolute ground positions. Hamlet pets
+  appear and leave with the villagers; a hamlet never shows a pet that is
+  following her. The save's optional `pets` list holds at most two followers
+  (hamlet block, kind, threshold, `poisoned`, `wounded`); on loading they stand
+  beside her, also underground. A record that no longer matches its hamlet's
+  seed is dropped; saves from before have none.
 
-`hunter_smoke_test.gd` covers seeding, bands and variety, identical revisits,
-the prompt and label, refusals, G / A / touch joining and dismissing, the limit
-of two, keeping up, waiting with hysteresis, catching up, pass-through, aura
-decay, walking home, no duplicates, cave entry, both levels and exit, walking
-around walls, each kind's reach, stun and cooldown, the nearest-to-her choice,
-no shots through walls, no killing, and saving on the surface and below.
+`pet_smoke_test.gd` covers seeding, bands and variety, identical revisits,
+the prompt and label, refusals, G / A / touch adopting and dismissing, the
+limit of two, keeping up, waiting with hysteresis, catching up, the hurt pace,
+pass-through, nothing on the surface, aura decay, walking home, no duplicates,
+cave entry, both levels and exit, walking around walls, kills of stunned,
+scared and slowed monsters exactly once with the Death clip and no aura, no
+attack on unhindered monsters, Oravitsa never killing, cats and goblins,
+hurt pets not attacking, which bites poison or wound, icons, Cure range and
+notice, Death clips freed on leaving, kills that persist on revisits and
+loads on both levels, and saving on the surface and below.
 
 ## Cave levels
 
@@ -363,8 +380,8 @@ and checkpoint crystals glow blue.
   stun, so she can always get away. Rats are faster (185 px/s) than spiders
   (140 px/s), but a half-fed Oravitsa outruns both. Shoo drives one off along
   the tunnels and Sling stuns one. A scared or stunned monster neither bites,
-  bumps nor blocks her, and she walks through it. Monsters are never killed:
-  only hares are (#74).
+  bumps nor blocks her, and she walks through it. Oravitsa never kills a
+  monster (#74); her pets can (see Pets).
 - **Panic.** Anywhere in the endless world, about a third of the stuns she
   would suffer (bumps, charges, bites) become panic instead, which breaks
   chains of stuns. For two seconds she runs by herself at 1.25× speed, away
@@ -376,8 +393,9 @@ and checkpoint crystals glow blue.
 - **Freezing and saving.** While Oravitsa is underground, the surface
   landscape, food and wildlife are hidden and kept exactly as they were. The
   map shows "Underground". The sunlit way out returns her just outside the
-  mouth. Collected checkpoints are kept per cave and saved. Saves from
-  before #74 may also list killed monsters, which stay absent. Saving works underground: the save holds the waiting surface with
+  mouth. Collected checkpoints are kept per cave and saved, and so are the
+  monsters her pets killed (saves from before #74 may list some too), which
+  stay absent. Saving works underground: the save holds the waiting surface with
   her at the cave mouth, plus an `underground` section with the cave, her
   offset from the way out and each living monster's index, offset and stun.
   Loading re-enters that cave and puts them back; loading any save while
@@ -414,7 +432,8 @@ does on every entry. The surface stays frozen throughout. The label reads
   Punch clip and runs off for 4 s; for 3 s after a theft the others hang back.
   With an empty bag it just runs off.
 - Sling, Shoo and Slow work on both; a stunned or scared one neither clubs,
-  steals, bumps nor blocks her. Neither can be killed and neither has a call.
+  steals, bumps nor blocks her. Only her dogs kill goblins (cats spare them);
+  any pet kills kobolds. Neither has a call.
 - **Saving.** The `underground` section also stores `level` (1 or 2); offsets
   and monster indices are relative to that level's arrival spot. Saves without
   it load on the first level. Saving below does not store the first level's
@@ -427,7 +446,7 @@ exactly one item, no theft while stunned or scared, deep checkpoints, and
 saving, loading and older saves.
 
 `cave_smoke_test.gd` covers seeding and variety, connectivity, entry and
-exit, the frozen surface, lighting, bites, monsters that cannot be killed and leave
+exit, the frozen surface, lighting, bites, monsters that Oravitsa cannot kill and that leave
 her alone while stunned or scared, once-only checkpoints, persistence across visits and saves,
 and saving and loading underground.
 
