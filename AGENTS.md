@@ -41,10 +41,10 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twenty-four smoke scripts, including targeted
+`verify.py` imports and runs all twenty-five smoke scripts, including targeted
 Shoo, endless-world travel/rebasing/ecology/food regrowth, wildlife behaviour
 loops, fox foraging, hare collection, aggression, fights, save/load, audio wiring, hamlets and
-cave mouths, aura/feeding/villagers/chieftain gifts, cave levels and their
+cave mouths, aura/feeding/villagers/chieftain gifts, both cave levels and their
 monsters, pausing, queued streaming,
 offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
@@ -71,8 +71,8 @@ Record unavailable checks as untested, never as passed.
   hare that is currently stunned and within 75 px can be collected (walk-over,
   or A on a controller). It is removed exactly once and immediately becomes
   one raw meat; no other wildlife species can be killed or collected. The
-  giant rats and spiders of cave levels are monsters, not wildlife, and are
-  never killed either. A stunned or scared one does not affect her: it
+  giant rats and spiders of cave levels and the goblins and kobolds of second
+  levels are monsters, not wildlife, and are never killed either. A stunned or scared one does not affect her: it
   neither bites, bumps nor blocks her, and she walks through it.
   Sling, Shoo and Slow use the selected animal. Slow (E; LB) halves its
   movement for six seconds, with a snail icon, on a ten-second cooldown.
@@ -98,7 +98,7 @@ Record unavailable checks as untested, never as passed.
   icons above the animal, never as text. Timed states have a time-left bar,
   and stun and fear can show together.
 - Aura is the endless world's points: a HUD icon with the number on top.
-  Gains: a cave checkpoint (+20, once each) and food given to a hamlet's chieftain (+1 berries/mushroom, +3
+  Gains: a cave checkpoint (+20, once each; +30 on a second level) and food given to a hamlet's chieftain (+1 berries/mushroom, +3
   raw meat). Losses: shooing (−5) or hitting (−10) a villager or chieftain,
   and a slow decay of one point per minute of play while aura is positive
   (never below zero by itself; the fraction is saved; none while paused).
@@ -126,7 +126,17 @@ Record unavailable checks as untested, never as passed.
   and spiders find their way around walls and bite, which only stuns her
   (1.5 s at most); there is still no health or death. After a bite the pack
   backs off and no monster can bite until two seconds after the stun, so she
-  can always get away. Collected checkpoints persist per cave in the save.
+  can always get away. Collected checkpoints persist per cave and level in
+  the save. Each first level has one way down, far from the way out, to a
+  larger, darker seeded second level whose arrival spot is the way up back to
+  it; like a mouth, neither works again until she has stepped 3 m away, and
+  the way down not while she is stunned or panicking. The first level's
+  monsters wait unchanged while she is below. Goblins chase and club her like
+  bites (stun only, same grace). Kobolds never stun: alone they keep about
+  3 m away; once three are within 6 m of her they dart in, and one that
+  touches her snatches one random bag item and runs off, after which the pack
+  hangs back for 3 s. A save made there records the level; older saves load
+  on the first level.
 - In the endless world wolves/lynxes are more frequent, sprint in longer and
   faster spurts, hunt both prey species and despawn after 180 hungry seconds.
   Endless foxes also hunt hares but rarely catch them. The finite scenes

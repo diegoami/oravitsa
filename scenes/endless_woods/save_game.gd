@@ -145,13 +145,20 @@ static func validate(data: Dictionary) -> String:
 			var cave = caves[key]
 			if not key is String or not cave is Dictionary or not cave.get("checkpoints") is Array or not cave.get("killed") is Array or cave["checkpoints"].size() > 16 or cave["killed"].size() > 64:
 				return "the saved cave progress is invalid"
-			for value in cave["checkpoints"] + cave["killed"]:
+			# Second-level checkpoints (#62) are optional: older saves have none.
+			var deep = cave.get("deep", [])
+			if not deep is Array or deep.size() > 16:
+				return "the saved cave progress is invalid"
+			for value in cave["checkpoints"] + cave["killed"] + deep:
 				if not _number(value, 0, 63):
 					return "the saved cave progress is invalid"
 		if data.has("underground"):
 			var underground = data["underground"]
 			if not underground is Dictionary or not underground.get("cave") is String or not caves.has(underground["cave"]) or not RegEx.create_from_string("^-?\\d{1,9},-?\\d{1,9}$").search(underground["cave"]):
 				return "the saved cave is invalid"
+			# The cave level (#62) is optional: older saves are on the first.
+			if underground.has("level") and not (_number(underground["level"], 1, 2) and float(underground["level"]) == floorf(float(underground["level"]))):
+				return "the saved cave level is invalid"
 			var offset = underground.get("offset")
 			if not offset is Array or offset.size() != 2 or not _number(offset[0], -200, 200) or not _number(offset[1], -200, 200):
 				return "the saved cave position is invalid"
