@@ -217,9 +217,10 @@ and checkpoint crystals glow blue.
   pack keeps 2.5 m away, and no monster can bite until two seconds after the
   stun, so she can always get away. Rats are faster (185 px/s) than spiders
   (140 px/s), but a half-fed Oravitsa outruns both. Shoo drives one off along
-  the tunnels. Sling stuns one, which can then be finished by walking to it
-  (controller: A) for aura (rat +5, spider +10). Its Death clip plays. Awake
-  ones cannot be killed, and stunned ones can be walked through.
+  the tunnels. Sling stuns one, which can then be finished by walking to it,
+  with any input device, or with controller A, for aura (rat +5, spider +10).
+  Its Death clip plays, and leaving the cave removes any that are still
+  playing. Awake ones cannot be killed.
 - **Panic.** Anywhere in the endless world, about a third of the stuns she
   would suffer (bumps, charges, bites) become panic instead, which breaks
   chains of stuns. For two seconds she runs by herself at 1.25× speed, away
@@ -239,8 +240,8 @@ and checkpoint crystals glow blue.
   underground first leaves the cave.
 
 `cave_smoke_test.gd` covers seeding and variety, connectivity, entry and
-exit, the frozen surface, lighting, bites, Sling-then-kill by walk-over and
-controller A, once-only checkpoints, persistence across visits and saves,
+exit, the frozen surface, lighting, bites, Sling-then-kill by walk-over (also
+with a controller) and controller A, Death clips that end on leaving, once-only checkpoints, persistence across visits and saves,
 and saving and loading underground.
 
 ## Wildlife
