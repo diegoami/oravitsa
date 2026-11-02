@@ -55,6 +55,7 @@ be collected for raw meat by walking to it (controller: A).
 Controller: LT casts Shoo, RT casts Sling; LB/RB select a skill and Y casts
 it; A collects; right-stick flicks cycle targets. Map/help: M/H or
 Select/Start. Both start hidden.
+Pause: the Pause button, P/Esc, or R3 (right-stick click); Resume carries on.
 Save/load the endless woods: K/L, the buttons under Help, or X/B on a
 controller while Help is open. Sound volume: 9 (forest) and 0 (animals).
 
