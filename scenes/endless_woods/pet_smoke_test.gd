@@ -647,6 +647,12 @@ func _run() -> void:
 	var last_model: Node3D = world._animal_models[rats[3]]
 	assert(_hunt_until_dead(pets._record(husky, "following", lane_pair[0]), rats[3], 3.0))
 	assert(last_model in world._dying_models)
+	# The Death clip's cleanup waits while the game is paused (#98).
+	# Protects: a pause that discards the rest of a Death clip.
+	paused = true
+	await create_timer(3.0, true).timeout
+	assert(is_instance_valid(last_model) and last_model in world._dying_models, "The Death clip waits while paused")
+	paused = false
 	world._exit_cave(true)
 	assert(world._dying_models.is_empty() and (not is_instance_valid(last_model) or last_model.is_queued_for_deletion()), "No Death clip outlives the cave")
 	_beside("Out of the cave")
@@ -697,5 +703,5 @@ func _run() -> void:
 	var bad_kills: Dictionary = deep_after.duplicate(true)
 	bad_kills["caves"][deep_after["underground"]["cave"]]["killed_deep"] = [99]
 	assert(world.SAVE_GAME.validate(bad_kills) != "", "Rejects a bad second-level kill")
-	print("Pet smoke test passed: ", hamlets, " hamlets, ", with_pet, " with a pet ", tally, ", thresholds inside 20-40 / 40-65 / 65-90, identical revisits, threshold prompt and label, refusal below the threshold, G / controller A / touch adopt and dismiss, at most two, keeping up and waiting with hysteresis, catch-up, hurt pets at 60% pace, pass-through, nothing on the surface, leaving on aura decay and walking home, no hamlet duplicate, cave entry / level 2 / back / exit beside her, walking around walls, no attack on unhindered monsters, Oravitsa never kills, stunned / scared / slowed monsters killed once with Death clip and no aura, cats spare goblins and dogs do not, hurt pets never attack, spider poisons, rat and goblin wound, kobold harmless, icons, Cure within 6 m with her stun and not spent idle, Death clips freed on leaving, kills persist on revisit and load on both levels, save/load of pets and afflictions, older and invalid saves")
+	print("Pet smoke test passed: ", hamlets, " hamlets, ", with_pet, " with a pet ", tally, ", thresholds inside 20-40 / 40-65 / 65-90, identical revisits, threshold prompt and label, refusal below the threshold, G / controller A / touch adopt and dismiss, at most two, keeping up and waiting with hysteresis, catch-up, hurt pets at 60% pace, pass-through, nothing on the surface, leaving on aura decay and walking home, no hamlet duplicate, cave entry / level 2 / back / exit beside her, walking around walls, no attack on unhindered monsters, Oravitsa never kills, stunned / scared / slowed monsters killed once with Death clip and no aura, cats spare goblins and dogs kill them, Death clips that wait while paused, hurt pets never attack, spider poisons, rat and goblin wound, kobold harmless, icons, Cure within 6 m with her stun and not spent idle, Death clips freed on leaving, kills persist on revisit and load on both levels, save/load of pets and afflictions, older and invalid saves")
 	quit()

@@ -59,8 +59,10 @@ longer casts the selected skill (Y rides a mount), and skill cycling is gone.
   Oravitsa's own stun or panic, even while she is stunned, on a fifteen-second
   cooldown. Skill selection and cycling are gone: Y casts nothing. Saves keep
   the new cooldowns; older saves still load.
-- Cave monsters can no longer be killed; hares are the only creatures
-  Oravitsa kills (#74). The +5/+10 aura for rats and spiders is gone. A
+- Oravitsa can no longer kill cave monsters; hares are the only creatures
+  she kills (#74). Only her pets can kill a monster, and only while it is
+  stunned, scared or slowed (#65). The +5/+10 aura for rats and spiders is
+  gone. A
   stunned or scared rat or spider neither bites, bumps nor blocks her, and she
   walks through it. Saves listing monsters killed earlier still load.
 - Pause (#57). A Pause button beside Help, P or Esc, or the controller's

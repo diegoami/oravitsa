@@ -1172,11 +1172,18 @@ func _slow() -> void:
 	_animals[selected_target]["slow"] = SLOW_TIME
 
 
+## Every creature's Slow runs out, also while it is streamed out (#93).
 func _tick_slow(delta: float) -> void:
-	for id in _active_animals:
-		var data := _animals[id]
+	for data in _animals:
 		if data.get("slow", 0.0) > 0.0:
 			data["slow"] = maxf(0.0, data["slow"] - delta)
+
+
+## The step sideways an animal tries when its way is blocked; Slow halves it
+## like any other step (#95).
+func _sidestep(id: int, heading: Vector2, speed: float, delta: float) -> Vector2:
+	var side := Vector2(-heading.y, heading.x) * (1.0 if _hash(id, _animals[id]["turn"], 377) < 0.5 else -1.0)
+	return side * speed * delta * _slow_scale(id)
 
 
 ## How much of its speed a creature keeps: SLOW_FACTOR while slowed.
@@ -1552,7 +1559,7 @@ func _move_animals(delta: float) -> void:
 		if _can_animal_move(id, candidate + Vector2(0, step.y)):
 			candidate.y += step.y
 		if candidate.distance_squared_to(position) < 0.1 and heading.length_squared() > 0.1:
-			var side := Vector2(-heading.y, heading.x) * (1.0 if _hash(id, data["turn"], 377) < 0.5 else -1.0) * speed * delta
+			var side := _sidestep(id, heading, speed, delta)
 			if _can_animal_move(id, position + side):
 				candidate = position + side
 		if candidate.distance_squared_to(position) < 0.1:

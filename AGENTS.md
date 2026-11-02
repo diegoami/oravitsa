@@ -169,7 +169,7 @@ Record unavailable checks as untested, never as passed.
   bites (stun only, same grace). Kobolds never stun: alone they keep about
   3 m away; once three are within 6 m of her they dart in, and one that
   touches her snatches one random bag item and runs off, after which the pack
-  hangs back for 3 s. A save made there records the level; older saves load
+  hangs back for 3 s; she walks through them, so a kobold never bumps her. A save made there records the level, the bite grace, the hang-back and the monsters' attack and flight timers; older saves load
   on the first level.
 - In the endless world wolves/lynxes are more frequent, sprint in longer and
   faster spurts, hunt both prey species and despawn after 180 hungry seconds.

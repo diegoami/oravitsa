@@ -122,6 +122,33 @@ func _run() -> void:
 	assert("slowed" in world._status_states(1).map(func(state): return state[0]))
 	world._tick_slow(world.SLOW_TIME)
 	assert(wolf["slow"] == 0.0 and world._slow_scale(1) == 1.0, "Slow wears off")
+	# Slow also runs out while its target is streamed out (#93), survives a
+	# save (#94) and halves the sidestep around obstacles too (#95).
+	# Protects: a slow that lasts forever offscreen, vanishes on loading while
+	# its cooldown stays, or is skipped when the animal sidesteps.
+	wolf["slow"] = 5.0
+	var home_spot: Vector2 = wolf["position"]
+	wolf["position"] = world.player_position + Vector2(9000, 0)
+	world._refresh_visible()
+	assert(not world._active_animals.has(1))
+	world._tick_slow(7.0)
+	assert(wolf["slow"] == 0.0, "Slow runs out offscreen")
+	wolf["position"] = home_spot
+	world._refresh_visible()
+	wolf["slow"] = 4.0
+	world.slow_cooldown = 8.0
+	var slowed_save: Dictionary = world.save_state()
+	assert(world.SAVE_GAME.validate(slowed_save) == "")
+	world.apply_state(slowed_save)
+	assert(is_equal_approx(world._animals[1]["slow"], 4.0) and is_equal_approx(world.slow_cooldown, 8.0), "A save keeps the slow as well as its cooldown")
+	wolf = world._animals[1]
+	var heading := Vector2.RIGHT
+	wolf["slow"] = 0.0
+	var side_normal: Vector2 = world._sidestep(1, heading, 120.0, 0.1)
+	wolf["slow"] = 3.0
+	var side_slowed: Vector2 = world._sidestep(1, heading, 120.0, 0.1)
+	assert(side_normal.length() > 1.0 and is_equal_approx(side_slowed.length(), side_normal.length() * world.SLOW_FACTOR), "A slowed sidestep is half as long")
+	wolf["slow"] = 0.0
 	# Cure (#59) works on Oravitsa alone: it ends her stun or panic, even while
 	# stunned, and is not spent when there is nothing to cure.
 	world.player_stun = 0.0

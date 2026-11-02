@@ -240,6 +240,26 @@ func _run() -> void:
 	await _travel(world, cave["mouth"] + cave["facing"] * 4.0)
 	world._explore()
 	assert(world.discovered_caves.has(cave["region"]) and world.discovered_caves[cave["region"]]["name"] == world.PLACE_NAMES.cave(cave["region"]))
+	# Crossing the discovery radius within one exploration cell still
+	# discovers (#96). Protects: discoveries waiting for the next cell.
+	world.discovered_caves = {}
+	var outside := Vector2.ZERO
+	var inside := Vector2.ZERO
+	for step in 72:
+		var way := Vector2.from_angle(step * TAU / 72.0)
+		var a: Vector2 = cave["mouth"] + way * (world.DISCOVER_RADIUS + 2.0)
+		var b: Vector2 = cave["mouth"] + way * (world.DISCOVER_RADIUS - 2.0)
+		if Vector2i((a / world.EXPLORE_CELL).floor()) == Vector2i((b / world.EXPLORE_CELL).floor()):
+			outside = a
+			inside = b
+			break
+	assert(outside != Vector2.ZERO, "Some approach stays inside one cell")
+	world.player_position = world.from_ground(outside - world.landscape.origin)
+	world._explore()
+	assert(not world.discovered_caves.has(cave["region"]))
+	world.player_position = world.from_ground(inside - world.landscape.origin)
+	world._explore()
+	assert(world.discovered_caves.has(cave["region"]), "Crossing the radius inside one cell discovers the cave")
 	var explored_count: int = world.explored.size()
 	await _travel(world, cave["mouth"] + Vector2(4000, 0))
 	await _travel(world, cave["mouth"] + cave["facing"] * 4.0)
