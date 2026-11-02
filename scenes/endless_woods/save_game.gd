@@ -149,7 +149,11 @@ static func validate(data: Dictionary) -> String:
 			var deep = cave.get("deep", [])
 			if not deep is Array or deep.size() > 16:
 				return "the saved cave progress is invalid"
-			for value in cave["checkpoints"] + cave["killed"] + deep:
+			# Second-level kills by pets (#65) are optional: older saves have none.
+			var killed_deep = cave.get("killed_deep", [])
+			if not killed_deep is Array or killed_deep.size() > 64:
+				return "the saved cave progress is invalid"
+			for value in cave["checkpoints"] + cave["killed"] + deep + killed_deep:
 				if not _number(value, 0, 63):
 					return "the saved cave progress is invalid"
 		# Mounts (#67) are optional: older saves have none. Only a ridden mount
@@ -170,18 +174,21 @@ static func validate(data: Dictionary) -> String:
 				ridden += 1 if mount["state"] == "ridden" else 0
 			if ridden > 1:
 				return "the saved mounts are invalid"
-		# Hunter followers (#65) are optional: older saves have none. At most two,
-		# each named by its hamlet block, kind and aura threshold.
-		if data.has("hunters"):
-			var hunters = data["hunters"]
-			if not hunters is Array or hunters.size() > 2:
-				return "the saved hunters are invalid"
-			for hunter in hunters:
-				if not hunter is Dictionary or not hunter.get("kind") in ["spear", "bow", "veteran"] or not _number(hunter.get("threshold"), 0, 100):
-					return "a saved hunter is invalid"
-				var home = hunter.get("hamlet")
+		# Pet followers (#65) are optional: older saves have none. At most two,
+		# each named by its hamlet block, kind and aura threshold, with optional
+		# poisoned and wounded flags.
+		if data.has("pets"):
+			var pets = data["pets"]
+			if not pets is Array or pets.size() > 2:
+				return "the saved pets are invalid"
+			for pet in pets:
+				if not pet is Dictionary or not pet.get("kind") in ["cat", "shiba", "husky"] or not _number(pet.get("threshold"), 0, 100):
+					return "a saved pet is invalid"
+				if not pet.get("poisoned", false) is bool or not pet.get("wounded", false) is bool:
+					return "a saved pet is invalid"
+				var home = pet.get("hamlet")
 				if not home is Array or home.size() != 2 or not _number(home[0], -1e7, 1e7) or not _number(home[1], -1e7, 1e7):
-					return "a saved hunter is invalid"
+					return "a saved pet is invalid"
 		if data.has("underground"):
 			var underground = data["underground"]
 			if not underground is Dictionary or not underground.get("cave") is String or not caves.has(underground["cave"]) or not RegEx.create_from_string("^-?\\d{1,9},-?\\d{1,9}$").search(underground["cave"]):

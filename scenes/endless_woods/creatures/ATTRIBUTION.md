@@ -1,13 +1,15 @@
-# Cave creatures, villagers, chieftains and mounts
+# Cave creatures, villagers, chieftains, mounts and pets
 
 Creator: **Quaternius**. Each model's poly.pizza page states **Public Domain
 (CC0)**, verified 29 October 2026. License:
 <https://creativecommons.org/publicdomain/zero/1.0/>.
 
 Original downloads are kept without geometry or animation edits. Size, tint
-and the clips used are set in code. Since #74 no cave monster can be killed
-(only hares are, see AGENTS.md), so the rat and spider Death clips no longer
-play. The goblin and kobold (#62) were downloaded and verified CC0 on
+and the clips used are set in code. Since #74 Oravitsa never kills a cave
+monster; since #65 her pets do, and the monsters' Death clips play then. The
+cat, Shiba Inu and husky (#65) were downloaded and verified CC0 on 2 November
+2026; the cat bites with Bite_Front, the dogs with Attack and run with
+Gallop. The goblin and kobold (#62) were downloaded and verified CC0 on
 2 November 2026; the kobold is Quaternius' "Blue Demon", scaled small, and
 uses its Punch clip as the snatch. Godot's import extracts the goblin's
 embedded 32 × 32 texture to `goblin_Atlas.png`, unchanged.
@@ -24,6 +26,9 @@ embedded 32 × 32 texture to `goblin_Atlas.png`, unchanged.
 | woman_dress.glb | [Woman in Dress](https://poly.pizza/m/zMyPlQXBzq) | `https://static.poly.pizza/a642af96-e239-4c5f-b50d-7661ff51deec.glb` | `53db49ba84193beb60173e94396764c86f7805752582a81dfdfd7f0889a10783` |
 | goblin.glb | [Goblin](https://poly.pizza/m/OdCOFSmEhl) | `https://static.poly.pizza/54e0fd61-6898-4b17-b039-8fa656d02954.glb` | `189c34c4ae369d0e722f5555fc214fd6a3757f4babc71b864c3a5d686d3cae14` |
 | kobold.glb | [Blue Demon](https://poly.pizza/m/S7jYW6Amye) | `https://static.poly.pizza/6fbb8914-bd11-45e1-a906-51ace2ca5d2d.glb` | `6a8e743deba6f43f0f9b1e702016b04ddba1d3bf73b7101d2c86d64ae526f87c` |
+| cat.glb | [Cat](https://poly.pizza/m/2f54vbV0In) | `https://static.poly.pizza/7ccb71fe-dabb-4a6f-a98a-8992bb5e6bc7.glb` | `aa098d43c1006110d5a4fa3a6e6d4c843c8d8d90ffccc48f5bf32e3aadf7a3a9` |
+| shiba.glb | [Shiba Inu](https://poly.pizza/m/y4wdQpg767) | `https://static.poly.pizza/ba6d0ee3-bcc0-4ef0-9d3c-a3e245b41c77.glb` | `9cbd4f1e12f85024126eab6a2c5706c099196df1a10db74e6c8b67bac3fff54a` |
+| husky.glb | [Husky](https://poly.pizza/m/wcWiuEqwzq) | `https://static.poly.pizza/611d25c7-430f-4bb5-ab2c-d8f5f3cb9712.glb` | `a1e107ec4c2c62ce8cad86f750a7f6f9f2065c691dc6f88fce39667d3f4877eb` |
 
 Candidates downloaded and not used: "White Horse" (poly.pizza `bEdE4rmZy9`),
 kept out to stay with one horse look. Rejected: "Animated Woman" (poly.pizza `9kF7eTDbhO`),

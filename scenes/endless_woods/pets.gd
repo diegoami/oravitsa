@@ -1,60 +1,67 @@
 extends Node
 
-## Hunter companions (#65). About three hamlets in five have one hunter, who
-## stands near the edge of its clearing: a spear hunter (most common), a bow
-## hunter or, rarely, a veteran bow hunter. Each has a seeded aura threshold
-## within its kind's band; stronger kinds need more. With enough aura G,
-## controller A or the HUD button asks one to follow Oravitsa (two at most),
-## and asking again sends it home. A follower leaves as soon as her aura falls
-## below its threshold. Followers walk a few metres behind her, never block or
-## bump her and catch up when left behind. They go underground with her, and
-## there they stun the rats, spiders, goblins and kobolds that come within
-## reach; nobody is ever killed or harmed. On the surface they leave wildlife
+## Pets (#65). About three hamlets in five keep one pet near the edge of their
+## clearing: a cat (most common), a Shiba Inu or, rarely, a husky. Each has a
+## seeded aura threshold within its kind's band; stronger kinds need more.
+## With enough aura G, controller A or the HUD button adopts one (two follow
+## at most), and asking again right beside a follower sends it home. A
+## follower leaves as soon as her aura falls below its threshold. Followers
+## walk a few metres behind her, never block or bump her and catch up when
+## left behind. They go underground with her, and there a healthy pet runs to
+## a monster that is stunned, scared or slowed and kills it with a bite: cats
+## take rats, spiders and kobolds, dogs goblins too. Oravitsa never kills.
+## An awake monster that reaches a pet bites it: a spider poisons it, a rat or
+## goblin wounds it, a kobold does nothing. A poisoned or wounded pet follows
+## slowly and never attacks until Oravitsa's Cure heals it; there is no
+## health and no death. On the surface pets leave wildlife and villagers
 ## alone. Records keep absolute ground positions in metres (underground too,
 ## where the frozen surface origin still applies), so streaming and rebasing
 ## never move them. Only followers are saved; the rest regenerate.
 
 const CREATURES := "res://scenes/endless_woods/creatures/"
-const ORDER := ["spear", "bow", "veteran"]
-## band: the aura thresholds a hunter of this kind is seeded within; reach:
-## metres to a monster it can stun; stun: seconds it stuns one; cooldown:
-## seconds before it strikes again; clip: the farmer model's attack clip.
+const STATUS_MARKER := preload("res://scenes/forest_25d/status_marker.gd")
+const ORDER := ["cat", "shiba", "husky"]
+## band: the aura thresholds a pet of this kind is seeded within; height:
+## metres; reach: metres from a monster at which it bites; bite: seconds from
+## starting a bite to the kill; rest: seconds before it hunts again; run:
+## metres per second when it runs at prey; goblins: whether it takes goblins.
 const KINDS := {
-	"spear": {"name": "spear hunter", "band": Vector2i(20, 40), "reach": 1.6, "stun": 2.5, "cooldown": 2.5, "clip": "Sword_Slash",
-		"tint": {"LightBlue": Color(0.2, 0.32, 0.15), "Beige": Color(0.43, 0.36, 0.22), "Brown": Color(0.3, 0.22, 0.13)}},
-	"bow": {"name": "bow hunter", "band": Vector2i(45, 70), "reach": 6.0, "stun": 2.0, "cooldown": 3.0, "clip": "Gun_Shoot",
-		"tint": {"LightBlue": Color(0.36, 0.23, 0.12), "Beige": Color(0.3, 0.4, 0.2), "Brown": Color(0.22, 0.16, 0.1)}},
-	"veteran": {"name": "veteran bow hunter", "band": Vector2i(75, 100), "reach": 8.0, "stun": 3.0, "cooldown": 2.0, "clip": "Gun_Shoot",
-		"tint": {"LightBlue": Color(0.14, 0.19, 0.13), "Beige": Color(0.46, 0.12, 0.09), "Brown": Color(0.16, 0.12, 0.09)}},
+	"cat": {"name": "cat", "band": Vector2i(20, 40), "height": 0.42, "reach": 0.9, "bite": 0.45, "rest": 1.4, "run": 5.2, "goblins": false,
+		"clips": {"bite": "Bite_Front", "run": "Walk", "walk_pace": 0.9, "run_pace": 2.2}},
+	"shiba": {"name": "Shiba Inu", "band": Vector2i(40, 65), "height": 0.58, "reach": 1.1, "bite": 0.4, "rest": 1.0, "run": 5.8, "goblins": true,
+		"clips": {"bite": "Attack", "run": "Gallop", "walk_pace": 1.2, "run_pace": 4.5}},
+	"husky": {"name": "husky", "band": Vector2i(65, 90), "height": 0.76, "reach": 1.4, "bite": 0.3, "rest": 0.7, "run": 6.5, "goblins": true,
+		"clips": {"bite": "Attack", "run": "Gallop", "walk_pace": 1.4, "run_pace": 5.0}},
 }
-const CHANCE := 0.6 # Share of hamlets with a hunter.
-const KIND_CHANCES := [0.55, 0.88] # Cumulative: spear, then bow, then veteran.
+const CHANCE := 0.6 # Share of hamlets with a pet.
+const KIND_CHANCES := [0.55, 0.88] # Cumulative: cat, then Shiba Inu, then husky.
 const MAX_FOLLOWERS := 2
-const HEIGHT := 1.65 # Metres.
-const RADIUS := 0.3 # Metres; the footprint a hunter needs on walkable ground.
-const PROMPT_RADIUS := 2.5 # Metres from a hamlet's hunter at which she can ask it.
-const DISMISS_RADIUS := 1.2 # Metres: closer than followers keep, so asking one home is deliberate.
+const RADIUS := 0.25 # Metres; the footprint a pet needs on walkable ground.
+const PROMPT_RADIUS := 2.5 # Metres from a hamlet's pet at which she can adopt it.
+const DISMISS_RADIUS := 1.2 # Metres: closer than followers keep, so sending one home is deliberate.
 const POST_FROM_EDGE := 4.0 # Metres inside the clearing's edge.
-const STROLL := 2.5 # Metres a hunter at its post wanders.
-const STROLL_SPEED := 0.9
+const STROLL := 2.5 # Metres a pet at home wanders.
+const STROLL_SPEED := 0.7
 const RETURN_SPEED := 1.4 # Metres per second, walking home on its own.
 const FOLLOW_START := 3.0 # A follower walks after her beyond this distance...
 const FOLLOW_STOP := 2.2 # ...and stops once this close again, so it never jitters at one limit.
 const HURRY := 4.5 # Beyond this it runs faster than she moves.
-const MIN_PACE := 1.8 # Metres per second; slowest a follower walks after her.
+const MIN_PACE := 1.8 # Metres per second; slowest a healthy follower walks after her.
+const AFFLICTED_PACE := 0.6 # A poisoned or wounded pet keeps this share of its pace.
 const CATCH_UP := 25.0 # Farther than this, a follower appears just behind her.
 const SPREAD := 0.9 # Metres two followers keep apart.
 const STUCK := 1.5 # Seconds without progress before a follower catches up.
-const ATTACK := 0.6 # Seconds a strike's clip plays.
-const ARROW_SPEED := 30.0 # Metres per second; the arrow is only drawn, the stun is immediate.
-const SHOWN := 90.0 # Metres within which hunters are drawn.
-const LABEL_RANGE := 14.0 # Metres within which a hamlet hunter's threshold floats above it.
+const HUNT_RANGE := 8.0 # Metres from the pet to prey it runs at...
+const HUNT_LEASH := 10.0 # ...which must also be this close to Oravitsa.
+const HUNT_WALK := 12.0 # Metres of cave walking at most to reach it.
+const CURE_RANGE := 6.0 # Metres from Oravitsa within which Cure heals a pet.
+const SHOWN := 90.0 # Metres within which pets are drawn.
+const LABEL_RANGE := 14.0 # Metres within which a hamlet pet's threshold floats above it.
 const STATES := ["post", "following", "returning"]
 
 var world: Node2D
-var hunters: Array[Dictionary] = []
+var pets: Array[Dictionary] = []
 var _root: Node3D
-var _arrows: Array[Dictionary] = []
 var _last := Vector2.ZERO # Her absolute position last frame, for where "behind her" is.
 var _heading := Vector2.DOWN
 
@@ -62,7 +69,7 @@ var _heading := Vector2.DOWN
 func setup(owner_world: Node2D) -> void:
 	world = owner_world
 	_root = Node3D.new()
-	_root.name = "Hunters"
+	_root.name = "Pets"
 	world.stage.add_child(_root)
 
 
@@ -91,9 +98,18 @@ func threshold(record: Dictionary) -> int:
 	return int(record["threshold"])
 
 
-## The seeded hunter of a hamlet, or {}: its kind, aura threshold and post
-## near the edge of the clearing, on open ground.
-func hamlet_hunter(hamlet: Dictionary) -> Dictionary:
+func afflicted(record: Dictionary) -> bool:
+	return record["poisoned"] or record["wounded"]
+
+
+## Whether this pet takes a monster of `kind`: cats leave goblins alone.
+func can_kill(record: Dictionary, kind: int) -> bool:
+	return kind in [world.RAT, world.SPIDER, world.KOBOLD] or (kind == world.GOBLIN and KINDS[record["kind"]]["goblins"])
+
+
+## The seeded pet of a hamlet, or {}: its kind, aura threshold and home near
+## the edge of the clearing, on open ground.
+func hamlet_pet(hamlet: Dictionary) -> Dictionary:
 	var land: Node3D = world._surface_landscape if world.in_cave() else world.landscape
 	var block: Vector2i = hamlet["block"]
 	if land.random_at(block, 160) >= CHANCE:
@@ -113,11 +129,11 @@ func hamlet_hunter(hamlet: Dictionary) -> Dictionary:
 
 
 func _record(spec: Dictionary, state: String, at: Vector2) -> Dictionary:
-	return {"kind": spec["kind"], "hamlet": spec["hamlet"], "threshold": spec["threshold"], "post": spec["post"], "home_facing": spec["facing"], "facing": spec["facing"], "at": at, "state": state, "goal": spec["post"], "wait": 0.0, "turn": 0, "moving": false, "stuck": 0.0, "pace": 0.0, "cooldown": 0.0, "attack": 0.0}
+	return {"kind": spec["kind"], "hamlet": spec["hamlet"], "threshold": spec["threshold"], "post": spec["post"], "home_facing": spec["facing"], "facing": spec["facing"], "at": at, "state": state, "goal": spec["post"], "wait": 0.0, "turn": 0, "moving": false, "stuck": 0.0, "pace": 0.0, "cooldown": 0.0, "attack": 0.0, "bite": 0.0, "prey": -1, "poisoned": false, "wounded": false}
 
 
 func find(block: Vector2i) -> Dictionary:
-	for record in hunters:
+	for record in pets:
 		if record["hamlet"] == block:
 			return record
 	return {}
@@ -125,15 +141,15 @@ func find(block: Vector2i) -> Dictionary:
 
 func followers() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for record in hunters:
+	for record in pets:
 		if record["state"] == "following":
 			result.append(record)
 	return result
 
 
-## Hamlet hunters appear with their hamlet's villagers and leave with them; a
-## hunter that follows her or walks home is kept, so its hamlet never shows a
-## second copy of it.
+## Hamlet pets appear with their hamlet's villagers and leave with them; a pet
+## that follows her or walks home is kept, so its hamlet never shows a second
+## copy of it.
 func refresh() -> void:
 	if world.in_cave():
 		return
@@ -145,18 +161,18 @@ func refresh() -> void:
 			var hamlet: Dictionary = land.hamlet_at(block + Vector2i(dx, dz))
 			if hamlet.is_empty() or here.distance_to(hamlet["center"]) >= world.VILLAGER_APPEAR:
 				continue
-			var spec := hamlet_hunter(hamlet)
+			var spec := hamlet_pet(hamlet)
 			if not spec.is_empty() and find(spec["hamlet"]).is_empty():
-				hunters.append(_record(spec, "post", spec["post"]))
-	for i in range(hunters.size() - 1, -1, -1):
-		var record := hunters[i]
+				pets.append(_record(spec, "post", spec["post"]))
+	for i in range(pets.size() - 1, -1, -1):
+		var record := pets[i]
 		if record["state"] != "following" and here.distance_to(record["post"]) > world.VILLAGER_LEAVE:
 			_free_visual(record)
-			hunters.remove_at(i)
+			pets.remove_at(i)
 
 
-## The hunter the prompt is about: a follower she stands right beside (to
-## send home), else the closest hamlet hunter she could ask, or {}.
+## The pet the prompt is about: a follower she stands right beside (to send
+## home), else the closest hamlet pet she could adopt, or {}.
 func nearest() -> Dictionary:
 	var here := _here()
 	for record in followers():
@@ -166,7 +182,7 @@ func nearest() -> Dictionary:
 		return {}
 	var best := PROMPT_RADIUS
 	var found := {}
-	for record in hunters:
+	for record in pets:
 		var distance: float = here.distance_to(record["at"])
 		if record["state"] != "following" and distance <= best:
 			best = distance
@@ -189,13 +205,14 @@ func prompt(record: Dictionary) -> String:
 	return "full" if followers().size() >= MAX_FOLLOWERS else "join"
 
 
-## Whether controller A should ask the nearby hunter rather than pick up.
+## Whether controller A should adopt or send home the nearby pet rather than
+## pick up.
 func can_ask() -> bool:
 	return prompt(nearest()) in ["dismiss", "join"] and world.player_stun <= 0.0
 
 
-## G, controller A or the HUD button: ask the hunter beside her to follow, or
-## send a follower home. A refusal explains itself.
+## G, controller A or the HUD button: adopt the pet beside her, or send a
+## follower home. A refusal explains itself.
 func toggle() -> void:
 	var record := nearest()
 	match prompt(record):
@@ -204,7 +221,7 @@ func toggle() -> void:
 		"aura":
 			world._show_notice("The %s follows only at %d aura (you have %d)" % [title(record), threshold(record), world.aura], 3.0)
 		"full":
-			world._show_notice("Two hunters already follow Oravitsa; the %s stays" % title(record), 3.0)
+			world._show_notice("Two pets already follow Oravitsa; the %s stays" % title(record), 3.0)
 		"join":
 			record["state"] = "following"
 			record["moving"] = false
@@ -215,6 +232,7 @@ func toggle() -> void:
 
 ## A follower walks home from where it is; underground it climbs out first.
 func _leave(record: Dictionary, notice: String) -> void:
+	_drop_bite(record)
 	record["state"] = "returning"
 	record["moving"] = false
 	record["attack"] = 0.0
@@ -226,7 +244,8 @@ func _leave(record: Dictionary, notice: String) -> void:
 
 ## Called every frame after she has moved, on the surface and underground:
 ## aura below a threshold sends that follower home; followers keep up and,
-## underground, stun monsters; hunters at home stroll; sent home, they walk.
+## underground, hunt hindered monsters and get bitten by awake ones; pets at
+## home stroll; sent home, they walk.
 func update(delta: float) -> void:
 	var here := _here()
 	if here.distance_to(_last) > 0.01:
@@ -238,14 +257,13 @@ func update(delta: float) -> void:
 			world._update_hud()
 	var slot := 0
 	for record in followers():
-		_follow(record, slot, delta)
-		if world.in_cave():
-			_fight(record, delta)
+		if not (world.in_cave() and _hunt(record, delta)):
+			_follow(record, slot, delta)
 		slot += 1
-	_update_arrows(delta)
 	if world.in_cave():
+		_monster_bites()
 		return
-	for record in hunters:
+	for record in pets:
 		if record["state"] == "returning":
 			_walk_home(record, delta)
 		elif record["state"] == "post":
@@ -266,20 +284,21 @@ func _step(record: Dictionary, goal: Vector2, length: float) -> float:
 	return moved.distance_to(at)
 
 
-## Underground a follower walks straight to her when the floor between is
-## open, else to the next cell on the shortest way around the walls.
-func _goal(record: Dictionary, here: Vector2) -> Vector2:
-	if not world.in_cave() or _clear_floor(record["at"], here):
-		return here
+## Underground a pet walks straight to `goal` when the floor between is open,
+## else to the next cell on the shortest way around the walls.
+func _way(record: Dictionary, goal: Vector2, flow: Dictionary = {}) -> Vector2:
+	if not world.in_cave() or _clear_floor(record["at"], goal):
+		return goal
 	var cave: Node3D = world._cave
-	var target: Vector2i = cave.cell_at(_local(here))
-	var flow: Dictionary = world._cave_flow if world._cave_flow_cell == target else cave.distances_to(target)
+	if flow.is_empty():
+		var target: Vector2i = cave.cell_at(_local(goal))
+		flow = world._cave_flow if world._cave_flow_cell == target else cave.distances_to(target)
 	var cell: Vector2i = cave.cell_at(_local(record["at"]))
 	var steps: int = flow.get(cell, -1)
 	for step in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 		if steps > 0 and flow.get(cell + step, -1) == steps - 1:
 			return cave.cell_center(cell + step) + _origin()
-	return here
+	return goal
 
 
 func _follow(record: Dictionary, slot: int, delta: float) -> void:
@@ -298,7 +317,9 @@ func _follow(record: Dictionary, slot: int, delta: float) -> void:
 		record["stuck"] = 0.0
 		return
 	var pace := maxf(MIN_PACE, world._move_speed() / world.METRE * (1.25 if distance > HURRY else 1.0))
-	var goal := _goal(record, here)
+	if afflicted(record):
+		pace *= AFFLICTED_PACE
+	var goal := _way(record, here)
 	# Two followers keep a little apart instead of walking inside each other.
 	for other in followers():
 		if other != record and other["at"].distance_to(record["at"]) < SPREAD:
@@ -310,9 +331,176 @@ func _follow(record: Dictionary, slot: int, delta: float) -> void:
 	record["stuck"] = 0.0 if moved > pace * delta * 0.3 else float(record["stuck"]) + delta
 
 
+## Whether a monster is hindered: stunned, scared or slowed. Only then may a
+## pet go for it.
+func hindered(data: Dictionary) -> bool:
+	return data["stun"] > 0.0 or data["shoo"] > 0.0 or data.get("slow", 0.0) > 0.0
+
+
+## The hindered monster this pet can kill that is nearest to it, within reach
+## of a short run and close to Oravitsa, or -1.
+func _prey(record: Dictionary) -> int:
+	var here := _here()
+	var best := -1
+	var best_distance := INF
+	for id in world._active_animals:
+		var data: Dictionary = world._animals[id]
+		if data["kind"] not in world.MONSTERS or not data["alive"] or not hindered(data) or not can_kill(record, data["kind"]):
+			continue
+		var at: Vector2 = world.absolute_ground(data["position"])
+		var distance: float = record["at"].distance_to(at)
+		if distance > HUNT_RANGE or distance >= best_distance or here.distance_to(at) > HUNT_LEASH:
+			continue
+		if not _clear_floor(record["at"], at):
+			var flow: Dictionary = world._cave.distances_to(world._cave.cell_at(_local(at)))
+			if flow.get(world._cave.cell_at(_local(record["at"])), 999) * world._cave.CELL > HUNT_WALK:
+				continue
+		best = id
+		best_distance = distance
+	return best
+
+
+## Underground a healthy follower runs at a hindered monster it can take and
+## bites it; the bite kills it once it lands. Returns whether the pet is busy
+## hunting or biting this frame (it does not follow her then).
+func _hunt(record: Dictionary, delta: float) -> bool:
+	record["cooldown"] = maxf(0.0, float(record["cooldown"]) - delta)
+	record["attack"] = maxf(0.0, float(record["attack"]) - delta)
+	if record["bite"] > 0.0:
+		record["bite"] = float(record["bite"]) - delta
+		record["pace"] = 0.0
+		if record["bite"] <= 0.0:
+			_land_bite(record)
+		return true
+	if afflicted(record) or record["cooldown"] > 0.0:
+		record["prey"] = -1
+		return false
+	var prey := _prey(record)
+	record["prey"] = prey
+	if prey < 0:
+		return false
+	var data: Dictionary = world._animals[prey]
+	var at: Vector2 = world.absolute_ground(data["position"])
+	var kind: Dictionary = KINDS[record["kind"]]
+	if record["at"].distance_to(at) <= kind["reach"] and _clear_floor(record["at"], at):
+		start_bite(record, prey)
+		return true
+	if delta <= 0.0:
+		return true
+	var pace := maxf(float(kind["run"]), world._move_speed() / world.METRE)
+	var flow := {}
+	if not _clear_floor(record["at"], at):
+		flow = world._cave.distances_to(world._cave.cell_at(_local(at)))
+	var moved := _step(record, _way(record, at, flow), pace * delta)
+	record["pace"] = moved / delta
+	record["moving"] = true
+	record["stuck"] = 0.0 if moved > pace * delta * 0.3 else float(record["stuck"]) + delta
+	if record["stuck"] > STUCK:
+		record["cooldown"] = kind["rest"] # Gives up on this one for a moment.
+		record["stuck"] = 0.0
+		record["prey"] = -1
+	return true
+
+
+## The pet bites: the monster is held still for the bite, which kills it.
+func start_bite(record: Dictionary, id: int) -> void:
+	var kind: Dictionary = KINDS[record["kind"]]
+	var data: Dictionary = world._animals[id]
+	var at: Vector2 = world.absolute_ground(data["position"])
+	record["prey"] = id
+	record["bite"] = kind["bite"]
+	record["attack"] = kind["bite"] + 0.1
+	record["pace"] = 0.0
+	if record["at"].distance_to(at) > 0.01:
+		record["facing"] = (at - record["at"]).normalized()
+	data["held"] = float(kind["bite"]) + 0.1
+	data["velocity"] = Vector2.ZERO
+
+
+func _land_bite(record: Dictionary) -> void:
+	var id: int = record["prey"]
+	record["bite"] = 0.0
+	record["prey"] = -1
+	record["cooldown"] = KINDS[record["kind"]]["rest"]
+	if id >= 0 and id < world._animals.size():
+		world.pet_kill_monster(id, title(record))
+
+
+## A bite that is cut short (the pet is bitten or leaves) releases its prey.
+func _drop_bite(record: Dictionary) -> void:
+	var id: int = record["prey"]
+	if record["bite"] > 0.0 and id >= 0 and id < world._animals.size():
+		world._animals[id]["held"] = 0.0
+	record["bite"] = 0.0
+	record["prey"] = -1
+
+
+## An awake, unscared, unstunned rat, spider or goblin that reaches a follower
+## bites it, on the same cooldown as its bites at Oravitsa: a spider poisons
+## the pet, a rat or goblin wounds it. Kobolds never bite.
+func _monster_bites() -> void:
+	for id in world._active_animals:
+		var data: Dictionary = world._animals[id]
+		var kind: int = data["kind"]
+		if kind not in [world.RAT, world.SPIDER, world.GOBLIN] or not data["alive"] or data["stun"] > 0.0 or data["shoo"] > 0.0:
+			continue
+		if data.get("bite_cooldown", 0.0) > 0.0 or data.get("attack_time", 0.0) > 0.0 or data.get("held", 0.0) > 0.0:
+			continue
+		var at: Vector2 = world.absolute_ground(data["position"])
+		for record in followers():
+			if record["at"].distance_to(at) > world.ANIMAL_RADIUS[kind] / world.METRE + RADIUS + 0.15:
+				continue
+			bitten(record, id)
+			break
+
+
+## Monster `id` bites a pet: poisoned by a spider, wounded by a rat or goblin.
+func bitten(record: Dictionary, id: int) -> void:
+	var data: Dictionary = world._animals[id]
+	data["bite_cooldown"] = world.BITE_COOLDOWN
+	data["attack_time"] = world.BITE_ATTACK
+	data["velocity"] = Vector2.ZERO
+	_drop_bite(record)
+	record["attack"] = 0.0
+	var harm := "poisoned" if data["kind"] == world.SPIDER else "wounded"
+	var already: bool = record[harm]
+	record[harm] = true
+	if not already:
+		var by: String = "goblin clubbed" if data["kind"] == world.GOBLIN else "%s bit" % world.ANIMAL_NAMES[data["kind"]].to_lower()
+		world._show_notice("The %s the %s: it is %s until Oravitsa cures it" % [by, title(record), harm], 3.5)
+		world._update_hud()
+
+
+## Following pets within CURE_RANGE of her that are poisoned or wounded.
+func afflicted_near() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var here := _here()
+	for record in followers():
+		if afflicted(record) and here.distance_to(record["at"]) <= CURE_RANGE:
+			result.append(record)
+	return result
+
+
+## Cure heals the afflicted pets near her; returns what was healed, as
+## phrases such as "the cat's poison".
+func cure_near() -> Array[String]:
+	var healed: Array[String] = []
+	for record in afflicted_near():
+		var harms := []
+		if record["poisoned"]:
+			harms.append("poison")
+		if record["wounded"]:
+			harms.append("wounds")
+		healed.append("the %s's %s" % [title(record), " and ".join(PackedStringArray(harms))])
+		record["poisoned"] = false
+		record["wounded"] = false
+	return healed
+
+
 ## Puts a follower on open ground just behind her (beside her for `beside`),
 ## each slot on its own side, or on her own spot if nothing else is free.
 func place_behind(record: Dictionary, slot: int, beside: bool = false) -> void:
+	_drop_bite(record)
 	var here := _here()
 	var back := -_heading
 	var side := Vector2(-back.y, back.x) * (1.0 if slot == 0 else -1.0)
@@ -336,17 +524,15 @@ func place_behind(record: Dictionary, slot: int, beside: bool = false) -> void:
 func arrive() -> void:
 	_heading = Vector2.UP if world.in_cave() else Vector2.DOWN
 	_last = _here()
-	for arrow in _arrows:
-		arrow["node"].queue_free()
-	_arrows.clear()
 	var slot := 0
 	for record in followers():
 		place_behind(record, slot, true)
+		record["cooldown"] = 0.0
 		slot += 1
 
 
 ## Whether the cave floor is open all along the straight line from `a` to `b`
-## (absolute metres): no shot, thrust or straight walk goes through a wall.
+## (absolute metres): no bite or straight walk goes through a wall.
 func _clear_floor(a: Vector2, b: Vector2) -> bool:
 	var cave: Node3D = world._cave
 	var samples := maxi(1, ceili(a.distance_to(b) / 0.2))
@@ -356,79 +542,7 @@ func _clear_floor(a: Vector2, b: Vector2) -> bool:
 	return true
 
 
-## Underground a follower stuns the awake, unscared monster within its reach
-## that is nearest to Oravitsa, along open floor only. A stun is all it does:
-## monsters are never killed, and hunter stuns give no aura.
-func _fight(record: Dictionary, delta: float) -> void:
-	record["cooldown"] = maxf(0.0, float(record["cooldown"]) - delta)
-	record["attack"] = maxf(0.0, float(record["attack"]) - delta)
-	if record["cooldown"] > 0.0:
-		return
-	var kind: Dictionary = KINDS[record["kind"]]
-	var here := _here()
-	var best := -1
-	var best_distance := INF
-	for id in world._active_animals:
-		var data: Dictionary = world._animals[id]
-		if data["kind"] not in world.MONSTERS or not data["alive"] or data["stun"] > 0.0 or data["shoo"] > 0.0:
-			continue
-		var at: Vector2 = world.absolute_ground(data["position"])
-		if record["at"].distance_to(at) > kind["reach"] or not _clear_floor(record["at"], at):
-			continue
-		var distance := here.distance_to(at)
-		if distance < best_distance:
-			best_distance = distance
-			best = id
-	if best >= 0:
-		strike(record, best)
-
-
-func strike(record: Dictionary, id: int) -> void:
-	var kind: Dictionary = KINDS[record["kind"]]
-	var data: Dictionary = world._animals[id]
-	var at: Vector2 = world.absolute_ground(data["position"])
-	data["stun"] = kind["stun"]
-	data["velocity"] = Vector2.ZERO
-	data["burst"] = 0.0
-	data["dart"] = 0.0
-	data["attack_time"] = 0.0
-	data["timeout"] = 0.0
-	if world._active_animals.has(id):
-		world._active_animals[id].stop()
-		world._active_animals[id].modulate = Color(0.66, 0.78, 0.91)
-	record["cooldown"] = kind["cooldown"]
-	record["attack"] = ATTACK
-	if record["at"].distance_to(at) > 0.01:
-		record["facing"] = (at - record["at"]).normalized()
-	if record["kind"] != "spear":
-		_shoot(record["at"], at)
-
-
-## An arrow streak from bow to monster, purely drawn.
-func _shoot(from: Vector2, to: Vector2) -> void:
-	var node := MeshInstance3D.new()
-	var shaft := BoxMesh.new()
-	shaft.size = Vector3(0.025, 0.025, 0.55)
-	node.mesh = shaft
-	var glow := StandardMaterial3D.new()
-	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.albedo_color = Color("e8d7a8")
-	node.material_override = glow
-	node.name = "Arrow"
-	_root.add_child(node)
-	_arrows.append({"node": node, "from": from, "to": to, "age": 0.0, "flight": maxf(0.08, from.distance_to(to) / ARROW_SPEED)})
-
-
-func _update_arrows(delta: float) -> void:
-	for i in range(_arrows.size() - 1, -1, -1):
-		var arrow := _arrows[i]
-		arrow["age"] = float(arrow["age"]) + delta
-		if arrow["age"] >= arrow["flight"]:
-			arrow["node"].queue_free()
-			_arrows.remove_at(i)
-
-
-## A hunter at its post strolls a little around it, with pauses.
+## A pet at home strolls a little around it, with pauses.
 func _stroll(record: Dictionary, delta: float) -> void:
 	record["wait"] = float(record["wait"]) - delta
 	var goal: Vector2 = record["goal"]
@@ -470,26 +584,24 @@ func _home(record: Dictionary) -> void:
 	record["pace"] = 0.0
 	record["cooldown"] = 0.0
 	record["attack"] = 0.0
+	record["bite"] = 0.0
+	record["prey"] = -1
 
 
-## The followers for a save: hamlet block, kind and threshold.
+## The followers for a save: hamlet block, kind, threshold and afflictions.
 func save() -> Array:
 	var result := []
 	for record in followers():
-		result.append({"hamlet": [record["hamlet"].x, record["hamlet"].y], "kind": record["kind"], "threshold": record["threshold"]})
+		result.append({"hamlet": [record["hamlet"].x, record["hamlet"].y], "kind": record["kind"], "threshold": record["threshold"], "poisoned": record["poisoned"], "wounded": record["wounded"]})
 	return result
 
 
-## Restores the saved followers beside her (none for older saves). A hunter
-## whose hamlet no longer has it, or with too little aura, is dropped; every
-## other hunter is back at its post.
+## Restores the saved followers beside her (none for older saves). A pet whose
+## hamlet no longer has it is dropped; every other pet is back at home.
 func apply(saved: Array) -> void:
-	for record in hunters:
+	for record in pets:
 		_free_visual(record)
-	hunters.clear()
-	for arrow in _arrows:
-		arrow["node"].queue_free()
-	_arrows.clear()
+	pets.clear()
 	var land: Node3D = world._surface_landscape if world.in_cave() else world.landscape
 	for item in saved:
 		if followers().size() >= MAX_FOLLOWERS:
@@ -498,16 +610,19 @@ func apply(saved: Array) -> void:
 		var hamlet: Dictionary = land.hamlet_at(block)
 		if hamlet.is_empty():
 			continue
-		var spec := hamlet_hunter(hamlet)
+		var spec := hamlet_pet(hamlet)
 		if spec.is_empty() or spec["kind"] != item["kind"] or spec["threshold"] != int(item["threshold"]) or not find(block).is_empty():
 			continue
-		hunters.append(_record(spec, "following", _here()))
+		var record := _record(spec, "following", _here())
+		record["poisoned"] = bool(item.get("poisoned", false))
+		record["wounded"] = bool(item.get("wounded", false))
+		pets.append(record)
 	arrive()
 	refresh()
 
 
 func _free_visual(record: Dictionary) -> void:
-	for field in ["node", "shadow", "label"]:
+	for field in ["node", "shadow", "label", "marker"]:
 		if record.has(field) and is_instance_valid(record[field]):
 			record[field].queue_free()
 		record.erase(field)
@@ -521,106 +636,23 @@ static func _clip(animator: AnimationPlayer, clip: String) -> String:
 	return ""
 
 
-func _material(color: Color) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.roughness = 0.85
-	return material
-
-
-## A spear (shaft and iron tip) or a bow (an arc of short staves and a
-## string), held in the right hand, sized in metres.
-func _weapon(kind: String, scale: float) -> Node3D:
-	var weapon := Node3D.new()
-	weapon.name = "Spear" if kind == "spear" else "Bow"
-	var wood := _material(Color("6b4a2a") if kind != "veteran" else Color("3d2a1a"))
-	if kind == "spear":
-		var shaft := MeshInstance3D.new()
-		var pole := CylinderMesh.new()
-		pole.top_radius = 0.018
-		pole.bottom_radius = 0.022
-		pole.height = 1.9
-		pole.radial_segments = 6
-		shaft.mesh = pole
-		shaft.material_override = wood
-		shaft.position = Vector3(0, 0.35, 0)
-		weapon.add_child(shaft)
-		var tip := MeshInstance3D.new()
-		var cone := CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = 0.045
-		cone.height = 0.22
-		cone.radial_segments = 6
-		tip.mesh = cone
-		tip.material_override = _material(Color("b9bdc2"))
-		tip.position = Vector3(0, 0.35 + 0.95 + 0.11, 0)
-		weapon.add_child(tip)
-	else:
-		var span := 1.25 if kind == "veteran" else 1.05
-		var bend := 0.22
-		var parts := 7
-		for i in parts:
-			var t0 := float(i) / parts - 0.5
-			var t1 := float(i + 1) / parts - 0.5
-			# The grip, mid-bow, sits in the hand; the tips curve back to the string.
-			var p0 := Vector3(0, t0 * span, -bend * 4.0 * t0 * t0)
-			var p1 := Vector3(0, t1 * span, -bend * 4.0 * t1 * t1)
-			var stave := MeshInstance3D.new()
-			var box := BoxMesh.new()
-			box.size = Vector3(0.035, p0.distance_to(p1) + 0.01, 0.035)
-			stave.mesh = box
-			stave.material_override = wood
-			stave.position = (p0 + p1) * 0.5
-			stave.rotation.x = atan2(p1.z - p0.z, p1.y - p0.y)
-			weapon.add_child(stave)
-		var string := MeshInstance3D.new()
-		var line := BoxMesh.new()
-		line.size = Vector3(0.008, span, 0.008)
-		string.mesh = line
-		string.material_override = _material(Color("e6dcc3"))
-		string.position = Vector3(0, 0, -bend)
-		weapon.add_child(string)
-	weapon.scale = Vector3.ONE / maxf(scale, 0.0001)
-	return weapon
-
-
 func _build_visual(record: Dictionary) -> void:
 	var kind: Dictionary = KINDS[record["kind"]]
-	var model: Node3D = load(CREATURES + "farmer.glb").instantiate()
-	model.name = "Hunter_%d_%d" % [record["hamlet"].x, record["hamlet"].y]
+	var model: Node3D = load(CREATURES + record["kind"] + ".glb").instantiate()
+	model.name = "Pet_%d_%d" % [record["hamlet"].x, record["hamlet"].y]
 	_root.add_child(model)
 	var bounds: AABB = world._model_bounds(model)
-	var scale := HEIGHT / maxf(bounds.size.y, 0.01)
-	model.scale = Vector3.ONE * scale
-	# Hunter's clothes: the farmer's shirt, trousers and hat in the kind's colours.
-	var tint: Dictionary = kind["tint"]
-	for mesh in model.find_children("*", "MeshInstance3D", true, false):
-		for i in mesh.mesh.get_surface_count():
-			var material: Material = mesh.get_active_material(i)
-			if material is BaseMaterial3D and tint.has(material.resource_name):
-				material = material.duplicate()
-				material.albedo_color = tint[material.resource_name]
-				mesh.set_surface_override_material(i, material)
-	var skeleton: Skeleton3D = null
-	for found in model.find_children("*", "Skeleton3D", true, false):
-		skeleton = found
-	if skeleton != null and skeleton.find_bone("Wrist.R") >= 0:
-		var hand := BoneAttachment3D.new()
-		hand.bone_name = "Wrist.R"
-		skeleton.add_child(hand)
-		var weapon := _weapon(record["kind"], skeleton.global_transform.basis.get_scale().x)
-		hand.add_child(weapon)
-		record["weapon"] = weapon
+	model.scale = Vector3.ONE * float(kind["height"]) / maxf(bounds.size.y, 0.0001)
 	var animator: AnimationPlayer = world._find_animator(model)
 	if animator != null:
-		for clip in ["Idle", "Walk", "Run"]:
+		for clip in ["Idle", "Walk", "Gallop"]:
 			var full := _clip(animator, clip)
 			if not full.is_empty():
 				animator.get_animation(full).loop_mode = Animation.LOOP_LINEAR
 		animator.play(_clip(animator, "Idle"))
 		record["animator"] = animator
 	record["node"] = model
-	var shadow: MeshInstance3D = world._contact_shadow(0.45)
+	var shadow: MeshInstance3D = world._contact_shadow(float(kind["height"]) * 0.7)
 	_root.add_child(shadow)
 	record["shadow"] = shadow
 	var label := Label3D.new()
@@ -634,6 +666,12 @@ func _build_visual(record: Dictionary) -> void:
 	label.name = "Threshold"
 	_root.add_child(label)
 	record["label"] = label
+	var marker := Node3D.new()
+	marker.set_script(STATUS_MARKER)
+	marker.name = "PetStatus"
+	marker.visible = false
+	_root.add_child(marker)
+	record["marker"] = marker
 
 
 func _ground(at: Vector2) -> Vector3:
@@ -641,18 +679,29 @@ func _ground(at: Vector2) -> Vector3:
 	return Vector3(p.x, world.landscape.height_at(p), p.y)
 
 
-## Places, turns and animates the hunters near her; underground only her
-## followers are there. Hamlet hunters show their aura threshold close by.
+## The status icons over a pet: poisoned and/or wounded, untimed.
+func status(record: Dictionary) -> Array:
+	var states := []
+	if record["poisoned"]:
+		states.append(["poisoned", -1.0])
+	if record["wounded"]:
+		states.append(["wounded", -1.0])
+	return states
+
+
+## Places, turns and animates the pets near her; underground only her
+## followers are there. Hamlet pets show their aura threshold close by.
 func sync(_delta: float) -> void:
 	var here := _here()
 	var underground: bool = world.in_cave()
-	for record in hunters:
+	for record in pets:
 		var shown: bool = record["state"] == "following" if underground else here.distance_to(record["at"]) <= SHOWN
 		if not shown:
 			_free_visual(record)
 			continue
 		if not record.has("node"):
 			_build_visual(record)
+		var kind: Dictionary = KINDS[record["kind"]]
 		var node: Node3D = record["node"]
 		node.position = _ground(record["at"])
 		var facing: Vector2 = record["facing"]
@@ -664,30 +713,30 @@ func sync(_delta: float) -> void:
 		label.visible = record["state"] != "following" and here.distance_to(record["at"]) <= LABEL_RANGE
 		var name := title(record)
 		label.text = "%s · %d aura" % [name.left(1).to_upper() + name.substr(1), threshold(record)]
-		label.position = node.position + Vector3.UP * (HEIGHT + 0.35)
+		label.position = node.position + Vector3.UP * (float(kind["height"]) + 0.35)
+		var marker: Node3D = record["marker"]
+		marker.show_states(status(record))
+		marker.set_on_top(true)
+		marker.position = node.position + Vector3.UP * (float(kind["height"]) + 0.45)
 		if record.has("animator"):
 			var animator: AnimationPlayer = record["animator"]
+			var clips: Dictionary = kind["clips"]
 			var wanted := "Idle"
 			var rate := 1.0
 			var pace: float = record["pace"]
+			var full := ""
 			if record["attack"] > 0.0:
-				wanted = KINDS[record["kind"]]["clip"]
-				rate = 1.6
+				full = _clip(animator, clips["bite"])
+				if not full.is_empty():
+					rate = clampf(animator.get_animation(full).length / (float(kind["bite"]) + 0.1), 0.8, 4.0)
 			elif pace > 2.6:
-				wanted = "Run"
-				rate = clampf(pace / 4.0, 0.8, 1.6)
+				wanted = clips["run"]
+				rate = clampf(pace / float(clips["run_pace"]), 0.7, 2.5)
 			elif pace > 0.1:
 				wanted = "Walk"
-				rate = clampf(pace / 1.4, 0.6, 1.6)
-			var full := _clip(animator, wanted)
+				rate = clampf(pace / float(clips["walk_pace"]), 0.5, 2.5)
+			if full.is_empty():
+				full = _clip(animator, wanted)
 			if not full.is_empty() and animator.current_animation != full:
-				animator.play(full, 0.15)
+				animator.play(full, 0.12)
 			animator.speed_scale = rate
-	for arrow in _arrows:
-		var t: float = clampf(float(arrow["age"]) / float(arrow["flight"]), 0.0, 1.0)
-		var from := _ground(arrow["from"]) + Vector3.UP * 1.25
-		var to := _ground(arrow["to"]) + Vector3.UP * 0.4
-		var node: Node3D = arrow["node"]
-		node.position = from.lerp(to, t)
-		if from.distance_to(to) > 0.01:
-			node.look_at_from_position(node.position, to, Vector3.UP)

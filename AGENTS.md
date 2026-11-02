@@ -45,7 +45,7 @@ python3 tools/export.py all --godot /path/to/godot
 Shoo, endless-world travel/rebasing/ecology/food regrowth, wildlife behaviour
 loops, fox foraging, hare collection, aggression, fights, save/load, audio wiring, hamlets and
 cave mouths, aura/feeding/villagers/chieftain gifts, both cave levels and their
-monsters, pausing, mounts, hunter companions, queued streaming,
+monsters, pausing, mounts, pets, queued streaming,
 offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
@@ -72,13 +72,16 @@ Record unavailable checks as untested, never as passed.
   or A on a controller). It is removed exactly once and immediately becomes
   one raw meat; no other wildlife species can be killed or collected. The
   giant rats and spiders of cave levels and the goblins and kobolds of second
-  levels are monsters, not wildlife, and are never killed either. A stunned or scared one does not affect her: it
+  levels are monsters, not wildlife. Oravitsa never kills one either (no
+  walk-over, no A); only her pets can, and only while the monster is stunned,
+  scared or slowed. A stunned or scared one does not affect her: it
   neither bites, bumps nor blocks her, and she walks through it.
   Sling, Shoo and Slow use the selected animal. Slow (E; LB) halves its
   movement for six seconds, with a snail icon, on a ten-second cooldown.
-  Cure (R; RB) works on Oravitsa alone: it ends her stun and panic, even
-  while she is stunned, on a fifteen-second cooldown, and is not spent when
-  there is nothing to cure. Shoo applies five seconds of visible
+  Cure (R; RB) ends Oravitsa's stun and panic, even while she is stunned,
+  and the poison and wounds of every following pet within 6 m of her, on a
+  fifteen-second cooldown; its notice names what it cured, and it is not
+  spent when there is nothing to cure. Shoo applies five seconds of visible
   scared status and fast escape, with a seven-second cooldown; invalid casts do
   not spend cooldown. It interrupts feeding/hunting and existing animal stun.
   Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
@@ -127,20 +130,25 @@ Record unavailable checks as untested, never as passed.
   A ridden mount and any mount left away from its tether are saved at
   absolute positions, never duplicated at their hamlet. Mounts are not
   wildlife: no Sling/Shoo/Slow target, no bumps, never harmed.
-- Hunters (#65): about three hamlets in five have one seeded hunter near the
-  clearing's edge: spear (most common), bow or veteran bow (rare), with an aura
-  threshold seeded in its band (20–40, 45–70, 75–100). The join prompt and a
-  floating label state it; below it she cannot recruit. At most two follow
+- Pets (#65): about three hamlets in five keep one seeded pet near the
+  clearing's edge: a cat (most common), a Shiba Inu or a husky (rare), with an
+  aura threshold seeded in its band (20–40, 40–65, 65–90). The adopt prompt
+  and a floating label state it; below it she cannot adopt. At most two follow
   her, a few metres behind, never blocking or bumping her, catching up by
   appearing just behind her when far or off-screen. Aura below a follower's
-  threshold sends it home at once with a notice; asking a follower again does
-  too. They go into caves, down and up levels and out with her. Underground
-  only, each stuns the awake, unscared monster nearest to her within reach
-  along open floor (spear 1.6 m/2.5 s/2.5 s cooldown, bow 6 m/2.0 s/3.0 s,
-  veteran 8 m/3.0 s/2.0 s), never through walls, for no aura; nothing is
-  killed and they never fight wildlife. Followers are saved (hamlet, kind,
-  threshold) and never duplicated at their hamlet; the rest regenerate.
-  Hunters are no Sling/Shoo/Slow target and cannot be harmed.
+  threshold sends it home at once with a notice; asking right beside a
+  follower does too. They go into caves, down and up levels and out with her.
+  Underground only, a healthy pet runs at a monster that is stunned, scared or
+  slowed (cats: rats, spiders, kobolds; dogs: goblins too) and kills it with a
+  bite: removed exactly once, Death clip, dead for good on that level of that
+  cave (saved), no aura. It never attacks an awake, unhindered monster. An
+  awake, unscared, unstunned monster that reaches a pet bites it on its usual
+  cooldown: a spider poisons it, a rat or goblin wounds it, a kobold does
+  nothing. A poisoned or wounded pet shows an icon, follows at 60% pace and
+  never attacks until Cure heals it; there is no health or death. Pets never
+  touch wildlife or villagers. Followers are saved (hamlet, kind, threshold,
+  afflictions) and never duplicated at their hamlet; the rest regenerate.
+  Pets are no Sling/Shoo/Slow target.
 - Hamlets and caves have Finnish, Swedish or Ukrainian-style names
   (`place_names.gd`) chosen from their absolute block or region, so a name
   never changes with streaming, rebasing or loading. Signposts at road
@@ -180,8 +188,8 @@ Record unavailable checks as untested, never as passed.
   re-arm below 0.3). LB casts Slow and RB casts Cure directly; there is no
   skill selection or cycling. In the endless woods Y (keyboard T, or the
   Ride button) gets on or off a mount; elsewhere it does nothing. A collects food;
-  beside a chieftain it gives food, and beside a hunter (keyboard G, or the
-  Ask button) it asks the hunter to follow or sends a follower home.
+  beside a chieftain it gives food, and beside a cat or dog (keyboard G, or the
+  Adopt button) it adopts it or sends a following pet home.
   Map/Help start hidden (M/H; Select/Start). In the endless woods M/Select
   cycles the local map, the explored world map and none; exploration and
   discovered hamlets and caves are absolute and saved. Pause (the HUD button, P/Esc;

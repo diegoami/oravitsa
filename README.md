@@ -108,18 +108,20 @@ requirement it leaves her and walks home. Mounts never go into caves: they
 wait at the mouth. Press T / Y again to get off; the mount waits where she
 left it, and saves remember it.
 
-About three hamlets in five also have a **hunter** standing near the edge of
-the clearing: a spear hunter (green), a bow hunter (brown) or, rarely, a
-veteran bow hunter. A label above each shows the aura it asks for: 20–40 for a
-spear hunter, 45–70 for a bow hunter, 75–100 for a veteran. Next to one, press
-**G** (controller **A**, or the Ask button) to ask it to follow; the button says
-how much aura it needs when you have too little. Up to two hunters follow
-Oravitsa a few metres behind, keep up when she sprints or rides, and come into
-caves with her, down to the second level and back out. Underground they stun
-rats, spiders, goblins and kobolds that come within reach (the spear close by,
-bows from 6 or 8 m, never through walls); nobody is killed. If her aura falls
-below a hunter's threshold it goes home, and pressing G / A right beside a
-follower sends it home too. Saves remember who follows her.
+About three hamlets in five also keep a **pet** near the edge of the
+clearing: a cat, a Shiba Inu or, rarely, a husky. A label above each shows the
+aura it asks for: 20–40 for a cat, 40–65 for a Shiba Inu, 65–90 for a husky.
+Next to one, press **G** (controller **A**, or the Adopt button) to have it
+follow; the button says how much aura it needs when you have too little. Up to
+two pets follow Oravitsa a few metres behind, keep up when she sprints or
+rides, and come into caves with her, down to the second level and back out.
+Oravitsa never kills a monster, but her pets do: once one is stunned (Sling),
+scared (Shoo) or slowed (Slow), a pet runs at it and kills it with a bite, and
+it stays dead in that cave. Cats take rats, spiders and kobolds; dogs take
+goblins too. A spider's bite poisons a pet and a rat's or goblin's wounds it:
+it follows slowly and stops hunting until Oravitsa's **Cure** heals it (within
+6 m). If her aura falls below a pet's threshold it goes home, and pressing
+G / A right beside a follower sends it home too. Saves remember her pets.
 
 On higher ground there are **cave mouths**, each with its own name (Hiidenluola,
 Trollgrottan, Vovcha Pechera…). Signposts at road crossings point the way to
@@ -128,8 +130,8 @@ first level: dark tunnels and rooms lit by Oravitsa's lantern. Glowing
 checkpoints give +20 aura once each. Giant rats and spiders chase her and
 bite, which only stuns her for a moment. Underground the woods fall silent:
 a low drone, dripping water and echoing squeaks and hisses take over. Sling stuns one and Shoo drives one
-off; meanwhile it leaves her alone and she can walk through it. Monsters are
-never killed. Deep inside each cave an amber-lit shaft ringed with stones is
+off; meanwhile it leaves her alone and she can walk through it. Oravitsa
+never kills them; only her pets do. Deep inside each cave an amber-lit shaft ringed with stones is
 the **way down** to a larger, darker second level, where checkpoints give +30
 aura once each. Goblins hunt her there in packs and club her (again only a
 stun), while timid kobolds keep their distance until three of them gather,
@@ -181,7 +183,7 @@ to cycle nearby living animal targets. **LT/L2 casts Shoo and RT/R2 casts
 Sling** directly at the selected animal. A trigger fires once when pulled past
 60% and re-arms after it is released below 30%, so holding it never repeats
 the cast. **LB/L1 casts Slow** on the selected animal (half speed for six
-seconds) and **RB/R1 casts Cure**, which ends Oravitsa's own stun or panic.
+seconds) and **RB/R1 casts Cure**, which ends Oravitsa's own stun or panic and heals her pets nearby.
 On the keyboard they are **E** and **R**. **A/Cross** picks up food within
 reach. Return the stick to center between targets. Each skill slot shows its
 button and its cooldown.
