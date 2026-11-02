@@ -97,8 +97,9 @@ random item from the bag for aura: raw meat +3, a mushroom or berries +1.
 On higher ground there are **cave mouths**. Walk into one to enter that cave's
 first level: dark tunnels and rooms lit by Oravitsa's lantern. Glowing
 checkpoints give +20 aura once each. Giant rats and spiders chase her and
-bite, which only stuns her for a moment. Sling one to stun it, then walk to it
-(controller: A) to finish it for aura (rat +5, spider +10). The way out is
+bite, which only stuns her for a moment. Sling stuns one and Shoo drives one
+off; meanwhile it leaves her alone and she can walk through it. Monsters are
+never killed. The way out is
 the sunlit spot where she came in. The surface waits, unchanged, while she is
 underground. You can save there too, and loading puts her back in the cave.
 

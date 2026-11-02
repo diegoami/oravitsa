@@ -49,7 +49,7 @@ const SAVED_ANIMAL_COUNTERS := ["turn", "hunt_attempts", "aggro_rolls"]
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
 const MUSHROOM_REGROW_SECONDS := Vector2(300, 540)
 # Aura is the game's points (#42).
-const AURA := {"rat": 5, "spider": 10, "checkpoint": 20, "food": 1, "meat": 3, "shoo_villager": -5, "hit_villager": -10}
+const AURA := {"checkpoint": 20, "food": 1, "meat": 3, "shoo_villager": -5, "hit_villager": -10}
 # How well fed Oravitsa is (#43), from 0 (starving) to FED_MAX. It falls
 # steadily; every MEAL_INTERVAL she eats one random bag item unless she is
 # full, and when starving she eats as soon as she has food. Being well fed
@@ -122,7 +122,7 @@ var _cave: Node3D = null
 var _surface_landscape: Node3D
 var _surface_animals: Array[Dictionary] = []
 var _cave_key := ""
-var _cave_progress: Dictionary = {} # "x,y" region -> {"checkpoints": [...], "killed": [...]}
+var _cave_progress: Dictionary = {} # "x,y" region -> {"checkpoints": [...], "killed": [...]}; "killed" only comes from saves before #74.
 var _cave_return := Vector2.ZERO
 var _cave_armed := true
 var _cave_exit_armed := false
@@ -130,7 +130,6 @@ var _cave_flow: Dictionary = {} # Floor cell -> walking steps to Oravitsa.
 var _cave_flow_cell := Vector2i(-999, -999)
 var _bite_grace := 0.0
 var _cave_exit_flow: Dictionary = {} # Floor cell -> walking steps to the way out.
-var _dying_models: Array[Node3D] = [] # Death clips still playing in this cave.
 var player_fright := 0.0
 var fright_chance := FRIGHT_CHANCE
 var _fright_rng := RandomNumberGenerator.new()
@@ -193,12 +192,6 @@ func _fit_help_panel() -> void:
 func _update_hud() -> void:
 	super._update_hud()
 	var keys := _input_mode != "controller" and _input_mode != "touch"
-	if in_cave() and player_stun <= 0.0 and _stunned_monster_near(HARE_NOTICE_RADIUS) >= 0:
-		var monster: String = ANIMAL_NAMES[_animals[_stunned_monster_near(HARE_NOTICE_RADIUS)]["kind"]].to_lower()
-		if _input_mode == "controller":
-			_inventory.set("pickup_prompt", ("A / Cross: finish the " + monster) if _stunned_monster_near(HARE_PICKUP_RADIUS) >= 0 else "Get closer to the " + monster)
-		else:
-			_inventory.set("pickup_prompt", "Walk to the stunned " + monster + " to finish it")
 	if is_instance_valid(_aura_badge):
 		_aura_badge.aura = aura
 		_aura_badge.fed = fed / FED_MAX
@@ -1119,11 +1112,6 @@ func _exit_cave(quiet: bool = false) -> void:
 		sprite.queue_free()
 	_active_animals.clear()
 	_sync_animal_lifecycle()
-	# Death clips belong to the cave and must not outlive it (#71).
-	for model in _dying_models:
-		if is_instance_valid(model):
-			model.queue_free()
-	_dying_models.clear()
 	_animals = _surface_animals
 	var none: Array[Dictionary] = []
 	_surface_animals = none
@@ -1268,8 +1256,8 @@ func _monster_roam_target(id: int, cell: Vector2i) -> Vector2:
 
 ## Giant rats and spiders scurry around where they lair, find their way to
 ## Oravitsa when she is within walking reach and bite, which only stuns her;
-## after a bite she has a moment to get away. Shoo drives one off; Sling stuns
-## one so it can be finished for aura.
+## after a bite she has a moment to get away. Shoo drives one off and Sling
+## stuns one; either way it leaves her alone meanwhile, and none can be killed.
 func _move_cave_creatures(delta: float) -> void:
 	var player_cell: Vector2i = _cave.cell_at(to_ground(player_position))
 	if player_cell != _cave_flow_cell:
@@ -1354,72 +1342,10 @@ func _animation_override(id: int, wanted: String, animator: AnimationPlayer) -> 
 	return wanted
 
 
-## Nearest stunned giant rat or spider within reach; only those can be killed.
-func _stunned_monster_near(radius: float) -> int:
-	var nearest := -1
-	var best := radius
-	for id in _active_animals:
-		var data := _animals[id]
-		if data["alive"] and data["kind"] in [RAT, SPIDER] and data["stun"] > 0.0:
-			var distance := player_position.distance_to(data["position"])
-			if distance <= best:
-				best = distance
-				nearest = id
-	return nearest
-
-
-## Underground, walking over a stunned monster finishes it with any input
-## device; on the surface a controller still collects with A (#72).
-func _update_player(delta: float) -> void:
-	super._update_player(delta)
-	if in_cave() and _input_mode == "controller":
-		_collect_nearby()
-
-
+## Underground there is nothing to collect: monsters cannot be killed (#74).
 func _collect_nearby() -> void:
 	if not in_cave():
 		super._collect_nearby()
-		return
-	var id := _stunned_monster_near(HARE_PICKUP_RADIUS)
-	if id >= 0 and player_stun <= 0.0:
-		_kill_monster(id)
-
-
-## A stunned giant rat or spider is finished off once, for aura; its Death
-## clip plays and it stays dead in this cave.
-func _kill_monster(id: int) -> void:
-	var data := _animals[id]
-	if not data["alive"] or data["kind"] not in [RAT, SPIDER] or data["stun"] <= 0.0:
-		return
-	data["alive"] = false
-	data["stun"] = 0.0
-	data["velocity"] = Vector2.ZERO
-	_cave_progress[_cave_key]["killed"].append(int(data["cave_index"]))
-	if _animal_models.has(id):
-		var model: Node3D = _animal_models[id]
-		var animator: AnimationPlayer = _animal_players.get(id)
-		_animal_models.erase(id)
-		_animal_players.erase(id)
-		_animal_stars[id].queue_free()
-		_animal_stars.erase(id)
-		_animal_shadows[id].queue_free()
-		_animal_shadows.erase(id)
-		if animator != null and animator.has_animation("Death"):
-			animator.speed_scale = 1.0
-			animator.play("Death")
-			_dying_models.append(model)
-			get_tree().create_timer(2.5).timeout.connect(func():
-				_dying_models.erase(model)
-				if is_instance_valid(model):
-					model.queue_free())
-		else:
-			model.queue_free()
-	if _active_animals.has(id):
-		_active_animals[id].queue_free()
-		_active_animals.erase(id)
-	if selected_target == id:
-		selected_target = -1
-	_add_aura(AURA["rat"] if data["kind"] == RAT else AURA["spider"], "defeated a " + ANIMAL_NAMES[data["kind"]].to_lower())
 
 
 func is_hungry() -> bool:
@@ -1577,8 +1503,12 @@ func _on_sling_hit(id: int) -> void:
 		_add_aura(AURA["hit_villager"], "never hit villagers")
 
 
+## Villagers ignore her; a scared or stunned monster cannot touch her (#74).
 func _passes_through(id: int) -> bool:
-	return player_fright > 0.0 or _animals[id]["kind"] == VILLAGER
+	var data := _animals[id]
+	if data["kind"] in [RAT, SPIDER] and (data["stun"] > 0.0 or data["shoo"] > 0.0):
+		return true
+	return player_fright > 0.0 or data["kind"] == VILLAGER
 
 
 func _moves_itself(id: int, delta: float) -> bool:
