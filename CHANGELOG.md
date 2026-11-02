@@ -1,5 +1,10 @@
 # Changes
 
+## Unreleased
+
+- `SHA256SUMS.txt` and `release-manifest.json` always use LF line endings, so
+  `sha256sum -c SHA256SUMS.txt` works on Linux without stripping CRs (#107).
+
 ## 0.3.0-alpha.1 — deeper caves, mounts and pets (candidate)
 
 Larger than earlier alphas: new skills and controls, places with names,

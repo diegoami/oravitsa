@@ -55,6 +55,18 @@ class PackageReleaseTests(unittest.TestCase):
         with zipfile.ZipFile(archive) as bundle:
             self.assertEqual(set(bundle.namelist()), {"oravitsa.exe", "EXPORT_SOURCE.json", "PLAY.txt", "SOURCE.json"})
 
+    def test_checksum_files_use_lf_line_endings(self):
+        """Protects: a SHA256SUMS.txt that `sha256sum -c` rejects on Linux (#107)."""
+        self.package()
+        release = self.root / "build/releases/v0.1.0-alpha.1"
+        for name in ["SHA256SUMS.txt", "release-manifest.json"]:
+            self.assertNotIn(b"\r", (release / name).read_bytes(), name)
+        lines = (release / "SHA256SUMS.txt").read_bytes().decode().splitlines()
+        self.assertEqual(len(lines), 4)
+        for line in lines:
+            digest, name = line.split("  ")
+            self.assertEqual(hashlib.sha256((release / name).read_bytes()).hexdigest(), digest)
+
     def test_stray_pack_is_rejected(self):
         (self.root / "build/windows/oravitsa.pck").write_bytes(b"stale pack")
         with self.assertRaisesRegex(SystemExit, "contents"):
