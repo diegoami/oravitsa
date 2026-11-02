@@ -1,10 +1,10 @@
 # Changes
 
-## 0.3.0-alpha.1 — deeper caves and companions (candidate)
+## 0.3.0-alpha.1 — deeper caves, mounts and pets (candidate)
 
 Larger than earlier alphas: new skills and controls, places with names,
-signposts and a world map, a second cave level, mounts and hunter
-companions. Controls changed: LB/RB now cast Slow and Cure directly, Y no
+signposts and a world map, a second cave level, mounts, and dog and cat pets
+that finish off stunned, scared or slowed monsters. Controls changed: LB/RB now cast Slow and Cure directly, Y no
 longer casts the selected skill (Y rides a mount), and skill cycling is gone.
 
 - Pets (#65): about three hamlets in five keep a cat, a Shiba Inu or, rarely,
