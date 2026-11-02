@@ -218,6 +218,15 @@ func _run() -> void:
 	var kobolds := _of_kind(world, world.KOBOLD)
 	assert(goblins.size() >= 1 and kobolds.size() >= 3, "Goblins and a pack of kobolds are active: %d, %d" % [goblins.size(), kobolds.size()])
 	world._sync_presentation(0.0)
+	# Protects: kobolds that vanish against the dark floor, and the rim spread
+	# to other monsters (#102).
+	for id in kobolds + goblins:
+		var meshes: Array = world._animal_models[id].find_children("*", "MeshInstance3D", true, false)
+		assert(not meshes.is_empty())
+		for mesh in meshes:
+			var overlay: Material = mesh.material_overlay
+			var rimmed: bool = overlay != null and overlay.get_shader_parameter("rim_color") == world.RIM_KOBOLD
+			assert(rimmed == (id in kobolds), "Kobolds, and only kobolds, have the cool cave rim")
 	var goblin: int = goblins[0]
 	assert(world._animal_models.has(goblin) and world._animal_players[goblin].has_animation("Attack") and world._animal_players[goblin].has_animation("Walk"))
 	assert(world._animal_players[kobolds[0]].has_animation("Attack") and world._animal_players[kobolds[0]].has_animation("Idle"), "The kobold's Punch is its snatch")

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Dark creatures stay visible in caves (#102): kobolds have a faint cool
+  glow and rim, and Oravitsa's pets a warm one while underground, so the
+  husky and kobolds no longer vanish against the floor. On the surface pets
+  look as before.
 - `SHA256SUMS.txt` and `release-manifest.json` always use LF line endings, so
   `sha256sum -c SHA256SUMS.txt` works on Linux without stripping CRs (#107).
 

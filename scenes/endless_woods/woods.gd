@@ -85,6 +85,11 @@ const CHIEF_HEIGHT := 1.7
 # Caves (#45, #46): a seeded first level behind each mouth, with giant rats
 # and spiders that bite (a stun, never an injury).
 const CAVE_LEVEL := preload("res://scenes/endless_woods/cave_level.gd")
+const CAVE_RIM := preload("res://scenes/endless_woods/cave_rim.gdshader")
+## Rim colours that keep dark creatures readable in caves (#102): a cool rim on
+## kobolds, a warm one on Oravitsa's pets so they never read as monsters.
+const RIM_KOBOLD := Color(0.55, 0.75, 1.0, 0.85)
+const RIM_PET := Color(1.0, 0.82, 0.5, 0.45)
 const PLACE_NAMES := preload("res://scenes/endless_woods/place_names.gd")
 # Exploration (#66): absolute 32 m cells within EXPLORE_RADIUS cells of her
 # count as explored; hamlets and cave mouths within DISCOVER_RADIUS metres are
@@ -2257,12 +2262,26 @@ func _animal_model(id: int) -> Node3D:
 	stage.add_child(model)
 	var bounds := _model_bounds(model)
 	model.scale = Vector3.ONE * height / maxf(bounds.size.y, 0.01) * MODEL_FIT.get(kind, 1.0)
+	if kind == KOBOLD:
+		set_rim(model, RIM_KOBOLD)
 	var animator := _find_animator(model)
 	if animator != null:
 		_alias_clips(animator)
 		animator.play("Idle")
 		_animal_players[id] = animator
 	return model
+
+
+## Draws the cave rim (#102) over every mesh of `model` in `color`, or removes
+## it when `color` is transparent.
+func set_rim(model: Node3D, color: Color) -> void:
+	var overlay: ShaderMaterial = null
+	if color.a > 0.0:
+		overlay = ShaderMaterial.new()
+		overlay.shader = CAVE_RIM
+		overlay.set_shader_parameter("rim_color", color)
+	for mesh in model.find_children("*", "MeshInstance3D", true, false):
+		mesh.material_overlay = overlay
 
 
 func _alias_clips(animator: AnimationPlayer) -> void:
