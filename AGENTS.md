@@ -102,7 +102,9 @@ Record unavailable checks as untested, never as passed.
   eats as soon as she has food. Her speed runs from 60% starving through
   100% half fed to 120% full, and the stuns she suffers (bumps, charges,
   bites) shrink from full length starving to half when full. Hunger never
-  harms her.
+  harms her. Sprint (Shift held, or L3 until she stops steering) multiplies
+  her speed by 1.4 and adds 0.6 fed lost per second while she moves; there is
+  no sprint while starving, stunned or panicking.
 - Hamlet villagers ignore Oravitsa: neither blocks or bumps the other. Each
   hamlet's chieftain keeps to his post at his store tent and takes food gifts, one
   random bag item each (not while stunned or scared). Villagers and
@@ -129,7 +131,7 @@ Record unavailable checks as untested, never as passed.
   re-arm below 0.3). LB/RB still select the active skill and Y casts it;
   trigger casts do not change that selection. A collects food.
   Map/Help start hidden (M/H; Select/Start). Pause (the HUD button, P/Esc;
-  R3) freezes the whole game, surface and caves, until Resume.
+  R3) freezes the whole game, surface and caves, until Resume. L3 sprints.
 - Keep the approved eight-direction Oravitsa walk and movement-driven gait.
   Do not replace it with the uncorrected source model.
 - Streaming must preserve pickups and animal state. Collision must work even

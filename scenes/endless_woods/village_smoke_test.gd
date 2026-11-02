@@ -84,6 +84,54 @@ func _run() -> void:
 	assert(is_equal_approx(world._player_stun_time(world.CONTACT_STUN_TIME), world.CONTACT_STUN_TIME * world.FULL_STUN), "Well fed shortens stuns")
 	world.fed = 25.0
 	assert(world._move_speed() < world.SPEED and world._player_stun_time(1.0) > world._player_stun_time(0.9))
+	# Sprint (#58): Shift or L3 make her faster and hungrier, never while
+	# starving or stunned, and only while she is moving.
+	# Protects: free sprinting, sprinting when starving, and a stuck L3 sprint.
+	world.fed = world.FED_MAX
+	world.player_stun = 0.0
+	world._input_mode = "keyboard"
+	world._update_hud()
+	assert("Shift: sprint" in world._hint_label.text)
+	Input.action_press("move_right")
+	Input.action_press("sprint")
+	var from: Vector2 = world.player_position
+	world._update_player(0.1)
+	assert(world.sprinting and badge.sprinting, "Shift sprints while she moves")
+	assert(world.player_position.distance_to(from) > world.SPEED * world.FULL_SPEED * 0.1 * 1.3, "Sprinting is faster")
+	world.fed = 50.0
+	world._meal_timer = 100.0
+	world._update_hunger(1.0)
+	assert(is_equal_approx(world.fed, 50.0 - world.FED_DECAY - world.SPRINT_DECAY), "Sprinting is hungrier")
+	world.fed = 0.0
+	world._update_player(0.1)
+	assert(not world.sprinting and is_equal_approx(world._move_speed(), world.SPEED * world.HUNGRY_SPEED), "No sprint while starving")
+	world.fed = world.FED_MAX
+	world.player_stun = 1.0
+	world._update_player(0.1)
+	assert(not world.sprinting, "No sprint while stunned")
+	world.player_stun = 0.0
+	Input.action_release("sprint")
+	world._update_player(0.1)
+	assert(not world.sprinting and not badge.sprinting)
+	world._input_mode = "controller"
+	world._update_hud()
+	assert("L3" in world._hint_label.text)
+	var stick := InputEventJoypadButton.new()
+	stick.button_index = JOY_BUTTON_LEFT_STICK
+	stick.pressed = true
+	world._unhandled_input(stick)
+	world._update_player(0.1)
+	assert(world.sprinting, "L3 sprints")
+	world._update_player(0.1)
+	assert(world.sprinting, "and keeps sprinting while she steers")
+	Input.action_release("move_right")
+	world._update_player(0.1)
+	Input.action_press("move_right")
+	world._update_player(0.1)
+	assert(not world.sprinting, "Stopping ends an L3 sprint")
+	Input.action_release("move_right")
+	world._update_player(0.1)
+	world._input_mode = "keyboard"
 	world.fed = world.FED_START
 	# Villagers appear at a nearby hamlet, inside its clearing.
 	var hamlet: Dictionary = {}
@@ -235,5 +283,5 @@ func _run() -> void:
 	bad = state.duplicate(true)
 	bad["fed"]["level"] = 400
 	assert(world.SAVE_GAME.validate(bad) != "")
-	print("Village smoke test passed: aura HUD and notices, feeding decay, random meals, full skips, starving slowdown, fed speed and stun resistance, ", ids.size(), " seeded villagers wandering in their clearing, a chieftain at his post, pass-through, shoo/sling aura loss, random gifts to the chieftain (keys and controller A) with his Wave, leave/return regeneration, save v2 with v1 compatibility")
+	print("Village smoke test passed: aura HUD and notices, feeding decay, random meals, full skips, starving slowdown, fed speed and stun resistance, Shift and L3 sprint (faster, hungrier, not when starving or stunned), ", ids.size(), " seeded villagers wandering in their clearing, a chieftain at his post, pass-through, shoo/sling aura loss, random gifts to the chieftain (keys and controller A) with his Wave, leave/return regeneration, save v2 with v1 compatibility")
 	quit()

@@ -169,6 +169,11 @@ negative ones. Its checks:
   half fed, 120% full (linear between). The stuns she suffers (bumps,
   charges, bites) are scaled from full length starving down to half when
   full. Starving shows a crossed-out bowl. Hunger never harms her.
+- **Sprint.** Holding Shift, or clicking the left stick (L3) until she stops
+  steering, multiplies her fed speed by 1.4 and drains 0.6 more fed per second
+  while she actually moves (0.9 in all, three times as fast). The fed meter
+  then gets an orange border and »» chevrons. There is no sprint while she is
+  starving, stunned or panicking (panic keeps its own speed).
 - **Villagers.** Two to four per hamlet, seeded from the hamlet, drawn with
   CC0 Quaternius farmer, man and woman models
   (`creatures/ATTRIBUTION.md`). They stroll around the clearing with pauses

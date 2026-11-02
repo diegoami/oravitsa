@@ -96,6 +96,8 @@ const BITE_SPACE := 2.5 # Metres the pack backs off to during that time, so she 
 const FRIGHT_CHANCE := 0.35
 const FRIGHT_TIME := 2.0
 const FRIGHT_SPEED := 1.25
+const SPRINT_SPEED := 1.4 # On top of the fed speed (#58).
+const SPRINT_DECAY := 0.6 # Extra fed lost per second while she sprints: three times as hungry.
 const FRIGHT_TO_EXIT := 0.5
 const FRIGHT_TURNS := [0.0, PI / 4, -PI / 4, PI / 2, -PI / 2, PI * 0.75, -PI * 0.75]
 var origin_cells := Vector2i.ZERO
@@ -113,6 +115,9 @@ var _ambience_button: Button
 var _animal_sound_button: Button
 var aura := 0
 var fed := FED_START
+var sprinting := false # Running faster this frame, at a hunger cost (#58).
+var _sprint_wanted := false
+var _sprint_latched := false # L3 sprints until she stops steering.
 var _meal_timer := MEAL_INTERVAL
 var _food_rng := RandomNumberGenerator.new() # Picks which bag item is eaten or offered.
 var _aura_badge: Control
@@ -195,6 +200,7 @@ func _update_hud() -> void:
 	if is_instance_valid(_aura_badge):
 		_aura_badge.aura = aura
 		_aura_badge.fed = fed / FED_MAX
+		_aura_badge.sprinting = sprinting
 		_aura_badge.queue_redraw()
 		_offer_button.visible = _offer_ready()
 		_offer_button.text = "Give food to the chieftain" + (" [A]" if _input_mode == "controller" else (" [O]" if keys else ""))
@@ -205,7 +211,9 @@ func _update_hud() -> void:
 	_ambience_button.text = "Forest " + audio.level_text(audio.ambience_level) + (" [9]" if keys else "")
 	_animal_sound_button.text = "Animals " + audio.level_text(audio.animal_level) + (" [0]" if keys else "")
 	if keys:
-		_hint_label.text += "\nO: give food to a village chieftain\n9 / 0: forest / animal volume"
+		_hint_label.text += "\nShift: sprint (hungrier)\nO: give food to a village chieftain\n9 / 0: forest / animal volume"
+	elif _input_mode == "controller":
+		_hint_label.text += "\nLeft stick click (L3): sprint (hungrier)"
 	_fit_help_panel()
 
 
@@ -1360,7 +1368,24 @@ func fed_speed() -> float:
 
 
 func _move_speed() -> float:
-	return SPEED * fed_speed() * (FRIGHT_SPEED if player_fright > 0.0 else 1.0)
+	return SPEED * fed_speed() * (FRIGHT_SPEED if player_fright > 0.0 else (SPRINT_SPEED if _sprint_wanted else 1.0))
+
+
+## Shift (held) or a click of the left stick (until she stops steering) makes
+## her sprint, never while starving, stunned or panicking. Only frames in which
+## she actually moves count as sprinting for hunger and the HUD.
+func _update_player(delta: float) -> void:
+	var direction: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back") + _touch_controls.direction
+	var steering := direction.length_squared() > 0.0
+	if not steering:
+		_sprint_latched = false
+	_sprint_wanted = steering and (_sprint_latched or Input.is_action_pressed("sprint")) and fed > 0.0 and player_stun <= 0.0 and player_fright <= 0.0
+	var before := player_position
+	super._update_player(delta)
+	var was := sprinting
+	sprinting = _sprint_wanted and player_position != before
+	if sprinting != was:
+		_update_hud()
 
 
 func _stun_player(seconds: float, source: Vector2) -> bool:
@@ -1440,7 +1465,7 @@ func _take_random_food() -> String:
 ## she eats whatever she finds at once.
 func _update_hunger(delta: float) -> void:
 	var was_hungry := is_hungry()
-	fed = maxf(0.0, fed - FED_DECAY * delta)
+	fed = maxf(0.0, fed - (FED_DECAY + (SPRINT_DECAY if sprinting else 0.0)) * delta)
 	_meal_timer = maxf(0.0, _meal_timer - delta)
 	if _meal_timer > 0.0 and fed > 0.0:
 		return
@@ -1485,6 +1510,10 @@ func _offer_food() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_LEFT_STICK:
+		_sprint_latched = true
+		get_viewport().set_input_as_handled()
+		return
 	# Beside a chieftain, A gives him food instead of picking up.
 	if event is InputEventJoypadButton and event.pressed and event.is_action_pressed("pick_up") and _offer_ready():
 		_offer_food()
