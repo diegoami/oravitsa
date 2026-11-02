@@ -199,5 +199,5 @@ func _run() -> void:
 	assert(not forest._help_panel.visible and not forest._hint_label.visible)
 	key.pressed = false
 	Input.parse_input_event(key)
-	print("Controller smoke test passed: analog movement/deadzone, D-pad, right-stick targeting, direct LT Shoo/RT Sling with analog threshold and hold latch, shoulder skill selection, Y cast, A pickup, inventory and panel toggles")
+	print("Controller smoke test passed: analog movement/deadzone, D-pad, right-stick targeting, direct LT Shoo/RT Sling with analog threshold and hold latch, direct LB Slow / RB Cure, no Y cast, A pickup, inventory and panel toggles")
 	quit()

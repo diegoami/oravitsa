@@ -278,6 +278,12 @@ func _run() -> void:
 	assert(_bag(world) == 4 and world.player_stun == 0.0, "A lone kobold steals nothing")
 	assert(closest["d"] > world.KOBOLD_KEEP.x * world.METRE * 0.8 and settled < world.KOBOLD_KEEP.y + 0.6, "It creeps up but keeps its distance: closest %.1f m, settled %.1f m" % [closest["d"] / world.METRE, settled])
 	assert(world._animals[lone]["dart"] == 0.0)
+	# Walking into an awake kobold never stuns her or it (#90).
+	# Protects: kobolds stunning her through an ordinary bump.
+	_put(world, lone, world.player_position + Vector2(30, 0))
+	world.player_stun = 0.0
+	world._try_move(Vector2(15, 0))
+	assert(world.player_stun == 0.0 and world.player_fright == 0.0 and world._animals[lone]["stun"] == 0.0, "Bumping a kobold stuns nobody")
 	# She walks up to it: it backs away.
 	var toward: Vector2 = world.player_position.direction_to(world._animals[lone]["position"])
 	_put(world, lone, world.player_position + toward * world.METRE * 1.4)
@@ -302,6 +308,13 @@ func _run() -> void:
 	assert(thief >= 0 and world._animals[thief]["attack_time"] > 0.0, "The thief snatches, then flees")
 	world._move_cave_creatures(STEP)
 	assert(world._theft_grace > 0.0 and pack.all(func(id): return world._animals[id]["dart"] == 0.0), "After a theft the others stop darting")
+	# Saving straight after a theft keeps the hang-back and the thief's flight (#92).
+	# Protects: a save and load that lets the pack steal again at once.
+	var robbed: Dictionary = world.save_state()
+	assert(world.SAVE_GAME.validate(robbed) == "")
+	world.apply_state(robbed)
+	deep = world._cave
+	assert(world._theft_grace > 0.0 and world._animals[thief]["flee"] > 0.0, "Loading keeps the hang-back and the flight")
 	_run_cave(world, world.THEFT_GRACE - 0.2, func(): return false, func():
 		assert(_bag(world) == 3, "No second theft straight after"))
 	assert(world._animals[thief]["state"] == "flee" and world._animals[thief]["position"].distance_to(world.player_position) > world.KOBOLD_KEEP.y * world.METRE, "The thief ran off, farther than a waiting kobold")
@@ -391,6 +404,30 @@ func _run() -> void:
 	# Leaving from below never strands her: loading a surface save leaves the cave.
 	world.apply_state(below)
 	assert(world._cave_depth == 2)
+	# Saving straight after a club keeps her escape grace (#91).
+	# Protects: a save and load that lets a goblin club her again at once.
+	deep = world._cave
+	world._loaded_center = Vector2i(-999, -999)
+	world._refresh_cave_creatures()
+	var clubber: int = _of_kind(world, world.GOBLIN)[0]
+	_clear_others(world, [clubber])
+	var spots: Array = _ring(deep, world.to_ground(world.player_position), 4)
+	_put(world, clubber, world.from_ground(deep.cell_center(spots[0])))
+	world.player_stun = 0.0
+	world.player_fright = 0.0
+	world._bite_grace = 0.0
+	assert(_run_cave(world, 12.0, func(): return world.player_stun > 0.0), "The goblin clubs her")
+	var clubbed: Dictionary = world.save_state()
+	assert(world.SAVE_GAME.validate(clubbed) == "")
+	world.apply_state(clubbed)
+	assert(world.player_stun > 0.0 and world._bite_grace > world.player_stun, "The grace survives loading")
+	var stunned_for: float = world.player_stun
+	var after_load := {"free": 0.0}
+	_run_cave(world, stunned_for + world.BITE_GRACE - 0.1, func(): return false, func():
+		assert(world.player_stun < stunned_for, "No second club after loading")
+		if world.player_stun <= 0.0:
+			after_load["free"] += STEP)
+	assert(after_load["free"] >= 1.8, "Two free seconds after loading too: %.1f" % after_load["free"])
 	world._exit_cave(true)
 	assert(not world.in_cave() and world._upper_animals.is_empty() and world._animals.size() == surface_count)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(world.save_path))

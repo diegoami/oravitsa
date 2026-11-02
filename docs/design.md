@@ -12,8 +12,10 @@ prototype uses a hunger clock; the current exploration scene has no time limit.
 
 **Oravitsa never injures wildlife, and hares are the only wildlife she kills.**
 Unchecked, hares would multiply out of control. The giant rats and spiders of
-cave levels are monsters, not wildlife, and are never killed: a stunned or
-scared one leaves her alone and she walks through it. A hare that is currently stunned
+cave levels (and the goblins and kobolds of second levels) are monsters, not
+wildlife. Oravitsa never kills one; only her pets can, and only while the
+monster is stunned, scared or slowed. A stunned or scared one leaves her alone
+and she walks through it. A hare that is currently stunned
 and within 75 px can be collected, which removes it once and yields one raw
 meat; no other species can be killed or collected. Her other interactions with
 creatures are non-lethal influences such as shooing, attracting, confusing, or

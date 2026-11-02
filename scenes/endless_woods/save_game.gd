@@ -112,6 +112,9 @@ static func validate(data: Dictionary) -> String:
 		for field in ["respawn", "stun", "shoo", "hunger", "feeding", "burst_cooldown", "hunt_rest", "aggro_cooldown", "fight_cooldown", "timeout"]:
 			if not _number(animal.get(field), -1e6, 1e6):
 				return "a saved animal timer is invalid"
+		# Slow (#94) is optional: older saves have none.
+		if animal.has("slow") and not _number(animal["slow"], 0, 60):
+				return "a saved animal timer is invalid"
 		for field in ["turn", "hunt_attempts", "aggro_rolls"]:
 			if not _number(animal.get(field), 0, 1e12):
 				return "a saved animal counter is invalid"
@@ -203,6 +206,13 @@ static func validate(data: Dictionary) -> String:
 			if not monsters is Array or monsters.size() > 64:
 				return "the saved cave monsters are invalid"
 			for monster in monsters:
-				if not monster is Array or monster.size() != 4 or not _number(monster[0], 0, 63) or not _number(monster[1], -200, 200) or not _number(monster[2], -200, 200) or not _number(monster[3], 0, 60):
+				# Index, offset and stun; since #91 also six transient timers.
+				if not monster is Array or monster.size() not in [4, 10] or not _number(monster[0], 0, 63) or not _number(monster[1], -200, 200) or not _number(monster[2], -200, 200) or not _number(monster[3], 0, 60):
 					return "the saved cave monsters are invalid"
+				for value in monster.slice(4):
+					if not _number(value, 0, 60):
+						return "the saved cave monsters are invalid"
+			for grace in ["bite_grace", "theft_grace"]:
+				if underground.has(grace) and not _number(underground[grace], 0, 60):
+					return "the saved cave state is invalid"
 	return ""

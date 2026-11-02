@@ -58,6 +58,15 @@ func _run() -> void:
 	for step in 400:
 		world._update_aura_decay(1.0)
 	assert(world.aura == 0 and world._aura_decay == 0.0, "Decay stops at zero")
+	# A long frame takes every whole interval it covers (#97).
+	# Protects: aura decay undercounting a frame of several minutes.
+	world.aura = 5
+	world._aura_decay = 0.0
+	world._update_aura_decay(world.AURA_DECAY_SECONDS * 2.0)
+	assert(world.aura == 3 and world._aura_decay == 0.0, "Two minutes take two points")
+	world.aura = 1
+	world._update_aura_decay(world.AURA_DECAY_SECONDS * 10.0)
+	assert(world.aura == 0 and world._aura_decay == 0.0, "Still never below zero")
 	world.aura = 0
 	# Feeding: she grows hungrier steadily and eats a random item per meal.
 	assert(world.fed == world.FED_START)

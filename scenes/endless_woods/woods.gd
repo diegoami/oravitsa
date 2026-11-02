@@ -48,7 +48,10 @@ const PREDATOR_RETURN_DELAY := 45.0
 # save can never be applied to a differently generated world.
 const WORLD_ID := "mossbank-27102026"
 const SAVE_GAME := preload("res://scenes/endless_woods/save_game.gd")
-const SAVED_ANIMAL_TIMERS := ["respawn", "stun", "shoo", "hunger", "feeding", "burst_cooldown", "hunt_rest", "aggro_cooldown", "fight_cooldown", "timeout"]
+const SAVED_ANIMAL_TIMERS := ["respawn", "stun", "shoo", "slow", "hunger", "feeding", "burst_cooldown", "hunt_rest", "aggro_cooldown", "fight_cooldown", "timeout"]
+# Underground, after index, offset and stun: the timers that keep a bite's
+# back-off and a theft's flight going across a save (#91, #92).
+const SAVED_MONSTER_TIMERS := ["shoo", "slow", "bite_cooldown", "attack_time", "flee", "dart"]
 const SAVED_ANIMAL_COUNTERS := ["turn", "hunt_attempts", "aggro_rolls"]
 const BERRY_REGROW_SECONDS := Vector2(180, 360)
 const MUSHROOM_REGROW_SECONDS := Vector2(300, 540)
@@ -1022,8 +1025,13 @@ func save_state() -> Dictionary:
 		for data in _animals:
 			if data["alive"]:
 				var at: Vector2 = to_ground(data["position"]) - _cave.entrance
-				monsters.append([data["cave_index"], at.x, at.y, data["stun"]])
-		state["underground"] = {"cave": _cave_key, "level": _cave_depth, "offset": [offset.x, offset.y], "monsters": monsters}
+				var record := [data["cave_index"], at.x, at.y, data["stun"]]
+				for timer in SAVED_MONSTER_TIMERS:
+					record.append(float(data.get(timer, 0.0)))
+				monsters.append(record)
+		# The escape grace after a bite and the pack's hang-back after a theft
+		# are saved too, so loading never lets a monster strike again at once.
+		state["underground"] = {"cave": _cave_key, "level": _cave_depth, "offset": [offset.x, offset.y], "monsters": monsters, "bite_grace": _bite_grace, "theft_grace": _theft_grace}
 	return state
 
 
@@ -1059,7 +1067,7 @@ func apply_state(data: Dictionary) -> void:
 		animal["alive"] = record["alive"]
 		animal["gone"] = record["gone"]
 		for field in SAVED_ANIMAL_TIMERS:
-			animal[field] = float(record[field])
+			animal[field] = float(record.get(field, 0.0)) # Slow (#94) is absent from older saves.
 		for field in SAVED_ANIMAL_COUNTERS:
 			animal[field] = int(record[field])
 		# Encounters in progress restart from calm; their cooldowns persist.
@@ -1175,6 +1183,11 @@ func _resume_cave(underground: Dictionary) -> void:
 			data["position"] = from_ground(spot)
 			data["target"] = data["position"]
 		data["stun"] = float(record[3])
+		# Saves from before #91 keep only the stun.
+		for i in mini(SAVED_MONSTER_TIMERS.size(), record.size() - 4):
+			data[SAVED_MONSTER_TIMERS[i]] = float(record[4 + i])
+	_bite_grace = float(underground.get("bite_grace", 0.0))
+	_theft_grace = float(underground.get("theft_grace", 0.0))
 	_loaded_center = Vector2i(-999, -999)
 	_refresh_cave_creatures()
 	view.position = to_world(player_position) + CAMERA_OFFSET
@@ -1237,13 +1250,14 @@ func _explore() -> void:
 		return
 	var here := absolute_ground(player_position)
 	var cell := Vector2i((here / EXPLORE_CELL).floor())
-	if cell == _explored_from:
-		return
-	_explored_from = cell
-	for dz in range(-EXPLORE_RADIUS, EXPLORE_RADIUS + 1):
-		for dx in range(-EXPLORE_RADIUS, EXPLORE_RADIUS + 1):
-			if dx * dx + dz * dz <= EXPLORE_RADIUS * EXPLORE_RADIUS + 1:
-				explored[cell + Vector2i(dx, dz)] = true
+	if cell != _explored_from:
+		_explored_from = cell
+		for dz in range(-EXPLORE_RADIUS, EXPLORE_RADIUS + 1):
+			for dx in range(-EXPLORE_RADIUS, EXPLORE_RADIUS + 1):
+				if dx * dx + dz * dz <= EXPLORE_RADIUS * EXPLORE_RADIUS + 1:
+					explored[cell + Vector2i(dx, dz)] = true
+	# Discovery is checked every time, not only on a new cell (#96); the
+	# lookups are cached by the landscape.
 	var hamlet: Dictionary = landscape.hamlet_near(here)
 	if not hamlet.is_empty() and here.distance_to(hamlet["center"]) < DISCOVER_RADIUS and not discovered_hamlets.has(hamlet["block"]):
 		_discover_hamlet(hamlet["block"])
@@ -1798,7 +1812,8 @@ func pet_kill_monster(id: int, by: String) -> bool:
 			_dying_models.append(model)
 			# Captures only the id: leaving the cave may free the model first (#71).
 			var model_id := model.get_instance_id()
-			get_tree().create_timer(2.5).timeout.connect(func():
+			# A paused game pauses the clip and its cleanup too (#98).
+			get_tree().create_timer(2.5, false).timeout.connect(func():
 				var node := instance_from_id(model_id) as Node3D
 				if node != null:
 					_dying_models.erase(node)
@@ -1944,9 +1959,13 @@ func _update_aura_decay(delta: float) -> void:
 		_aura_decay = 0.0
 		return
 	_aura_decay += delta
-	if _aura_decay >= AURA_DECAY_SECONDS:
-		_aura_decay -= AURA_DECAY_SECONDS
-		aura -= 1
+	# A long frame takes every whole interval it covers (#97).
+	var points := mini(floori(_aura_decay / AURA_DECAY_SECONDS), aura)
+	if points > 0:
+		_aura_decay -= points * AURA_DECAY_SECONDS
+		aura -= points
+		if aura <= 0:
+			_aura_decay = 0.0
 		_update_hud()
 
 
@@ -2060,10 +2079,13 @@ func _on_sling_hit(id: int) -> void:
 		_add_aura(AURA["hit_villager"], "never hit villagers")
 
 
-## Villagers ignore her; a scared or stunned monster cannot touch her (#74).
+## Villagers ignore her; a scared or stunned monster cannot touch her (#74),
+## and kobolds never stun her: they only snatch (#90).
 func _passes_through(id: int) -> bool:
 	var data := _animals[id]
 	if data["kind"] in MONSTERS and (data["stun"] > 0.0 or data["shoo"] > 0.0):
+		return true
+	if data["kind"] == KOBOLD:
 		return true
 	return player_fright > 0.0 or data["kind"] == VILLAGER
 
