@@ -7,8 +7,10 @@ const STATUS_ICONS := {
 	"charging": preload("res://scenes/forest_2d/status_icons/charging.svg"),
 	"fighting": preload("res://scenes/forest_2d/status_icons/fighting.svg"),
 	"slowed": preload("res://scenes/forest_2d/status_icons/slowed.svg"),
+	"poisoned": preload("res://scenes/forest_2d/status_icons/poisoned.svg"),
+	"wounded": preload("res://scenes/forest_2d/status_icons/wounded.svg"),
 }
-const STATUS_COLORS := {"stunned": Color("ffd95a"), "scared": Color("8fd3ff"), "angry": Color("ff4a3a"), "charging": Color("ff4a3a"), "fighting": Color("ffb02e"), "slowed": Color("c49bff")}
+const STATUS_COLORS := {"stunned": Color("ffd95a"), "scared": Color("8fd3ff"), "angry": Color("ff4a3a"), "charging": Color("ff4a3a"), "fighting": Color("ffb02e"), "slowed": Color("c49bff"), "poisoned": Color("7be05a"), "wounded": Color("e8433a")}
 
 var forest: Node2D
 

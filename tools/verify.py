@@ -38,6 +38,7 @@ SMOKES = (
     ("scenes/endless_woods/cave_level2_smoke_test.gd", "Cave level 2 smoke test passed:"),
     ("scenes/endless_woods/pause_smoke_test.gd", "Pause smoke test passed:"),
     ("scenes/endless_woods/mount_smoke_test.gd", "Mount smoke test passed:"),
+    ("scenes/endless_woods/pet_smoke_test.gd", "Pet smoke test passed:"),
 )
 ERROR = re.compile(r"^\s*(?:(?:SCRIPT|SHADER|USER) ERROR:|ERROR:)", re.MULTILINE)
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")

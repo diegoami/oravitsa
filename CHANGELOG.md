@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Pets (#65): about three hamlets in five keep a cat, a Shiba Inu or, rarely,
+  a husky, each asking for its own aura (20–40, 40–65 or 65–90, shown above
+  it and on the Adopt button). Press G, controller A or the button to have up
+  to two follow Oravitsa. They keep up and follow her into caves and between
+  levels. There a pet kills a monster that is stunned, scared or slowed (cats
+  leave goblins alone); the monster stays dead in that cave. Oravitsa herself
+  still never kills. Monster bites poison (spiders) or wound (rats, goblins)
+  a pet, which then follows slowly and stops hunting until her Cure heals it.
+  Too little aura sends a pet home. Saves keep her pets.
 - Donkeys, mules and horses (#67): each hamlet keeps one or two by the store
   tent. With enough aura (donkey 15, mule 35, horse 70) press T, controller Y
   or the Ride button to ride one: faster (×1.3, ×1.5, ×1.8) but no sprint. A
