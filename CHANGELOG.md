@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Wolves, lynxes and boars hit by the sling bear a grudge (#63): when the stun
+  ends they give their usual warning and charge, unless Shoo has settled it or
+  Oravitsa is far away. They never attack while stunned. They are also a
+  little quicker to anger (#54): 290 px instead of 260, 2.4 s of lingering
+  instead of 3, a 70% chance instead of 60, a 6 s retry, 4.5 s charges and
+  a 20 s cooldown. Charges and hits still only stun.
 - Slow and Cure skills (#59), cast directly with LB and RB (#60). Slow (E;
   LB) halves the selected creature's movement for six seconds, shown by a
   snail icon with a time bar, on a ten-second cooldown. Cure (R; RB) ends

@@ -54,7 +54,9 @@ Animals avoid each other and Oravitsa, forage, or hunt according to species.
 In the endless woods, lingering close to a wolf, lynx or boar for a few seconds
 may make it angry: after a red anger-mark warning icon it charges (a red burst icon), and if it reaches
 Oravitsa she is stunned for two seconds. Back away or Shoo it to avoid the
-charge. Afterwards it loses interest. Wolves, lynxes and boars of different
+charge. Hitting one with the sling makes it angry too: once its stun wears
+off it warns and charges, unless you Shoo it or get well away. Afterwards it
+loses interest. Wolves, lynxes and boars of different
 species occasionally fight each other under a scuffle-cloud icon; the loser is stunned, never hurt. Bumping an awake animal
 stuns both of them for **1.2 seconds** (stunned animals can be walked through); the skill bar shows Oravitsa's
 recovery countdown. Animal states are shown as icons on dark round badges

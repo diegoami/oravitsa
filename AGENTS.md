@@ -127,7 +127,9 @@ Record unavailable checks as untested, never as passed.
   boars uncommon; endless food and wildlife are about a third of v0.1 density.
 - Endless wolves/lynxes/boars can be provoked by lingering nearby: a visible
   warning, a bounded charge and a stun-only hit, then a disengagement
-  cooldown. Shoo/stun interrupt it. No player damage, death or lethal combat.
+  cooldown. Shoo/stun interrupt it. A Sling hit provokes one too: when its
+  stun ends (never while stunned) it warns and charges if she is within
+  870 px; Shoo settles that grudge. No player damage, death or lethal combat.
   Cross-species wolf/lynx/boar fights are rare, nonlethal (loser stunned) and
   followed by a cooldown.
 - Controller: left stick/D-pad moves, right-stick flicks cycle targets,
