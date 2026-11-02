@@ -99,7 +99,9 @@ Record unavailable checks as untested, never as passed.
   and stun and fear can show together.
 - Aura is the endless world's points: a HUD icon with the number on top.
   Gains: a cave checkpoint (+20, once each) and food given to a hamlet's chieftain (+1 berries/mushroom, +3
-  raw meat). Losses: shooing (−5) or hitting (−10) a villager or chieftain.
+  raw meat). Losses: shooing (−5) or hitting (−10) a villager or chieftain,
+  and a slow decay of one point per minute of play while aura is positive
+  (never below zero by itself; the fraction is saved; none while paused).
 - Feeding: a fed level from 0 to 100, shown beside aura, falls 0.3 per
   second. Every 120 s Oravitsa eats one random bag item (berries +25,
   mushroom +30, raw meat +50) unless she is at 80 or more; starving (0), she

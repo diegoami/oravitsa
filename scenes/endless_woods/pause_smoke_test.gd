@@ -27,12 +27,13 @@ func _state(world: Node2D) -> Array:
 	var positions := []
 	for id in world._active_animals:
 		positions.append(world._animals[id]["position"])
-	return [world.fed, world._food_clock, world._meal_timer, world.player_position, positions]
+	return [world.fed, world._food_clock, world._meal_timer, world.player_position, positions, world.aura, world._aura_decay]
 
 
 func _run() -> void:
 	var world = load("res://scenes/endless_woods/woods.tscn").instantiate()
 	world.fright_chance = 0.0
+	world.aura = 50 # So aura decay (#64) is running and must stop while paused.
 	root.add_child(world)
 	current_scene = world
 	await _frames(3)

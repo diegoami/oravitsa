@@ -39,6 +39,25 @@ func _run() -> void:
 	assert(world.aura == 5 and badge.aura == 5 and badge._flash > 0.0 and "+5 aura" in world._notice_label.text)
 	world._add_aura(-7, "test")
 	assert(world.aura == -2 and badge.aura == -2, "Aura can go below zero")
+	# Aura decay (#64): one point per AURA_DECAY_SECONDS while positive, the
+	# fraction carried over and saved, never below zero by itself.
+	# Protects: decay that is too fast, rounds away, goes negative or is lost
+	# on save/load.
+	world._update_aura_decay(600.0)
+	assert(world.aura == -2 and world._aura_decay == 0.0, "Decay never deepens a negative aura")
+	world.aura = 2
+	world._update_aura_decay(world.AURA_DECAY_SECONDS - 0.5)
+	assert(world.aura == 2)
+	world._update_aura_decay(1.0)
+	assert(world.aura == 1 and is_equal_approx(world._aura_decay, 0.5) and badge.aura == 1, "One point per interval, the rest carried")
+	var saved: Dictionary = world.save_state()
+	assert(world.SAVE_GAME.validate(saved) == "" and is_equal_approx(saved["aura_decay"], 0.5))
+	world._aura_decay = 0.0
+	world.apply_state(saved)
+	assert(world.aura == 1 and is_equal_approx(world._aura_decay, 0.5), "The partial interval survives loading")
+	for step in 400:
+		world._update_aura_decay(1.0)
+	assert(world.aura == 0 and world._aura_decay == 0.0, "Decay stops at zero")
 	world.aura = 0
 	# Feeding: she grows hungrier steadily and eats a random item per meal.
 	assert(world.fed == world.FED_START)
@@ -283,5 +302,5 @@ func _run() -> void:
 	bad = state.duplicate(true)
 	bad["fed"]["level"] = 400
 	assert(world.SAVE_GAME.validate(bad) != "")
-	print("Village smoke test passed: aura HUD and notices, feeding decay, random meals, full skips, starving slowdown, fed speed and stun resistance, Shift and L3 sprint (faster, hungrier, not when starving or stunned), ", ids.size(), " seeded villagers wandering in their clearing, a chieftain at his post, pass-through, shoo/sling aura loss, random gifts to the chieftain (keys and controller A) with his Wave, leave/return regeneration, save v2 with v1 compatibility")
+	print("Village smoke test passed: aura HUD and notices, feeding decay, random meals, full skips, starving slowdown, fed speed and stun resistance, aura decay (carried, saved, floored at zero), Shift and L3 sprint (faster, hungrier, not when starving or stunned), ", ids.size(), " seeded villagers wandering in their clearing, a chieftain at his post, pass-through, shoo/sling aura loss, random gifts to the chieftain (keys and controller A) with his Wave, leave/return regeneration, save v2 with v1 compatibility")
 	quit()
