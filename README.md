@@ -158,6 +158,8 @@ and prompts that follow keyboard/mouse, controller, or touch input. Berries and
 mushrooms appear as icons and counts in the bottom-right inventory. On phones,
 the movement stick sits above the inventory. Map and Help start hidden; open
 or collapse them with their buttons, **M/H**, or controller **Select/Start**.
+**Pause** (button beside Help, **P/Esc**, or the controller's right-stick
+click) freezes the game until you resume.
 
 Web export requires the **standard (non-.NET) Godot 4.7.2** editor together with
 its matching **4.7.2.stable export templates** (install them in the editor via
@@ -215,7 +217,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (twenty-three smoke scripts). It rejects logged errors immediately
+foraging prototype (twenty-four smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.

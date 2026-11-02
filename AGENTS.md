@@ -41,11 +41,11 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twenty-three smoke scripts, including targeted
+`verify.py` imports and runs all twenty-four smoke scripts, including targeted
 Shoo, endless-world travel/rebasing/ecology/food regrowth, wildlife behaviour
 loops, fox foraging, hare collection, aggression, fights, save/load, audio wiring, hamlets and
 cave mouths, aura/feeding/villagers/chieftain gifts, cave levels and their
-monsters, queued streaming,
+monsters, pausing, queued streaming,
 offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
@@ -128,7 +128,8 @@ Record unavailable checks as untested, never as passed.
   LT casts Shoo and RT casts Sling directly, once per pull (fire at 0.6,
   re-arm below 0.3). LB/RB still select the active skill and Y casts it;
   trigger casts do not change that selection. A collects food.
-  Map/Help start hidden (M/H; Select/Start).
+  Map/Help start hidden (M/H; Select/Start). Pause (the HUD button, P/Esc;
+  R3) freezes the whole game, surface and caves, until Resume.
 - Keep the approved eight-direction Oravitsa walk and movement-driven gait.
   Do not replace it with the uncorrected source model.
 - Streaming must preserve pickups and animal state. Collision must work even

@@ -49,6 +49,8 @@ with quieter grass variation and broad, slow water ripples to reduce shimmer.
 - Keyboard/touch retain walk-over collection; touch skills are bottom left and
   movement is on the right above the inventory.
 - M / Select: map; H / Start: help. Both start hidden.
+- Pause button, P / Esc, or R3 (right-stick click): pause; Resume, the same
+  keys or A on the focused Resume button carry on (`pause_menu.gd`).
 - F3: optional frame-rate, draw-call and triangle counters.
 
 ## Streaming and persistence

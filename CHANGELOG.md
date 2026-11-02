@@ -6,6 +6,10 @@
   Oravitsa kills (#74). The +5/+10 aura for rats and spiders is gone. A
   stunned or scared rat or spider neither bites, bumps nor blocks her, and she
   walks through it. Saves listing monsters killed earlier still load.
+- Pause (#57). A Pause button beside Help, P or Esc, or the controller's
+  right-stick click (R3) freezes the whole game, on the surface and in caves:
+  animals, monsters, hunger, timers, animations and sound. A dimmed overlay
+  shows Resume, which the same keys, a click or A also trigger.
 
 ## 0.2.0-alpha.3 — livelier caves (candidate)
 
