@@ -32,7 +32,7 @@ func _draw() -> void:
 	var gold := Color("ead9a9")
 	if active:
 		draw_rect(Rect2(Vector2(3, 3), size - Vector2(6, 6)), Color("f3d58a"), false, 2)
-	var ink := Color("a7d9d2") if skill == "Shoo" else Color("e8c18a")
+	var ink: Color = {"Shoo": Color("a7d9d2"), "Sling": Color("e8c18a"), "Slow": Color("c49bff"), "Cure": Color("8fdc8a")}[skill]
 	_text(prompt, 18, 12, gold)
 	draw_line(Vector2(12, 25), Vector2(size.x - 12, 25), Color("526378"), 1)
 	var origin := Vector2(size.x * 0.5, 50)
@@ -43,6 +43,31 @@ func _draw() -> void:
 		draw_colored_polygon(hand, ink)
 		draw_arc(Vector2(5, 0), 19, -0.75, 0.75, 18, ink, 2, true)
 		draw_arc(Vector2(5, 0), 25, -0.65, 0.65, 18, ink, 2, true)
+	elif skill == "Slow":
+		# A snail: spiral shell on a low body.
+		draw_line(Vector2(-20, 14), Vector2(18, 14), ink, 4, true)
+		draw_line(Vector2(14, 14), Vector2(20, 2), ink, 3, true)
+		draw_circle(Vector2(21, -1), 2.5, ink)
+		var spiral := PackedVector2Array()
+		for i in 40:
+			var angle := i * 0.42
+			spiral.append(Vector2(-2, 0) + Vector2.from_angle(angle) * (2.0 + i * 0.36))
+		draw_polyline(spiral, ink, 3, true)
+	elif skill == "Cure":
+		# A leaf with its vein and a small sparkle.
+		var leaf := PackedVector2Array()
+		for i in 17:
+			var t := i / 16.0
+			leaf.append(Vector2(lerpf(-14, 14, t), -sin(t * PI) * 11).rotated(-0.6))
+		for i in range(15, 0, -1):
+			var t := i / 16.0
+			leaf.append(Vector2(lerpf(-14, 14, t), sin(t * PI) * 11).rotated(-0.6))
+		draw_colored_polygon(leaf, ink)
+		draw_line(Vector2(-14, 0).rotated(-0.6), Vector2(14, 0).rotated(-0.6), Color("1f3b26"), 1.5, true)
+		draw_line(Vector2(-18, 14), Vector2(-11, 8), ink, 2.5, true)
+		for arm in 4:
+			var out := Vector2.from_angle(arm * PI * 0.5) * 5.0
+			draw_line(Vector2(17, -15) - out, Vector2(17, -15) + out, Color("f8ead0"), 1.5, true)
 	else:
 		# Two sling cords, a leather pouch, and the released stone's arc.
 		draw_line(Vector2(-17, -13), Vector2(-5, 14), ink, 2.5, true)

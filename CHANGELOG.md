@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Slow and Cure skills (#59), cast directly with LB and RB (#60). Slow (E;
+  LB) halves the selected creature's movement for six seconds, shown by a
+  snail icon with a time bar, on a ten-second cooldown. Cure (R; RB) ends
+  Oravitsa's own stun or panic, even while she is stunned, on a fifteen-second
+  cooldown. Skill selection and cycling are gone: Y casts nothing. Saves keep
+  the new cooldowns; older saves still load.
 - Cave monsters can no longer be killed; hares are the only creatures
   Oravitsa kills (#74). The +5/+10 aura for rats and spiders is gone. A
   stunned or scared rat or spider neither bites, bumps nor blocks her, and she

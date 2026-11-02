@@ -83,8 +83,13 @@ static func validate(data: Dictionary) -> String:
 	for field in ["stun", "shoo_cooldown", "sling_cooldown"]:
 		if not _number(player.get(field), 0, 3600):
 			return "the saved player state is invalid"
-	if not _number(player.get("active_skill"), 0, 1):
+	# Older saves carry the removed skill selection; newer ones the Slow and Cure
+	# cooldowns (#59, #60). Either is optional.
+	if player.has("active_skill") and not _number(player.get("active_skill"), 0, 1):
 		return "the saved player state is invalid"
+	for field in ["slow_cooldown", "cure_cooldown"]:
+		if player.has(field) and not _number(player.get(field), 0, 3600):
+			return "the saved player state is invalid"
 	for field in ["mushrooms", "berries", "raw_meat"]:
 		if not _number(data["inventory"].get(field), 0, 1e9):
 			return "the saved inventory is invalid"

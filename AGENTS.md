@@ -74,7 +74,11 @@ Record unavailable checks as untested, never as passed.
   giant rats and spiders of cave levels are monsters, not wildlife, and are
   never killed either. A stunned or scared one does not affect her: it
   neither bites, bumps nor blocks her, and she walks through it.
-  Sling and Shoo use the selected animal. Shoo applies five seconds of visible
+  Sling, Shoo and Slow use the selected animal. Slow (E; LB) halves its
+  movement for six seconds, with a snail icon, on a ten-second cooldown.
+  Cure (R; RB) works on Oravitsa alone: it ends her stun and panic, even
+  while she is stunned, on a fifteen-second cooldown, and is not spent when
+  there is nothing to cure. Shoo applies five seconds of visible
   scared status and fast escape, with a seven-second cooldown; invalid casts do
   not spend cooldown. It interrupts feeding/hunting and existing animal stun.
   Wolves and lynxes can kill hares; deer require three seconds of close pursuit.
@@ -128,8 +132,8 @@ Record unavailable checks as untested, never as passed.
   followed by a cooldown.
 - Controller: left stick/D-pad moves, right-stick flicks cycle targets,
   LT casts Shoo and RT casts Sling directly, once per pull (fire at 0.6,
-  re-arm below 0.3). LB/RB still select the active skill and Y casts it;
-  trigger casts do not change that selection. A collects food.
+  re-arm below 0.3). LB casts Slow and RB casts Cure directly; there is no
+  skill selection or cycling, and Y casts nothing. A collects food.
   Map/Help start hidden (M/H; Select/Start). Pause (the HUD button, P/Esc;
   R3) freezes the whole game, surface and caves, until Resume. L3 sprints.
 - Keep the approved eight-direction Oravitsa walk and movement-driven gait.

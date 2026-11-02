@@ -71,11 +71,11 @@ The selection ring, flying stone, and circling stun stars are drawn effects;
 Oravitsa currently keeps her walking or idle pose rather than a sling animation.
 Controllers use the left stick or D-pad to walk and right-stick flicks to cycle
 in-range living targets, nearest first. LT/L2 casts Shoo and RT/R2 casts Sling
-directly (once per pull past 60%, re-armed below 30%). LB/RB (L1/R1) still switch
-the highlighted active skill and Y/Triangle casts it; trigger casts leave that
-selection unchanged. A/Cross picks up food within 40 px; controller
+directly (once per pull past 60%, re-armed below 30%). LB/L1 casts Slow on the
+selected animal and RB/R1 casts Cure on Oravitsa (E and R on the keyboard);
+there is no skill selection. A/Cross picks up food within 40 px; controller
 walking does not collect automatically. Keyboard and touch retain walk-over pickup.
-Stick targeting requires returning to center between targets; shoulder buttons switch once per press.
+Stick targeting requires returning to center between targets; shoulder buttons cast once per press.
 The bottom-left skill slots show icons, cooldowns, and the active input prompts.
 Berries and mushrooms have icons and counts in the bottom-right inventory; the
 touch movement stick sits above it. Map and Help start hidden and toggle

@@ -74,6 +74,14 @@ const GIVE_UP_AFTER := 3
 const GIVE_UP_TIME := 10.0
 const SLING_RANGE := 600.0
 const SLING_COOLDOWN := 4.0
+# Slow and Cure (#59). Slow halves the selected creature's speed for a while;
+# Cure ends Oravitsa's own stun (and panic in the endless woods).
+const SLOW_COOLDOWN := 10.0
+const SLOW_TIME := 6.0
+const SLOW_FACTOR := 0.5
+const CURE_COOLDOWN := 15.0
+const CURE_GLOW := 0.6 # Seconds of green tint after a cure.
+enum {SKILL_SHOO, SKILL_SLING, SKILL_SLOW, SKILL_CURE}
 const SLING_STUN_TIME := 4.5
 # Bumping an animal stuns both; Oravitsa then recovers before it can recur.
 const CONTACT_STUN_TIME := 1.2
@@ -96,12 +104,17 @@ var hares_caught := 0
 var player_stun := 0.0
 var shoo_cooldown := 0.0
 var sling_cooldown := 0.0
+var slow_cooldown := 0.0
+var cure_cooldown := 0.0
+var _cure_glow := 0.0
 var selected_target := -1
 var _stones: Array[Dictionary] = []
 var _sling_effects: Node2D
 var _sling_label: Label
 var _skill_hint_label: Label
 var _sling_button: Button
+var _slow_button: Button
+var _cure_button: Button
 var _shoo_button: Button
 var _skill_bar: Control
 var _map_toggle: Button
@@ -113,7 +126,6 @@ var _pause: CanvasLayer # Keeps running while the tree is paused (#57).
 var _map_visible := false
 var _instructions_visible := false
 var _input_mode := "keyboard"
-var active_skill := 0 # Shoo, Sling.
 var _right_stick := Vector2.ZERO
 var _target_stick_latched := false
 var _trigger_latched := [false, false] # LT casts Shoo, RT casts Sling.
@@ -163,6 +175,7 @@ func _process(delta: float) -> void:
 	_update_respawns(delta)
 	_move_animals(delta)
 	_update_sling(delta)
+	_tick_slow(delta)
 	_population_timer -= delta
 	if _population_timer <= 0.0:
 		_population_timer = POPULATION_INTERVAL
@@ -175,6 +188,9 @@ func _process(delta: float) -> void:
 func _update_player(delta: float) -> void:
 	player_stun = maxf(0.0, player_stun - delta)
 	shoo_cooldown = maxf(0.0, shoo_cooldown - delta)
+	slow_cooldown = maxf(0.0, slow_cooldown - delta)
+	cure_cooldown = maxf(0.0, cure_cooldown - delta)
+	_cure_glow = maxf(0.0, _cure_glow - delta)
 	_notice_time = maxf(0.0, _notice_time - delta)
 	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	direction = (direction + _touch_controls.direction).limit_length()
@@ -188,7 +204,7 @@ func _update_player(delta: float) -> void:
 			_try_move(Vector2(step.x, 0.0))
 			_try_move(Vector2(0.0, step.y))
 	_update_player_walk(player_position - before_move)
-	_player.modulate = Color(0.66, 0.78, 0.91) if player_stun > 0.0 else Color.WHITE
+	_player.modulate = Color(0.66, 0.78, 0.91) if player_stun > 0.0 else (Color(0.72, 1.0, 0.74) if _cure_glow > 0.0 else Color.WHITE)
 	_player.position = player_position
 	_camera.position = player_position
 	if _input_mode != "controller":
@@ -242,9 +258,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		elif event.keycode == KEY_H:
 			_toggle_instructions()
 		elif event.keycode == KEY_SPACE:
-			_use_skill(0)
+			_use_skill(SKILL_SHOO)
 		elif event.physical_keycode == KEY_F or event.keycode == KEY_F:
-			_use_skill(1)
+			_use_skill(SKILL_SLING)
+		elif event.physical_keycode == KEY_E or event.keycode == KEY_E:
+			_use_skill(SKILL_SLOW)
+		elif event.physical_keycode == KEY_R or event.keycode == KEY_R:
+			_use_skill(SKILL_CURE)
 		elif event.keycode == KEY_K and _can_save():
 			_save_game()
 		elif event.keycode == KEY_L and _can_save():
@@ -263,14 +283,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_save_game() # Only with Help open, so a stray press never saves.
 		elif event.button_index == JOY_BUTTON_B and _instructions_visible and _can_save():
 			_load_game()
-		elif event.is_action_pressed("skill_next"):
-			active_skill = wrapi(active_skill + 1, 0, 2)
-			_update_hud()
-		elif event.is_action_pressed("skill_previous"):
-			active_skill = wrapi(active_skill - 1, 0, 2)
-			_update_hud()
-		elif event.is_action_pressed("cast_skill"):
-			_use_skill(active_skill)
+		elif event.is_action_pressed("cast_slow"):
+			_use_skill(SKILL_SLOW)
+		elif event.is_action_pressed("cast_cure"):
+			_use_skill(SKILL_CURE)
 		elif event.is_action_pressed("pick_up") and player_stun <= 0.0:
 			_collect_nearby()
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -299,20 +315,20 @@ func _controller_axis(event: InputEventJoypadMotion) -> void:
 			_trigger_latched[skill] = false
 		elif event.axis_value >= TRIGGER_PRESS and not _trigger_latched[skill]:
 			_trigger_latched[skill] = true
-			# Direct casts leave the LB/RB selection for Y unchanged.
-			_cast_skill(skill)
+			_use_skill(skill)
 
 
+## Every skill has its own direct input (#60): there is no selected skill.
 func _use_skill(skill: int) -> void:
-	active_skill = skill
-	_cast_skill(skill)
-
-
-func _cast_skill(skill: int) -> void:
-	if skill == 0:
-		_shoo()
-	else:
-		_fire_sling()
+	match skill:
+		SKILL_SHOO:
+			_shoo()
+		SKILL_SLING:
+			_fire_sling()
+		SKILL_SLOW:
+			_slow()
+		SKILL_CURE:
+			_cure()
 	_update_hud()
 
 
@@ -373,8 +389,8 @@ func _cycle_sling_target(step: int) -> void:
 func _status_states(id: int) -> Array:
 	var data := _animals[id]
 	var states := []
-	for field in ["stun", "shoo"]:
-		var value: float = data[field]
+	for field in ["stun", "shoo", "slow"]:
+		var value: float = data.get(field, 0.0)
 		var key := "%d:%s" % [id, field]
 		if value <= 0.0 or not data["alive"]:
 			_status_peaks.erase(key)
@@ -384,7 +400,7 @@ func _status_states(id: int) -> Array:
 		if value > peak.y:
 			peak.x = value
 		_status_peaks[key] = Vector2(peak.x, value)
-		states.append(["stunned" if field == "stun" else "scared", value / peak.x])
+		states.append([{"stun": "stunned", "shoo": "scared", "slow": "slowed"}[field], value / peak.x])
 	return states
 
 
@@ -695,10 +711,12 @@ func _build_hud() -> void:
 	_skill_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_skill_bar.size = Vector2(212, 108)
 	canvas.add_child(_skill_bar)
-	_shoo_button = _skill_button("Shoo", func(): _use_skill(0))
+	_shoo_button = _skill_button("Shoo", func(): _use_skill(SKILL_SHOO))
 	_shoo_button.position = Vector2.ZERO
-	_sling_button = _skill_button("Sling", func(): _use_skill(1))
+	_sling_button = _skill_button("Sling", func(): _use_skill(SKILL_SLING))
 	_sling_button.position = Vector2(112, 0)
+	_slow_button = _skill_button("Slow", func(): _use_skill(SKILL_SLOW))
+	_cure_button = _skill_button("Cure", func(): _use_skill(SKILL_CURE))
 	_sling_label = Label.new()
 	_sling_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_sling_label.add_theme_font_size_override("font_size", 14)
@@ -728,8 +746,8 @@ func _build_hud() -> void:
 	_touch_controls = Control.new()
 	_touch_controls.set_script(load("res://scenes/forest_2d/touch_controls.gd"))
 	_touch_controls.name = "TouchControls"
-	_touch_controls.shoo_requested.connect(func(): _use_skill(0))
-	_touch_controls.sling_requested.connect(func(): _use_skill(1))
+	_touch_controls.shoo_requested.connect(func(): _use_skill(SKILL_SHOO))
+	_touch_controls.sling_requested.connect(func(): _use_skill(SKILL_SLING))
 	_touch_controls.touch_mode_changed.connect(func():
 		_input_mode = "touch"
 		_layout_hud())
@@ -803,7 +821,17 @@ func _layout_hud() -> void:
 	_hint_label.position = _help_panel.position + Vector2(12, 9)
 	_hint_label.size = _help_panel.size - Vector2(24, 18)
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_skill_bar.position = Vector2(18, viewport_size.y - 126)
+	# Slow and Cure sit beside Shoo and Sling, or above them where the bag
+	# would otherwise overlap a single row. Shoo and Sling stay put either way,
+	# under their touch zones.
+	var one_row := viewport_size.x >= 760.0
+	var top := 0.0 if one_row else 116.0
+	_skill_bar.position = Vector2(18, viewport_size.y - 126 - top)
+	_skill_bar.size = Vector2(436, 108) if one_row else Vector2(212, 224)
+	_shoo_button.position = Vector2(0, top)
+	_sling_button.position = Vector2(112, top)
+	_slow_button.position = Vector2(224, 0) if one_row else Vector2.ZERO
+	_cure_button.position = Vector2(336, 0) if one_row else Vector2(112, 0)
 	_update_hud()
 
 
@@ -884,6 +912,7 @@ func _animal_record(kind: int, position: Vector2) -> Dictionary:
 		"home": position,
 		"stun": 0.0,
 		"shoo": 0.0,
+		"slow": 0.0,
 		"velocity": Vector2.ZERO,
 		"facing": Vector2.DOWN,
 		"state": "idle",
@@ -1129,6 +1158,54 @@ func _passes_through(_id: int) -> bool:
 	return false
 
 
+func _slow_ready() -> bool:
+	return _valid_sling_target(selected_target) and slow_cooldown <= 0.0 and player_stun <= 0.0 and player_position.distance_to(_animals[selected_target]["position"]) <= SLING_RANGE
+
+
+## Slow halves the selected creature's speed for SLOW_TIME; a recast renews it.
+func _slow() -> void:
+	if not _slow_ready():
+		return
+	slow_cooldown = SLOW_COOLDOWN
+	_animals[selected_target]["slow"] = SLOW_TIME
+
+
+func _tick_slow(delta: float) -> void:
+	for id in _active_animals:
+		var data := _animals[id]
+		if data.get("slow", 0.0) > 0.0:
+			data["slow"] = maxf(0.0, data["slow"] - delta)
+
+
+## How much of its speed a creature keeps: SLOW_FACTOR while slowed.
+func _slow_scale(id: int) -> float:
+	return SLOW_FACTOR if _animals[id].get("slow", 0.0) > 0.0 else 1.0
+
+
+## Whether Oravitsa has anything for Cure to end; casting it otherwise wastes
+## nothing, like the other skills.
+func _has_affliction() -> bool:
+	return player_stun > 0.0
+
+
+func _cure_ready() -> bool:
+	return cure_cooldown <= 0.0 and _has_affliction()
+
+
+## Cure works on Oravitsa alone, even while she is stunned: it ends her stun.
+func _cure() -> void:
+	if not _cure_ready():
+		return
+	cure_cooldown = CURE_COOLDOWN
+	_end_afflictions()
+	_cure_glow = CURE_GLOW
+	_show_notice("Oravitsa shakes it off")
+
+
+func _end_afflictions() -> void:
+	player_stun = 0.0
+
+
 func _shoo_ready() -> bool:
 	return _valid_sling_target(selected_target) and shoo_cooldown <= 0 and player_stun <= 0 and player_position.distance_to(_animals[selected_target]["position"]) <= SHOO_RANGE
 
@@ -1342,7 +1419,7 @@ func _move_animals(delta: float) -> void:
 		data["stun"] = maxf(0.0, data["stun"] - delta)
 		data["shoo"] = maxf(0.0, data["shoo"] - delta)
 		data["give_up"] = maxf(0.0, data["give_up"] - delta)
-		sprite.speed_scale = 1.7 if data["shoo"] > 0 else 1.0
+		sprite.speed_scale = (1.7 if data["shoo"] > 0 else 1.0) * _slow_scale(id)
 		if data["shoo"] <= 0.0 and data["state"] == "scared":
 			data["state"] = "idle"
 			data["timeout"] = 0.0
@@ -1466,7 +1543,7 @@ func _move_animals(delta: float) -> void:
 		var velocity: Vector2 = data["velocity"]
 		velocity = velocity.move_toward(heading * speed, (520.0 if data["burst"] > 0.0 or data["state"] == "charge" else 290.0) * delta)
 		data["velocity"] = velocity
-		var step: Vector2 = velocity * delta
+		var step: Vector2 = velocity * delta * _slow_scale(id)
 		var candidate := position
 		if _can_animal_move(id, candidate + Vector2(step.x, 0)):
 			candidate.x += step.x
@@ -1651,7 +1728,7 @@ func _update_hud() -> void:
 	var controller := _input_mode == "controller"
 	var touch := _input_mode == "touch"
 	_skill_hint_label.visible = controller
-	_skill_hint_label.text = "LT: Shoo · RT: Sling · LB / RB + Y"
+	_skill_hint_label.text = "LT: Shoo · RT: Sling · LB: Slow · RB: Cure"
 	_map_toggle.text = ("− Map" if _map_visible else "+ Map") + (" [Select]" if controller else ("" if touch else " [M]"))
 	_instructions_toggle.text = ("− Help" if _instructions_visible else "+ Help") + (" [Start]" if controller else ("" if touch else " [H]"))
 	_save_button.text = "Save game" + (" [X]" if controller else ("" if touch else " [K]"))
@@ -1659,11 +1736,11 @@ func _update_hud() -> void:
 	_pause.resume_prompt = " [R3]" if controller else ("" if touch else " [P]")
 	_pause.button.text = "Pause" + _pause.resume_prompt
 	if controller:
-		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLT / L2: Shoo · RT / R2: Sling\nLB / RB: select skill · Y / Triangle: cast it\nA / Cross: pick up · Select: map · Start: help\nRight stick click (R3): pause"
+		_hint_label.text = "Left stick / D-pad: walk\nRight stick: cycle targets\nLT / L2: Shoo · RT / R2: Sling\nLB / L1: Slow · RB / R1: Cure yourself\nA / Cross: pick up · Select: map · Start: help\nRight stick click (R3): pause"
 	elif touch:
 		_hint_label.text = "Right thumb stick: walk\nTap an animal to select\nTap Shoo or Sling on that target\nWalk over mushrooms & berries\nUse the top buttons to hide panels or pause"
 	else:
-		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling target\nSpace: scare selected animal\nM: map · H: instructions · P / Esc: pause"
+		_hint_label.text = "WASD / arrows: walk\nLeft click: select an animal\nRight click / F: sling target\nSpace: scare selected animal\nE: slow selected animal · R: cure yourself\nM: map · H: instructions · P / Esc: pause"
 	if _can_save():
 		_hint_label.text += "\n" + ("X: save game · B: load game" if controller else ("Save or load with the buttons below" if touch else "K: save game · L: load game"))
 	_fit_help_panel()
@@ -1675,15 +1752,21 @@ func _update_hud() -> void:
 		_sling_label.text = "Recovering %.1fs" % player_stun
 	_shoo_button.disabled = not _shoo_ready()
 	_sling_button.disabled = not _sling_ready()
+	_slow_button.disabled = not _slow_ready()
+	_cure_button.disabled = not _cure_ready()
 	_shoo_button.set("cooldown", shoo_cooldown)
 	_sling_button.set("cooldown", sling_cooldown)
 	_sling_button.set("cooldown_duration", SLING_COOLDOWN)
-	_shoo_button.set("prompt", ("LT · Y" if active_skill == 0 else "LT") if controller else ("TAP" if touch else "SPACE"))
-	_sling_button.set("prompt", ("RT · Y" if active_skill == 1 else "RT") if controller else ("TAP" if touch else "RMB / F"))
-	_shoo_button.set("active", active_skill == 0)
-	_sling_button.set("active", active_skill == 1)
-	_shoo_button.queue_redraw()
-	_sling_button.queue_redraw()
+	_slow_button.set("cooldown", slow_cooldown)
+	_slow_button.set("cooldown_duration", SLOW_COOLDOWN)
+	_cure_button.set("cooldown", cure_cooldown)
+	_cure_button.set("cooldown_duration", CURE_COOLDOWN)
+	_shoo_button.set("prompt", "LT" if controller else ("TAP" if touch else "SPACE"))
+	_sling_button.set("prompt", "RT" if controller else ("TAP" if touch else "RMB / F"))
+	_slow_button.set("prompt", "LB" if controller else ("TAP" if touch else "E"))
+	_cure_button.set("prompt", "RB" if controller else ("TAP" if touch else "R"))
+	for button in [_shoo_button, _sling_button, _slow_button, _cure_button]:
+		button.queue_redraw()
 	if _touch_controls.touch_enabled:
 		_touch_controls.cooldown = shoo_cooldown
 		_touch_controls.stunned = player_stun > 0.0

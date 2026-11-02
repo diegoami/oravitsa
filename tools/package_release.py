@@ -52,8 +52,10 @@ For a public website use an HTTPS static host. No game backend is required.
 Move: WASD/arrows, left stick/D-pad, or touch joystick.
 Shoo: Space. Sling: select an animal, then right mouse/F. A stunned hare can
 be collected for raw meat by walking to it (controller: A).
-Controller: LT casts Shoo, RT casts Sling; LB/RB select a skill and Y casts
-it; A collects; right-stick flicks cycle targets. Map/help: M/H or
+Slow: E (halves the selected animal's speed). Cure: R (ends Oravitsa's stun or
+panic).
+Controller: LT casts Shoo, RT casts Sling, LB casts Slow, RB casts Cure;
+A collects; right-stick flicks cycle targets. Map/help: M/H or
 Select/Start. Both start hidden.
 Pause: the Pause button, P/Esc, or R3 (right-stick click); Resume carries on.
 Sprint (endless woods): hold Shift, or click the left stick (L3); it makes

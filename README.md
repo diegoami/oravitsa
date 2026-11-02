@@ -145,11 +145,11 @@ Controllers use the **left stick or D-pad** to move and **right-stick flicks**
 to cycle nearby living animal targets. **LT/L2 casts Shoo and RT/R2 casts
 Sling** directly at the selected animal. A trigger fires once when pulled past
 60% and re-arms after it is released below 30%, so holding it never repeats
-the cast. The earlier path still works: **LB/RB (L1/R1)** select a skill and
-**Y/Triangle** casts it; a trigger cast does not change that selection.
-**A/Cross** picks up food within reach. Return the stick to center between
-targets. The active skill has a gold outline; each slot shows its trigger, `· Y`
-on the selected one, and its cooldown.
+the cast. **LB/L1 casts Slow** on the selected animal (half speed for six
+seconds) and **RB/R1 casts Cure**, which ends Oravitsa's own stun or panic.
+On the keyboard they are **E** and **R**. **A/Cross** picks up food within
+reach. Return the stick to center between targets. Each skill slot shows its
+button and its cooldown.
 Stick movement is analog with a deadzone, so gentle input walks more slowly.
 On Web, enter the forest and press a controller button to let the browser detect it.
 

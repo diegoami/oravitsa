@@ -74,7 +74,6 @@ func _run() -> void:
 	await process_frame
 	assert(forest.selected_target == 1)
 	_axis(JOY_AXIS_RIGHT_X, 0.0)
-	assert(forest.active_skill == 0)
 	# RT casts Sling and LT casts Shoo directly (#18). A light pull does nothing;
 	# holding a trigger casts once and it re-arms only after release.
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.4)
@@ -83,7 +82,6 @@ func _run() -> void:
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.9)
 	await process_frame
 	assert(forest._stones.size() == 1 and forest.sling_cooldown > 0.0)
-	assert(forest.active_skill == 0, "A direct cast keeps the LB/RB selection")
 	forest.sling_cooldown = 0.0
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.95)
 	await process_frame
@@ -107,40 +105,35 @@ func _run() -> void:
 	await process_frame
 	assert(forest.shoo_cooldown == 0.0, "Holding LT must not repeat Shoo")
 	_axis(JOY_AXIS_TRIGGER_LEFT, 0.0)
-	assert(forest.active_skill == 0 and forest._shoo_button.get("prompt") == "LT · Y" and forest._sling_button.get("prompt") == "RT")
+	assert(forest._shoo_button.get("prompt") == "LT" and forest._sling_button.get("prompt") == "RT")
+	assert(forest._slow_button.get("prompt") == "LB" and forest._cure_button.get("prompt") == "RB")
+	assert(forest._skill_hint_label.visible and "LB: Slow" in forest._skill_hint_label.text)
+	# LB casts Slow and RB casts Cure directly (#60); there is no skill cycling
+	# and Y casts nothing.
+	# Protects: a leftover selected-skill cast or cycling on the shoulders.
 	forest._stones.clear()
 	forest.sling_cooldown = 0.0
+	forest.shoo_cooldown = 0.0
 	forest._animals[forest.selected_target]["shoo"] = 0.0
-	_button(JOY_BUTTON_RIGHT_SHOULDER)
-	await process_frame
-	assert(forest.active_skill == 1 and forest._sling_button.get("active"))
-	# Holding a shoulder button generates no repeated presses.
-	await process_frame
-	assert(forest.active_skill == 1) # One switch per press.
-	assert(forest._stones.is_empty() and forest.shoo_cooldown == 0.0)
-	_button(JOY_BUTTON_RIGHT_SHOULDER, false)
 	_button(JOY_BUTTON_Y)
 	await process_frame
-	assert(forest._stones.size() == 1 and forest.sling_cooldown > 0.0)
 	_button(JOY_BUTTON_Y, false)
-	_button(JOY_BUTTON_Y)
-	await process_frame
-	assert(forest._stones.size() == 1)
-	_button(JOY_BUTTON_Y, false)
-	assert(forest._sling_button.get("prompt") == "RT · Y")
-	assert(forest._shoo_button.get("prompt") == "LT")
-	assert(forest._skill_hint_label.visible)
+	assert(forest._stones.is_empty() and forest.shoo_cooldown == 0.0 and forest.slow_cooldown == 0.0, "Y casts nothing")
 	_button(JOY_BUTTON_LEFT_SHOULDER)
 	await process_frame
-	assert(forest.active_skill == 0 and forest._shoo_button.get("active"))
-	assert(forest._shoo_button.get("prompt") == "LT · Y")
-	assert(forest._sling_button.get("prompt") == "RT")
-	_button(JOY_BUTTON_LEFT_SHOULDER, false)
-	forest.shoo_cooldown = 0.0
-	_button(JOY_BUTTON_Y)
+	assert(forest.slow_cooldown > 0.0 and forest._animals[forest.selected_target]["slow"] > 0.0, "LB slows the selected animal")
 	await process_frame
-	assert(forest.shoo_cooldown > 0.0)
-	_button(JOY_BUTTON_Y, false)
+	_button(JOY_BUTTON_LEFT_SHOULDER, false)
+	assert(forest._stones.is_empty() and forest.shoo_cooldown == 0.0)
+	_button(JOY_BUTTON_RIGHT_SHOULDER)
+	await process_frame
+	_button(JOY_BUTTON_RIGHT_SHOULDER, false)
+	assert(forest.cure_cooldown == 0.0, "Cure is not spent with nothing to cure")
+	forest.player_stun = 1.0
+	_button(JOY_BUTTON_RIGHT_SHOULDER)
+	await process_frame
+	_button(JOY_BUTTON_RIGHT_SHOULDER, false)
+	assert(forest.player_stun == 0.0 and forest.cure_cooldown > 0.0, "RB cures her stun")
 	# A collects food without casting; walking in controller mode is manual pickup.
 	var food_cell: Vector2i = forest.START
 	forest.player_position = forest._cell_center(food_cell)
@@ -150,7 +143,7 @@ func _run() -> void:
 	assert(forest.basket == old_mushrooms)
 	_button(JOY_BUTTON_A)
 	await process_frame
-	assert(forest.basket == old_mushrooms + 1 and forest._stones.size() == 1)
+	assert(forest.basket == old_mushrooms + 1 and forest._stones.is_empty())
 	assert(forest._inventory.get("mushrooms") == forest.basket)
 	assert(forest.objects[forest._index(food_cell)] == forest.EMPTY)
 	_button(JOY_BUTTON_A, false)
