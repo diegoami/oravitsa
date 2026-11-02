@@ -1,6 +1,11 @@
 # Changes
 
-## Unreleased
+## 0.3.0-alpha.1 — deeper caves and companions (candidate)
+
+Larger than earlier alphas: new skills and controls, places with names,
+signposts and a world map, a second cave level, mounts and hunter
+companions. Controls changed: LB/RB now cast Slow and Cure directly, Y no
+longer casts the selected skill (Y rides a mount), and skill cycling is gone.
 
 - Hunter companions (#65): about three hamlets in five have a spear hunter,
   a bow hunter or, rarely, a veteran bow hunter, each asking for its own aura
@@ -66,7 +71,7 @@
   »» chevrons meanwhile. There is no sprint while starving, stunned or
   panicking. Speed and drain are first guesses to tune by playing.
 
-## 0.2.0-alpha.3 — livelier caves (candidate)
+## 0.2.0-alpha.3 — livelier caves
 
 - Animals no longer get stuck in loops (#52). They used to turn back and forth
   at the edge of their home range, wander straight back into what had just
