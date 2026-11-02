@@ -114,6 +114,8 @@ const SPRINT_SPEED := 1.4 # On top of the fed speed (#58).
 const SPRINT_DECAY := 0.6 # Extra fed lost per second while she sprints: three times as hungry.
 const FRIGHT_TO_EXIT := 0.5
 const FRIGHT_TURNS := [0.0, PI / 4, -PI / 4, PI / 2, -PI / 2, PI * 0.75, -PI * 0.75]
+# Hamlet mounts (#67): donkeys, mules and horses she can ride with enough aura.
+const MOUNTS := preload("res://scenes/endless_woods/mounts.gd")
 var origin_cells := Vector2i.ZERO
 var _harvested: Dictionary = {}
 var _cached_cells: Dictionary = {}
@@ -143,6 +145,8 @@ var discovered_hamlets := {} # Absolute block -> {"at": centre, "name": name}.
 var discovered_caves := {} # Absolute region -> {"at": mouth, "name": name}.
 var _explored_from := Vector2i(1 << 30, 1 << 30)
 var _offer_button: Button
+var mounts: Node
+var _mount_button: Button
 var _villager_check := 0.0
 var _cave: Node3D = null
 var _surface_landscape: Node3D
@@ -200,6 +204,12 @@ func _build_world() -> void:
 	canvas.move_child(_world_map, 0) # Under the HUD buttons, so Map stays clickable.
 	_offer_button = _hud_toggle(canvas, _offer_food)
 	_offer_button.visible = false
+	mounts = MOUNTS.new()
+	mounts.name = "MountRules"
+	add_child(mounts)
+	mounts.setup(self)
+	_mount_button = _hud_toggle(canvas, func(): mounts.toggle())
+	_mount_button.visible = false
 	_layout_hud()
 
 
@@ -210,6 +220,8 @@ func _layout_hud() -> void:
 		_aura_badge.position = Vector2(viewport_size.x * 0.5 - _aura_badge.ICON * 0.5, 10)
 		_offer_button.size = Vector2(236, 34)
 		_offer_button.position = Vector2(viewport_size.x * 0.5 - 118, viewport_size.y - 156)
+		_mount_button.size = Vector2(320, 34)
+		_mount_button.position = Vector2(viewport_size.x * 0.5 - 160, viewport_size.y - 196)
 
 
 func _fit_help_panel() -> void:
@@ -240,6 +252,7 @@ func _update_hud() -> void:
 		_aura_badge.queue_redraw()
 		_offer_button.visible = _offer_ready()
 		_offer_button.text = "Give food to the chieftain" + (" [A]" if _input_mode == "controller" else (" [O]" if keys else ""))
+		_update_mount_button(keys)
 	if not is_instance_valid(_ambience_button) or audio == null:
 		return
 	_ambience_button.visible = _instructions_visible
@@ -247,15 +260,35 @@ func _update_hud() -> void:
 	_ambience_button.text = "Forest " + audio.level_text(audio.ambience_level) + (" [9]" if keys else "")
 	_animal_sound_button.text = "Animals " + audio.level_text(audio.animal_level) + (" [0]" if keys else "")
 	if keys:
-		_hint_label.text += "\nShift: sprint (hungrier)\nO: give food to a village chieftain\n9 / 0: forest / animal volume"
+		_hint_label.text += "\nShift: sprint (hungrier)\nO: give food to a village chieftain\nT: ride or leave a donkey, mule or horse\n9 / 0: forest / animal volume"
 	elif _input_mode == "controller":
-		_hint_label.text += "\nLeft stick click (L3): sprint (hungrier)"
+		_hint_label.text += "\nLeft stick click (L3): sprint (hungrier)\nY: ride or leave a donkey, mule or horse"
+	else:
+		_hint_label.text += "\nTap Ride beside a donkey, mule or horse"
 	_fit_help_panel()
+
+
+## The ride button (#67): beside a mount it offers a ride, or explains the
+## aura it needs; while riding it offers getting off.
+func _update_mount_button(keys: bool) -> void:
+	var key := " [Y]" if _input_mode == "controller" else (" [T]" if keys else "")
+	var near: Dictionary = mounts.nearest()
+	_mount_button.visible = (mounts.riding() or not near.is_empty()) and not in_cave() and not _world_map_visible
+	_mount_button.disabled = false
+	if mounts.riding():
+		_mount_button.text = "Get off the %s%s" % [mounts.ridden_kind(), key]
+	elif not near.is_empty() and mounts.allowed(near):
+		_mount_button.text = "Ride the %s%s" % [near["kind"], key]
+	elif not near.is_empty():
+		_mount_button.text = "The %s needs %d aura (you have %d)" % [near["kind"], mounts.requirement(near), aura]
+		_mount_button.disabled = true
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_O:
 		_offer_food()
+	elif event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_T or event.physical_keycode == KEY_T):
+		mounts.toggle()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_9, KEY_0]:
 		if event.keycode == KEY_9:
 			audio.cycle_ambience()
@@ -920,6 +953,7 @@ func save_state() -> Dictionary:
 		"caves": _cave_progress.duplicate(true),
 		"explored": _flat_cells(explored.keys()),
 		"discovered": {"hamlets": _flat_cells(discovered_hamlets.keys()), "caves": _flat_cells(discovered_caves.keys())},
+		"mounts": mounts.save(),
 	}
 	if in_cave():
 		var offset: Vector2 = to_ground(player_position) - _cave.entrance
@@ -1035,6 +1069,8 @@ func apply_state(data: Dictionary) -> void:
 		_discover_cave(region)
 	_villager_check = 0.0
 	_regrowth_check = 0.0
+	# Saves from before mounts (#67) have none away from home and no ride.
+	mounts.apply(data.get("mounts", []), data.has("underground"))
 	view.position = to_world(player_position) + CAMERA_OFFSET
 	_refresh_visible()
 	_sync_presentation(0.0)
@@ -1113,7 +1149,9 @@ func _process(delta: float) -> void:
 	if _villager_check <= 0.0:
 		_villager_check = 0.5
 		_update_villagers()
+		mounts.refresh()
 	super._process(delta)
+	mounts.update(delta)
 	_explore()
 	_check_cave_mouth()
 
@@ -1198,6 +1236,9 @@ func _check_cave_mouth() -> void:
 		_cave_armed = true
 		return
 	var distance := here.distance_to(cave["mouth"])
+	if mounts.riding() and distance < mounts.CAVE_STOP:
+		mounts.leave_at_cave(cave) # Mounts never go underground.
+		return
 	if distance > CAVE_REARM:
 		_cave_armed = true
 	elif distance < CAVE_ENTER_RADIUS and _cave_armed and player_stun <= 0.0 and player_fright <= 0.0:
@@ -1523,8 +1564,9 @@ func fed_speed() -> float:
 	return lerpf(HUNGRY_SPEED, 1.0, level * 2.0) if level < 0.5 else lerpf(1.0, FULL_SPEED, level * 2.0 - 1.0)
 
 
+## Riding multiplies her fed speed by the mount's factor, with no sprint.
 func _move_speed() -> float:
-	return SPEED * fed_speed() * (FRIGHT_SPEED if player_fright > 0.0 else (SPRINT_SPEED if _sprint_wanted else 1.0))
+	return SPEED * fed_speed() * (FRIGHT_SPEED if player_fright > 0.0 else (mounts.speed_factor() if mounts.riding() else (SPRINT_SPEED if _sprint_wanted else 1.0)))
 
 
 ## Shift (held) or a click of the left stick (until she stops steering) makes
@@ -1535,7 +1577,7 @@ func _update_player(delta: float) -> void:
 	var steering := direction.length_squared() > 0.0
 	if not steering:
 		_sprint_latched = false
-	_sprint_wanted = steering and (_sprint_latched or Input.is_action_pressed("sprint")) and fed > 0.0 and player_stun <= 0.0 and player_fright <= 0.0
+	_sprint_wanted = steering and (_sprint_latched or Input.is_action_pressed("sprint")) and fed > 0.0 and player_stun <= 0.0 and player_fright <= 0.0 and not mounts.riding()
 	var before := player_position
 	super._update_player(delta)
 	var was := sprinting
@@ -1554,11 +1596,21 @@ func _end_afflictions() -> void:
 	player_fright = 0.0
 
 
+## While riding, a donkey halves the stun, a horse throws her off, and panic
+## always makes her slip off first.
 func _stun_player(seconds: float, source: Vector2) -> bool:
 	if player_fright > 0.0:
 		return false
+	var mount: String = mounts.ridden_kind()
+	if not mount.is_empty():
+		seconds *= mounts.KINDS[mount]["stun"]
 	if _fright_rng.randf() >= fright_chance:
-		return super._stun_player(seconds, source)
+		var stunned := super._stun_player(seconds, source)
+		if not mount.is_empty() and mounts.KINDS[mount]["throws"]:
+			mounts.dismount("The %s shied and threw Oravitsa off!" % mount)
+		return stunned
+	if not mount.is_empty():
+		mounts.dismount("Oravitsa slips off the %s" % mount)
 	player_fright = FRIGHT_TIME
 	player_stun = 0.0
 	var away := source.direction_to(player_position)
@@ -1689,6 +1741,10 @@ func _offer_food() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_Y:
+		mounts.toggle()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_LEFT_STICK:
 		_sprint_latched = true
 		get_viewport().set_input_as_handled()
@@ -1921,8 +1977,17 @@ func _status_states(id: int) -> Array:
 	return super._status_states(id)
 
 
+## Riding, she keeps one still pose facing where she goes instead of walking.
+func _update_player_walk(motion: Vector2) -> void:
+	super._update_player_walk(motion)
+	if mounts != null and mounts.riding() and motion.length_squared() > 0.000001:
+		_player.set_frame_and_progress(0, 0.0)
+
+
 func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
+	if mounts != null:
+		mounts.sync(delta)
 	if _world_map_visible:
 		_landmark_label.visible = false
 	if _player_marker == null:

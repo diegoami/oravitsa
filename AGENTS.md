@@ -41,7 +41,7 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twenty-four smoke scripts, including targeted
+`verify.py` imports and runs all twenty-five smoke scripts, including targeted
 Shoo, endless-world travel/rebasing/ecology/food regrowth, wildlife behaviour
 loops, fox foraging, hare collection, aggression, fights, save/load, audio wiring, hamlets and
 cave mouths, aura/feeding/villagers/chieftain gifts, cave levels and their
@@ -115,6 +115,18 @@ Record unavailable checks as untested, never as passed.
   hamlet's chieftain keeps to his post at his store tent and takes food gifts, one
   random bag item each (not while stunned or scared). Villagers and
   chieftains are seeded per hamlet and never saved.
+- Mounts (#67): each hamlet has one or two seeded mounts tethered beside its
+  store tent (donkeys most common, then mules, then horses); tethered ones are
+  never saved. Riding needs aura: donkey 15, mule 35, horse 70, and the ride
+  prompt states the requirement when it is not met. Riding multiplies her fed
+  speed (×1.3, ×1.5, ×1.8) with no sprint. While riding, a donkey halves the
+  stuns she suffers, a mule changes nothing, and a stun from a horse ride
+  also throws her off; panic makes her slip off first. Aura below the
+  requirement dismounts her at once and the mount walks home from there.
+  Mounts never enter caves: she gets off near the mouth and it waits outside.
+  A ridden mount and any mount left away from its tether are saved at
+  absolute positions, never duplicated at their hamlet. Mounts are not
+  wildlife: no Sling/Shoo/Slow target, no bumps, never harmed.
 - Hamlets and caves have Finnish, Swedish or Ukrainian-style names
   (`place_names.gd`) chosen from their absolute block or region, so a name
   never changes with streaming, rebasing or loading. Signposts at road
@@ -142,7 +154,8 @@ Record unavailable checks as untested, never as passed.
 - Controller: left stick/D-pad moves, right-stick flicks cycle targets,
   LT casts Shoo and RT casts Sling directly, once per pull (fire at 0.6,
   re-arm below 0.3). LB casts Slow and RB casts Cure directly; there is no
-  skill selection or cycling, and Y casts nothing. A collects food.
+  skill selection or cycling. In the endless woods Y (keyboard T, or the
+  Ride button) gets on or off a mount; elsewhere it does nothing. A collects food.
   Map/Help start hidden (M/H; Select/Start). In the endless woods M/Select
   cycles the local map, the explored world map and none; exploration and
   discovered hamlets and caves are absolute and saved. Pause (the HUD button, P/Esc;

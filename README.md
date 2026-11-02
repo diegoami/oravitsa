@@ -41,7 +41,7 @@ hare. Clicking or tapping empty ground clears
 the selection. Movement and Shoo remain available while using the sling.
 
 **Shoo uses the same selected animal and range as Sling** (600 simulation px,
-about 9.4 m in 2.5D). Space, the Shoo button, controller LT, or Y with Shoo selected
+about 9.4 m in 2.5D). Space, the Shoo button or controller LT
 gives that animal **five seconds of scared status**, shown above its head as a
 sweat-drops icon with a time-left bar. It immediately abandons feeding/hunting and runs away from
 Oravitsa faster than she can walk. Existing animal stun is cleared so it can
@@ -96,6 +96,17 @@ hamlet's **chieftain**, crowned and armoured, stands at the tent's entrance. Nex
 him, press **O** (controller **A**, or the button that appears) to give him a
 random item from the bag for aura: raw meat +3, a mushroom or berries +1. Aura
 fades by one point per minute while it is above zero.
+
+Each hamlet also keeps one or two **mounts** tethered beside the store tent: a
+grey donkey (needs 15 aura), a dark mule (35) or a horse (70). Next to one,
+press **T** (controller **Y**, or the button that appears) to ride it; the
+button says how much aura it needs when you have too little. Riding is faster
+(donkey ×1.3, mule ×1.5, horse ×1.8) but there is no sprint. A donkey halves
+the stuns Oravitsa suffers, a mule is sure-footed, and a skittish horse throws
+her off when something knocks her down. If her aura drops below a mount's
+requirement it leaves her and walks home. Mounts never go into caves: they
+wait at the mouth. Press T / Y again to get off; the mount waits where she
+left it, and saves remember it.
 
 On higher ground there are **cave mouths**, each with its own name (Hiidenluola,
 Trollgrottan, Vovcha Pechera…). Signposts at road crossings point the way to
@@ -227,7 +238,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (twenty-four smoke scripts). It rejects logged errors immediately
+foraging prototype (twenty-five smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.
