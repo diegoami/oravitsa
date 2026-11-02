@@ -627,6 +627,7 @@ func _free_visual(record: Dictionary) -> void:
 			record[field].queue_free()
 		record.erase(field)
 	record.erase("animator")
+	record.erase("rim")
 
 
 static func _clip(animator: AnimationPlayer, clip: String) -> String:
@@ -703,6 +704,10 @@ func sync(_delta: float) -> void:
 			_build_visual(record)
 		var kind: Dictionary = KINDS[record["kind"]]
 		var node: Node3D = record["node"]
+		if record.get("rim", false) != underground:
+			# Underground a warm rim keeps dark pets readable (#102).
+			world.set_rim(node, world.RIM_PET if underground else Color.TRANSPARENT)
+			record["rim"] = underground
 		node.position = _ground(record["at"])
 		var facing: Vector2 = record["facing"]
 		if record["state"] == "post" and record["pace"] < 0.05 and here.distance_to(record["at"]) < 7.0:

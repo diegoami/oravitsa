@@ -141,6 +141,20 @@ func _beside(note: String) -> void:
 		assert(world.landscape.can_walk(record["at"] - world.pets._origin(), world.pets.RADIUS), note + ": on open ground")
 
 
+## Whether every mesh of each follower has the warm cave rim (#102), after a
+## presentation sync; with `want` false, whether none has any overlay.
+func _rimmed(want: bool) -> bool:
+	world.pets.sync(0.0)
+	for record in world.pets.followers():
+		var meshes: Array = record["node"].find_children("*", "MeshInstance3D", true, false)
+		assert(not meshes.is_empty())
+		for mesh in meshes:
+			var overlay: Material = mesh.material_overlay
+			if want != (overlay != null and overlay.get_shader_parameter("rim_color") == world.RIM_PET):
+				return false
+	return true
+
+
 func _stand(absolute: Vector2) -> void:
 	world.player_position = world.from_ground(absolute - world.pets._origin())
 	world.view.position = world.to_world(world.player_position) + world.CAMERA_OFFSET
@@ -656,7 +670,11 @@ func _run() -> void:
 	world._exit_cave(true)
 	assert(world._dying_models.is_empty() and (not is_instance_valid(last_model) or last_model.is_queued_for_deletion()), "No Death clip outlives the cave")
 	_beside("Out of the cave")
+	# Protects: dark pets that vanish against cave floors, and a glow left on
+	# them in daylight (#102).
+	assert(_rimmed(false), "No rim on the surface")
 	world._enter_cave(cave, true)
+	assert(_rimmed(true), "Underground every follower has the warm rim")
 	assert(killed_index not in _indices() and _killed(1).size() == 4, "Killed monsters stay dead on a revisit: %s" % [_killed(1)])
 	world._change_level(2, true)
 	assert(goblin_index not in _indices(), "Second-level kills stay dead too")
