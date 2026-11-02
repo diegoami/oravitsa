@@ -56,7 +56,7 @@ const MUSHROOM_REGROW_SECONDS := Vector2(300, 540)
 # Aura fades by one point every AURA_DECAY_SECONDS of play (#64), never below
 # zero by itself; the fraction carries over, also through saves.
 const AURA_DECAY_SECONDS := 60.0
-const AURA := {"checkpoint": 20, "food": 1, "meat": 3, "shoo_villager": -5, "hit_villager": -10}
+const AURA := {"checkpoint": 20, "deep_checkpoint": 30, "food": 1, "meat": 3, "shoo_villager": -5, "hit_villager": -10}
 # How well fed Oravitsa is (#43), from 0 (starving) to FED_MAX. It falls
 # steadily; every MEAL_INTERVAL she eats one random bag item unless she is
 # full, and when starving she eats as soon as she has food. Being well fed
@@ -91,10 +91,28 @@ const EXPLORE_RADIUS := 2
 const DISCOVER_RADIUS := 60.0
 const CAVE_ENTER_RADIUS := 0.9
 const CAVE_REARM := 2.5
-const MONSTER_SIGHT := {RAT: 14.0, SPIDER: 10.0} # Metres of walking, so never through walls.
+const MONSTERS := [RAT, SPIDER, GOBLIN, KOBOLD]
+# The kobold's ("Blue Demon") rest-pose bounds are far taller than its
+# hunched body, so its model is scaled up to stand about its height.
+const MODEL_FIT := {KOBOLD: 1.7}
+const MONSTER_SIGHT := {RAT: 14.0, SPIDER: 10.0, GOBLIN: 20.0, KOBOLD: 16.0} # Metres of walking, so never through walls.
 const MONSTER_LOSE := 1.5 # A chasing monster keeps at it until she is this much farther.
-const MONSTER_ROAM := {RAT: 5, SPIDER: 3} # Cells a calm monster strays from its lair.
-const MONSTER_ROAM_SPEED := {RAT: 0.6, SPIDER: 0.45}
+const MONSTER_ROAM := {RAT: 5, SPIDER: 3, GOBLIN: 4, KOBOLD: 4} # Cells a calm monster strays from its lair.
+const MONSTER_ROAM_SPEED := {RAT: 0.6, SPIDER: 0.45, GOBLIN: 0.5, KOBOLD: 0.55}
+# Kobolds (#62) are timid thieves on the second level. Alone they keep their
+# distance: closer than KOBOLD_KEEP.x metres one backs off, farther than
+# KOBOLD_KEEP.y it creeps up, and between the two it waits. Once KOBOLD_PACK of
+# them are within KOBOLD_PACK_RADIUS metres of her they dart in, each for at
+# most KOBOLD_DART seconds; one that touches her snatches a random bag item
+# (never a stun) and runs off for KOBOLD_FLEE seconds. For THEFT_GRACE
+# seconds after a theft the others hang back again.
+const KOBOLD_KEEP := Vector2(2.6, 4.0)
+const KOBOLD_PACK := 3
+const KOBOLD_PACK_RADIUS := 6.0
+const KOBOLD_DART := 2.5
+const KOBOLD_FLEE := 4.0
+const KOBOLD_SNATCH := 0.3
+const THEFT_GRACE := 3.0
 const MONSTER_PAUSE := 0.25 # Chance a roaming monster stops for a moment.
 const SPIDER_LUNGE_RANGE := 4.0 # Metres.
 const SPIDER_LUNGE := Vector3(1.8, 0.7, 4.0) # Speed factor, seconds, recovery seconds.
@@ -160,6 +178,10 @@ var _cave_flow: Dictionary = {} # Floor cell -> walking steps to Oravitsa.
 var _cave_flow_cell := Vector2i(-999, -999)
 var _bite_grace := 0.0
 var _cave_exit_flow: Dictionary = {} # Floor cell -> walking steps to the way out.
+var _cave_depth := 0 # 0 on the surface, else the cave level she is on (#62).
+var _upper_animals: Array[Dictionary] = [] # The first level's monsters, kept while she is below.
+var _way_down_armed := false
+var _theft_grace := 0.0
 var player_fright := 0.0
 var fright_chance := FRIGHT_CHANCE
 var _fright_rng := RandomNumberGenerator.new()
@@ -176,6 +198,8 @@ func _generate_map() -> void:
 	_animal_heights[WOLF] = 0.95
 	_animal_heights[RAT] = 0.38
 	_animal_heights[SPIDER] = 0.5
+	_animal_heights[GOBLIN] = 0.95
+	_animal_heights[KOBOLD] = 0.75
 	_animal_heights[VILLAGER] = 1.55
 	_food_rng.randomize()
 
@@ -670,7 +694,7 @@ func _seed_animals() -> void:
 
 
 func _make_animal_sprite(id: int) -> AnimatedSprite2D:
-	if _animals[id]["kind"] not in [WOLF, RAT, SPIDER, VILLAGER]:
+	if _animals[id]["kind"] not in MONSTERS + [WOLF, VILLAGER]:
 		return super._make_animal_sprite(id)
 	# Invisible animation driver only; the actual visual is a rigged CC0 mesh,
 	# never a substitute fox/heroine displayed in the world.
@@ -962,7 +986,7 @@ func save_state() -> Dictionary:
 			if data["alive"]:
 				var at: Vector2 = to_ground(data["position"]) - _cave.entrance
 				monsters.append([data["cave_index"], at.x, at.y, data["stun"]])
-		state["underground"] = {"cave": _cave_key, "offset": [offset.x, offset.y], "monsters": monsters}
+		state["underground"] = {"cave": _cave_key, "level": _cave_depth, "offset": [offset.x, offset.y], "monsters": monsters}
 	return state
 
 
@@ -1055,6 +1079,8 @@ func apply_state(data: Dictionary) -> void:
 	var caves: Dictionary = data.get("caves", {})
 	for key in caves:
 		_cave_progress[key] = {"checkpoints": caves[key]["checkpoints"].map(func(v): return int(v)), "killed": caves[key]["killed"].map(func(v): return int(v))}
+		# Saves from before the second level (#62) have no deep checkpoints.
+		_cave_progress[key]["deep"] = caves[key].get("deep", []).map(func(v): return int(v))
 	# Saves from before the world map (#66) start with nothing explored.
 	explored = {}
 	for cell in _cells(data.get("explored", [])):
@@ -1088,10 +1114,14 @@ func _resume_cave(underground: Dictionary) -> void:
 	if cave.is_empty():
 		return
 	_enter_cave(cave, true)
+	# Saves from before the second level (#62) are all on the first.
+	if int(underground.get("level", 1)) == 2:
+		_change_level(2, true)
 	var offset := Vector2(underground["offset"][0], underground["offset"][1])
 	if _cave.can_walk(_cave.entrance + offset, PLAYER_RADIUS / METRE):
 		player_position = from_ground(_cave.entrance + offset)
 	_cave_exit_armed = offset.length() > 3.0
+	_way_down_armed = _cave_depth == 1 and to_ground(player_position).distance_to(_cave.way_down) > 3.0
 	var saved := {}
 	for record in underground["monsters"]:
 		saved[int(record[0])] = record
@@ -1251,8 +1281,9 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	var region: Vector2i = cave["region"]
 	_cave_key = "%d,%d" % [region.x, region.y]
 	if not _cave_progress.has(_cave_key):
-		_cave_progress[_cave_key] = {"checkpoints": [], "killed": []}
-	var progress: Dictionary = _cave_progress[_cave_key]
+		_cave_progress[_cave_key] = {"checkpoints": [], "killed": [], "deep": []}
+	if not _cave_progress[_cave_key].has("deep"):
+		_cave_progress[_cave_key]["deep"] = []
 	if audio != null:
 		audio.release_voices()
 		audio.set_underground(true)
@@ -1272,31 +1303,11 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	landscape.visible = false
 	for node in _forage_visuals.values():
 		node.visible = false
-	var level: Node3D = CAVE_LEVEL.new()
-	level.name = "Cave"
-	level.setup(region, mouth, RAT, SPIDER)
-	stage.add_child(level)
-	level.build()
-	landscape = level
-	_cave = level
-	_cave_flow_cell = Vector2i(-999, -999)
-	_cave_exit_flow = level.distances_to(level.cell_at(level.entrance))
-	_bite_grace = 0.0
-	player_fright = 0.0
-	for i in level.spawns.size():
-		if i in progress["killed"]:
-			continue
-		var spot: Vector3 = level.spawns[i]
-		var data := _animal_record(int(spot.z), from_ground(Vector2(spot.x, spot.y)))
-		data["cave_index"] = i
-		data["bite_cooldown"] = 0.0
-		data["attack_time"] = 0.0
-		data["state"] = "roam"
-		_animals.append(data)
-	for i in progress["checkpoints"]:
-		level.checkpoint_collected(int(i))
-	player_position = from_ground(level.entrance)
+	_open_level(region, mouth, 1)
+	_spawn_monsters()
+	player_position = from_ground(_cave.entrance)
 	_cave_exit_armed = false
+	_way_down_armed = true
 	_set_cave_lighting(true)
 	_loaded_center = Vector2i(-999, -999)
 	_refresh_cave_creatures()
@@ -1306,8 +1317,99 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	_update_hud()
 
 
+## Builds a cave level in place of the current one; the caller supplies its
+## monsters. The cave's collected checkpoints show as taken.
+func _open_level(region: Vector2i, mouth: Vector2, depth: int) -> void:
+	var level: Node3D = CAVE_LEVEL.new()
+	level.name = "Cave%d" % depth
+	if depth == 1:
+		level.setup(region, mouth, RAT, SPIDER)
+	else:
+		level.setup(region, mouth, GOBLIN, KOBOLD, 2)
+	stage.add_child(level)
+	level.build()
+	landscape = level
+	_cave = level
+	_cave_depth = depth
+	_cave_flow_cell = Vector2i(-999, -999)
+	_cave_exit_flow = level.distances_to(level.cell_at(level.entrance))
+	_bite_grace = 0.0
+	_theft_grace = 0.0
+	player_fright = 0.0
+	for i in _cave_progress[_cave_key]["checkpoints" if depth == 1 else "deep"]:
+		if int(i) < level.checkpoints.size():
+			level.checkpoint_collected(int(i))
+
+
+## The current level's monsters, fresh from its seed. Monsters killed in saves
+## from before #74 stay absent from the first level.
+func _spawn_monsters() -> void:
+	var killed: Array = _cave_progress[_cave_key]["killed"] if _cave_depth == 1 else []
+	for i in _cave.spawns.size():
+		if i in killed:
+			continue
+		var spot: Vector3 = _cave.spawns[i]
+		var data := _animal_record(int(spot.z), from_ground(Vector2(spot.x, spot.y)))
+		data["cave_index"] = i
+		data["bite_cooldown"] = 0.0
+		data["attack_time"] = 0.0
+		data["flee"] = 0.0
+		data["dart"] = 0.0
+		data["state"] = "roam"
+		_animals.append(data)
+
+
+## The way down takes Oravitsa to the cave's second level, arriving at its way
+## up; the way up returns her to the way down (#62). The first level's
+## monsters wait as they were while she is below; the second level's start
+## from its seed on every descent. Like a cave mouth, the spot she arrives on
+## only works again once she has stepped 3 m away.
+func _change_level(depth: int, quiet: bool = false) -> void:
+	if audio != null:
+		audio.release_voices()
+	for sprite in _active_animals.values():
+		sprite.queue_free()
+	_active_animals.clear()
+	_sync_animal_lifecycle()
+	_stones.clear()
+	selected_target = -1
+	_status_peaks.clear()
+	var region: Vector2i = _cave.region
+	var mouth: Vector2 = _cave.anchor
+	stage.remove_child(_cave)
+	_cave.queue_free()
+	_open_level(region, mouth, depth)
+	if depth == 2:
+		_upper_animals = _animals
+		var creatures: Array[Dictionary] = []
+		_animals = creatures
+		_spawn_monsters()
+		player_position = from_ground(_cave.entrance)
+		_cave_exit_armed = false
+	else:
+		_animals = _upper_animals
+		var none: Array[Dictionary] = []
+		_upper_animals = none
+		player_position = from_ground(_cave.way_down)
+		_cave_exit_armed = true
+		_way_down_armed = false
+	_loaded_center = Vector2i(-999, -999)
+	_refresh_cave_creatures()
+	view.position = to_world(player_position) + CAMERA_OFFSET
+	_sync_presentation(0.0)
+	if not quiet:
+		if depth == 2:
+			_show_notice("Oravitsa climbs down into the depths of %s: goblins and kobolds lurk here" % _cave_name(), 3.5)
+		else:
+			_show_notice("Back on the first level of %s" % _cave_name())
+	_update_hud()
+
+
 func _exit_cave(quiet: bool = false) -> void:
 	player_fright = 0.0
+	var none_above: Array[Dictionary] = []
+	_upper_animals = none_above
+	_cave_depth = 0
 	if audio != null:
 		audio.release_voices()
 		audio.set_underground(false)
@@ -1321,6 +1423,7 @@ func _exit_cave(quiet: bool = false) -> void:
 	_stones.clear()
 	selected_target = -1
 	_status_peaks.clear()
+	stage.remove_child(_cave)
 	_cave.queue_free()
 	_cave = null
 	landscape = _surface_landscape
@@ -1399,19 +1502,32 @@ func _process_cave(delta: float) -> void:
 	_sync_presentation(delta)
 
 
+## Checkpoints pay aura once each (+30 on the second level); the way out,
+## way down and way up each work once she has stepped away from her arrival.
 func _check_cave_points() -> void:
 	var here := to_ground(player_position)
-	var progress: Dictionary = _cave_progress[_cave_key]
+	var deep := _cave_depth == 2
+	var taken: Array = _cave_progress[_cave_key]["deep" if deep else "checkpoints"]
 	for i in _cave.checkpoints.size():
-		if i not in progress["checkpoints"] and here.distance_to(_cave.checkpoints[i]) <= _cave.CHECKPOINT_RADIUS:
-			progress["checkpoints"].append(i)
+		if i not in taken and here.distance_to(_cave.checkpoints[i]) <= _cave.CHECKPOINT_RADIUS:
+			taken.append(i)
 			_cave.checkpoint_collected(i)
-			_add_aura(AURA["checkpoint"], "cave checkpoint %d of %d" % [progress["checkpoints"].size(), _cave.checkpoints.size()])
+			_add_aura(AURA["deep_checkpoint" if deep else "checkpoint"], "%s checkpoint %d of %d" % ["deep cave" if deep else "cave", taken.size(), _cave.checkpoints.size()])
+	if not deep:
+		var to_down := here.distance_to(_cave.way_down)
+		if to_down > 3.0:
+			_way_down_armed = true
+		elif _way_down_armed and to_down < _cave.EXIT_RADIUS and player_stun <= 0.0 and player_fright <= 0.0:
+			_change_level(2)
+			return
 	var to_exit := here.distance_to(_cave.entrance)
 	if to_exit > 3.0:
 		_cave_exit_armed = true
 	elif _cave_exit_armed and to_exit < _cave.EXIT_RADIUS:
-		_exit_cave()
+		if deep:
+			_change_level(1)
+		else:
+			_exit_cave()
 
 
 ## The next cell centre toward Oravitsa (`direction` -1) or away from her (+1),
@@ -1469,13 +1585,14 @@ func _move_cave_creatures(delta: float) -> void:
 		_cave_flow_cell = player_cell
 		_cave_flow = _cave.distances_to(player_cell)
 	_bite_grace = maxf(0.0, _bite_grace - delta)
+	_theft_grace = maxf(0.0, _theft_grace - delta)
 	for id in _active_animals.keys():
 		var data := _animals[id]
 		if not data["alive"]:
 			continue
 		var sprite: AnimatedSprite2D = _active_animals[id]
-		for timer in ["stun", "shoo", "bite_cooldown", "attack_time", "burst", "burst_cooldown"]:
-			data[timer] = maxf(0.0, data[timer] - delta)
+		for timer in ["stun", "shoo", "bite_cooldown", "attack_time", "burst", "burst_cooldown", "flee", "dart"]:
+			data[timer] = maxf(0.0, data.get(timer, 0.0) - delta)
 		var position: Vector2 = data["position"]
 		if data["stun"] > 0.0 or data["attack_time"] > 0.0:
 			data["velocity"] = Vector2.ZERO
@@ -1493,6 +1610,28 @@ func _move_cave_creatures(delta: float) -> void:
 			speed *= 1.6
 			data["state"] = "scared"
 			data["timeout"] = 0.0
+		elif kind == KOBOLD and data["flee"] > 0.0:
+			target = _monster_step(position, cell, steps, 1) if steps >= 0 else position - to_player.normalized() * 300.0
+			data["state"] = "flee"
+			data["timeout"] = 0.0
+		elif kind == KOBOLD and steps >= 0 and steps * _cave.CELL <= sight:
+			data["state"] = "hunt"
+			data["timeout"] = 0.0
+			if data["dart"] <= 0.0 and _theft_grace <= 0.0 and _kobolds_near() >= KOBOLD_PACK:
+				data["dart"] = KOBOLD_DART
+			elif _theft_grace > 0.0:
+				data["dart"] = 0.0 # Another got the loot: the pack hangs back again.
+			if data["dart"] > 0.0:
+				if distance <= ANIMAL_RADIUS[kind] + PLAYER_RADIUS + 10.0:
+					_kobold_snatch(data)
+					continue
+				target = _monster_step(position, cell, steps, -1)
+			elif distance < KOBOLD_KEEP.x * METRE:
+				target = _monster_step(position, cell, steps, 1)
+			elif distance > KOBOLD_KEEP.y * METRE:
+				target = _monster_step(position, cell, steps, -1)
+			else:
+				target = position
 		elif data["bite_cooldown"] > BITE_COOLDOWN - BITE_ATTACK - BITE_RECOIL or (_bite_grace > 0.0 and distance < BITE_SPACE * METRE):
 			target = _monster_step(position, cell, steps, 1) if steps >= 0 else position
 			data["timeout"] = 0.0
@@ -1506,7 +1645,7 @@ func _move_cave_creatures(delta: float) -> void:
 				data["attack_time"] = BITE_ATTACK
 				data["velocity"] = Vector2.ZERO
 				if stunned:
-					_show_notice("The %s bit Oravitsa!" % ANIMAL_NAMES[kind].to_lower())
+					_show_notice("The goblin clubbed Oravitsa!" if kind == GOBLIN else "The %s bit Oravitsa!" % ANIMAL_NAMES[kind].to_lower())
 				continue
 			target = _monster_step(position, cell, steps, -1)
 			if kind == SPIDER and data["burst_cooldown"] <= 0.0 and distance <= SPIDER_LUNGE_RANGE * METRE:
@@ -1537,6 +1676,31 @@ func _move_cave_creatures(delta: float) -> void:
 		data["velocity"] = velocity
 		data["position"] = candidate
 		sprite.position = candidate
+
+
+## Awake, calm kobolds close to her that are not running off with loot.
+func _kobolds_near() -> int:
+	var count := 0
+	for id in _active_animals:
+		var data := _animals[id]
+		if data["kind"] == KOBOLD and data["alive"] and data["stun"] <= 0.0 and data["shoo"] <= 0.0 and data["flee"] <= 0.0 and player_position.distance_to(data["position"]) <= KOBOLD_PACK_RADIUS * METRE:
+			count += 1
+	return count
+
+
+## A kobold that reaches her snatches one random bag item, never stunning
+## her, and runs off; with an empty bag it just runs off.
+func _kobold_snatch(data: Dictionary) -> void:
+	data["flee"] = KOBOLD_FLEE
+	data["dart"] = 0.0
+	data["velocity"] = Vector2.ZERO
+	var item := _take_random_food()
+	if item.is_empty():
+		return
+	data["attack_time"] = KOBOLD_SNATCH
+	_theft_grace = THEFT_GRACE
+	_show_notice("A kobold snatched %s from Oravitsa's bag!" % MEAL_NAMES[item])
+	_update_hud()
 
 
 func _animation_override(id: int, wanted: String, animator: AnimationPlayer) -> String:
@@ -1772,7 +1936,7 @@ func _on_sling_hit(id: int) -> void:
 ## Villagers ignore her; a scared or stunned monster cannot touch her (#74).
 func _passes_through(id: int) -> bool:
 	var data := _animals[id]
-	if data["kind"] in [RAT, SPIDER] and (data["stun"] > 0.0 or data["shoo"] > 0.0):
+	if data["kind"] in MONSTERS and (data["stun"] > 0.0 or data["shoo"] > 0.0):
 		return true
 	return player_fright > 0.0 or data["kind"] == VILLAGER
 
@@ -1928,13 +2092,14 @@ func _add_villager(data: Dictionary) -> void:
 	_animals.append(data)
 
 
-## Villagers, giant rats and giant spiders use CC0 Quaternius models; their
-## clips are aliased to the Idle/Walk/Attack/Death names the stage plays.
+## Villagers, giant rats, giant spiders, goblins and kobolds use CC0
+## Quaternius models; their clips are aliased to the Idle/Walk/Attack/Death
+## names the stage plays.
 func _animal_model(id: int) -> Node3D:
 	var kind: int = _animals[id]["kind"]
-	if kind not in [RAT, SPIDER, VILLAGER]:
+	if kind not in MONSTERS + [VILLAGER]:
 		return super._animal_model(id)
-	var file: String = {RAT: "rat", SPIDER: "spider"}.get(kind, VILLAGER_LOOKS[int(_animals[id].get("look", 0)) % VILLAGER_LOOKS.size()])
+	var file: String = {RAT: "rat", SPIDER: "spider", GOBLIN: "goblin", KOBOLD: "kobold"}.get(kind, VILLAGER_LOOKS[int(_animals[id].get("look", 0)) % VILLAGER_LOOKS.size()])
 	var height: float = _animal_heights[kind]
 	if _animals[id].get("chief", false):
 		file = "chieftain"
@@ -1942,7 +2107,7 @@ func _animal_model(id: int) -> Node3D:
 	var model: Node3D = load(CREATURES + file + ".glb").instantiate()
 	stage.add_child(model)
 	var bounds := _model_bounds(model)
-	model.scale = Vector3.ONE * height / maxf(bounds.size.y, 0.01)
+	model.scale = Vector3.ONE * height / maxf(bounds.size.y, 0.01) * MODEL_FIT.get(kind, 1.0)
 	var animator := _find_animator(model)
 	if animator != null:
 		_alias_clips(animator)
@@ -1957,7 +2122,9 @@ func _alias_clips(animator: AnimationPlayer) -> void:
 		if library.has_animation(clip):
 			continue
 		for clip_name in animator.get_animation_list():
-			if clip_name.ends_with("|" + clip) or clip_name.ends_with("_" + clip):
+			# The kobold (Quaternius "Blue Demon") snatches with its Punch clip.
+			var names: Array = [clip, "Punch"] if clip == "Attack" else [clip]
+			if names.any(func(n): return clip_name.ends_with("|" + n) or clip_name.ends_with("_" + n)):
 				var animation: Animation = animator.get_animation(clip_name)
 				animation.loop_mode = Animation.LOOP_NONE if clip in ["Attack", "Death", "Wave"] else Animation.LOOP_LINEAR
 				library.add_animation(clip, animation)
@@ -2005,8 +2172,13 @@ func _sync_presentation(delta: float) -> void:
 			_lantern.position = heroine.position + Vector3.UP * 1.7
 		for id in _animal_stars:
 			_animal_stars[id].set_on_top(true) # Readable against the monsters' dark bodies.
-		var near_exit: bool = to_ground(player_position).distance_to(_cave.entrance) < 3.0
-		_landmark_label.text = "Way out to the woods" if near_exit else _cave_name() + " · first level"
+		var here := to_ground(player_position)
+		if here.distance_to(_cave.entrance) < 3.0:
+			_landmark_label.text = "Way out to the woods" if _cave_depth == 1 else "Way up"
+		elif _cave_depth == 1 and here.distance_to(_cave.way_down) < 3.0:
+			_landmark_label.text = "Way down"
+		else:
+			_landmark_label.text = _cave_name() + (" · first level" if _cave_depth == 1 else " · second level")
 		return
 	var near_chief := false
 	for id in _animal_models:

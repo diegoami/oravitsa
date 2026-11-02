@@ -116,7 +116,12 @@ checkpoints give +20 aura once each. Giant rats and spiders chase her and
 bite, which only stuns her for a moment. Underground the woods fall silent:
 a low drone, dripping water and echoing squeaks and hisses take over. Sling stuns one and Shoo drives one
 off; meanwhile it leaves her alone and she can walk through it. Monsters are
-never killed. The way out is
+never killed. Deep inside each cave an amber-lit shaft ringed with stones is
+the **way down** to a larger, darker second level, where checkpoints give +30
+aura once each. Goblins hunt her there in packs and club her (again only a
+stun), while timid kobolds keep their distance until three of them gather,
+then dart in and snatch an item from her bag. The stone ring she arrives on
+is the way up. The way out is
 the sunlit spot where she came in. The surface waits, unchanged, while she is
 underground. You can save there too, and loading puts her back in the cave.
 
@@ -238,7 +243,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (twenty-five smoke scripts). It rejects logged errors immediately
+foraging prototype (twenty-six smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.
