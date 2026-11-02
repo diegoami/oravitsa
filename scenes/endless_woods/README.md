@@ -233,6 +233,56 @@ villager spawning, wandering, pass-through, shoo/sling penalties, the
 chieftain's post and gifts by key and controller, leave/return regeneration,
 and saving (version 2, with version-1 saves still loading).
 
+## Mounts
+
+`mounts.gd` (#67) gives each hamlet one or two seeded mounts, tethered to a
+hitching post beside the store tent, east or west of it (never in front of
+its entrance, where the chieftain stands), facing sideways so the camera sees
+them in profile. Rolls are 55% donkey, 30% mule and 15% horse per mount. They
+graze (Eating and Idle clips) and appear and leave with the villagers.
+Donkeys and mules use the CC0 Quaternius Donkey (the mule 15% larger and
+tinted darker); horses use the CC0 Quaternius Horse (`creatures/ATTRIBUTION.md`).
+
+| Kind | Aura | Speed | While riding |
+| --- | --- | --- | --- |
+| Donkey | 15 | ×1.3 | steady: stuns she suffers are halved |
+| Mule | 35 | ×1.5 | sure-footed: normal stuns |
+| Horse | 70 | ×1.8 | skittish: a bump, charge or bite also throws her off |
+
+- **Prompt.** Within 2.5 m a button reads "Ride the horse [T]" ([Y] on a
+  controller, no key on touch), or, disabled, "The horse needs 70 aura (you
+  have 42)". While riding it reads "Get off the horse". T, controller Y or the
+  button mount and dismount; notices report both.
+- **Riding.** She sits on the mount (her sprite raised to its saddle height,
+  her legs hidden by its body) in a still pose facing where she goes. The
+  mount walks, or gallops above 5 m/s, and turns with her. The speed factor
+  replaces sprint; hunger drains as usual and her skills still work. Animals
+  bump, charge and bite as before, with the per-kind effects above. Panic
+  makes her slip off first.
+- **Losing trust.** If aura falls below the requirement while she rides
+  (decay or villager penalties), she is put down at once with "The mule no
+  longer trusts Oravitsa"; the mount stays there and walks home at 1.3 m/s.
+  Far from her, or stuck where she cannot see it, it simply gets home.
+- **Getting off.** Close to its tether a mount is tethered again; elsewhere
+  it waits where she left it. At most 32 mounts wait around the world; beyond
+  that the oldest walks home.
+- **Caves.** Within 1.7 m of a cave mouth she gets off; the mount waits just
+  outside, beside the sunlit way out, hidden while she is underground and
+  there when she returns.
+- **Streaming, rebasing and saves.** Records hold absolute ground positions,
+  so rebasing never moves them; models are drawn within 90 m. A hamlet only
+  creates a mount that is not already ridden or waiting elsewhere. The save's
+  optional `mounts` list holds the ridden and away mounts (kind, hamlet block,
+  index, absolute position, state, facing); tethered ones regenerate. Saves
+  from before have none, and loading underground never restores a ride.
+- Mounts are not wildlife: they are no Sling, Shoo or Slow target, never
+  block or bump anyone and cannot be harmed.
+
+`mount_smoke_test.gd` covers seeding and variety, identical revisits, the
+prompt and refusal, T / Y / touch, speeds, stun effects, a real bump on a
+horse, panic, aura decay with the walk home, the cave mouth, rebasing without
+drift or duplicates, and save/load (riding, waiting, older and invalid saves).
+
 ## Cave levels
 
 Walking into a cave mouth (within 0.9 m) enters that cave's first level

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Donkeys, mules and horses (#67): each hamlet keeps one or two by the store
+  tent. With enough aura (donkey 15, mule 35, horse 70) press T, controller Y
+  or the Ride button to ride one: faster (×1.3, ×1.5, ×1.8) but no sprint. A
+  donkey halves the stuns Oravitsa suffers; a horse throws her off when she
+  is knocked down. Losing the aura makes the mount leave her and walk home.
+  Mounts wait outside caves and wherever she leaves them, and saves keep them.
 - Caves go deeper (#62): an amber-lit way down leads from each cave's first
   level to a larger, darker second level with its own checkpoints (+30 aura
   each). Packs of goblins hunt Oravitsa and club her, which only stuns her;

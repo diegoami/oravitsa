@@ -152,6 +152,24 @@ static func validate(data: Dictionary) -> String:
 			for value in cave["checkpoints"] + cave["killed"] + deep:
 				if not _number(value, 0, 63):
 					return "the saved cave progress is invalid"
+		# Mounts (#67) are optional: older saves have none. Only a ridden mount
+		# or one left away from its tether is saved, and at most one is ridden.
+		if data.has("mounts"):
+			var mounts = data["mounts"]
+			if not mounts is Array or mounts.size() > 64:
+				return "the saved mounts are invalid"
+			var ridden := 0
+			for mount in mounts:
+				if not mount is Dictionary or not mount.get("kind") in ["donkey", "mule", "horse"] or not mount.get("state") in ["ridden", "waiting", "returning"]:
+					return "a saved mount is invalid"
+				var block = mount.get("hamlet")
+				if not block is Array or block.size() != 2 or not _number(block[0], -1e7, 1e7) or not _number(block[1], -1e7, 1e7) or not _number(mount.get("index"), 0, 3):
+					return "a saved mount is invalid"
+				if not _point(mount.get("at")) or not _point(mount.get("facing")):
+					return "a saved mount position is invalid"
+				ridden += 1 if mount["state"] == "ridden" else 0
+			if ridden > 1:
+				return "the saved mounts are invalid"
 		if data.has("underground"):
 			var underground = data["underground"]
 			if not underground is Dictionary or not underground.get("cave") is String or not caves.has(underground["cave"]) or not RegEx.create_from_string("^-?\\d{1,9},-?\\d{1,9}$").search(underground["cave"]):
