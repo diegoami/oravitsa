@@ -1,5 +1,12 @@
 # Changes
 
+## Unreleased
+
+- Cave monsters can no longer be killed; hares are the only creatures
+  Oravitsa kills (#74). The +5/+10 aura for rats and spiders is gone. A
+  stunned or scared rat or spider neither bites, bumps nor blocks her, and she
+  walks through it. Saves listing monsters killed earlier still load.
+
 ## 0.2.0-alpha.3 — livelier caves (candidate)
 
 - Animals no longer get stuck in loops (#52). They used to turn back and forth
