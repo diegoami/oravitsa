@@ -25,8 +25,17 @@ class SynthAudioTest(unittest.TestCase):
         # Birdsong sits on silence at both ends, so its loop is seamless.
         self.assertLess(abs(birds[0]) + abs(birds[-1]), 1e-6)
 
+    def test_cave_loops_have_their_own_periods_and_no_seam(self):
+        drone = synth_audio.cave_drone()
+        drips = synth_audio.cave_drips()
+        self.assertEqual(len(drone), 21 * synth_audio.RATE)
+        self.assertEqual(len(drips), 17 * synth_audio.RATE)
+        steps = sorted(abs(b - a) for a, b in zip(drone, drone[1:]))
+        self.assertLessEqual(abs(drone[0] - drone[-1]), steps[int(len(steps) * 0.999)])
+        self.assertLess(abs(drips[0]) + abs(drips[-1]), 1e-6)
+
     def test_calls_are_short(self):
-        for name in ["wolf_howl.wav", "lynx_growl.wav", "boar_grunt.wav", "deer_bark.wav", "fox_yip.wav", "hare_thump.wav"]:
+        for name in ["wolf_howl.wav", "lynx_growl.wav", "boar_grunt.wav", "deer_bark.wav", "fox_yip.wav", "hare_thump.wav", "rat_squeak.wav", "spider_hiss.wav"]:
             with self.subTest(name=name):
                 self.assertLess(len(synth_audio.SOUNDS[name]()), 3 * synth_audio.RATE)
 

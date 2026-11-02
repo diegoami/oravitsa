@@ -59,6 +59,12 @@ animal that turns angry calls immediately, and so does an animal starting a
 fight. A call stops if its animal despawns or leaves the active area. The
 ambience is never restarted by streaming or origin rebasing.
 
+Underground (#61) both surface layers pause where they are, and a 21 s low
+cave drone and 17 s of dripping water loop instead. Giant rats squeak and
+spiders hiss through the same call system (9–28 s apart), and a reverb on the
+Animals bus makes calls echo. Entering or leaving a cave ends any call in
+progress, and leaving resumes the surface layers and turns the echo off.
+
 Volume levels cycle 100% → 60% → 30% → Off separately for the forest and the
 animals: press **9**/**0**, or use the *Forest*/*Animals* buttons under Help.
 The levels persist in `user://settings.cfg`. Browsers only start audio after

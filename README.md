@@ -102,7 +102,8 @@ Trollgrottan, Vovcha Pechera…). Signposts at road crossings point the way to
 the nearest hamlet and cave, with their names and distances. Walk into one to enter that cave's
 first level: dark tunnels and rooms lit by Oravitsa's lantern. Glowing
 checkpoints give +20 aura once each. Giant rats and spiders chase her and
-bite, which only stuns her for a moment. Sling stuns one and Shoo drives one
+bite, which only stuns her for a moment. Underground the woods fall silent:
+a low drone, dripping water and echoing squeaks and hisses take over. Sling stuns one and Shoo drives one
 off; meanwhile it leaves her alone and she can walk through it. Monsters are
 never killed. The way out is
 the sunlit spot where she came in. The surface waits, unchanged, while she is
