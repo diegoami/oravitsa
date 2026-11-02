@@ -130,6 +130,7 @@ var _cave_flow: Dictionary = {} # Floor cell -> walking steps to Oravitsa.
 var _cave_flow_cell := Vector2i(-999, -999)
 var _bite_grace := 0.0
 var _cave_exit_flow: Dictionary = {} # Floor cell -> walking steps to the way out.
+var _dying_models: Array[Node3D] = [] # Death clips still playing in this cave.
 var player_fright := 0.0
 var fright_chance := FRIGHT_CHANCE
 var _fright_rng := RandomNumberGenerator.new()
@@ -1118,6 +1119,11 @@ func _exit_cave(quiet: bool = false) -> void:
 		sprite.queue_free()
 	_active_animals.clear()
 	_sync_animal_lifecycle()
+	# Death clips belong to the cave and must not outlive it (#71).
+	for model in _dying_models:
+		if is_instance_valid(model):
+			model.queue_free()
+	_dying_models.clear()
 	_animals = _surface_animals
 	var none: Array[Dictionary] = []
 	_surface_animals = none
@@ -1362,6 +1368,14 @@ func _stunned_monster_near(radius: float) -> int:
 	return nearest
 
 
+## Underground, walking over a stunned monster finishes it with any input
+## device; on the surface a controller still collects with A (#72).
+func _update_player(delta: float) -> void:
+	super._update_player(delta)
+	if in_cave() and _input_mode == "controller":
+		_collect_nearby()
+
+
 func _collect_nearby() -> void:
 	if not in_cave():
 		super._collect_nearby()
@@ -1393,7 +1407,9 @@ func _kill_monster(id: int) -> void:
 		if animator != null and animator.has_animation("Death"):
 			animator.speed_scale = 1.0
 			animator.play("Death")
+			_dying_models.append(model)
 			get_tree().create_timer(2.5).timeout.connect(func():
+				_dying_models.erase(model)
 				if is_instance_valid(model):
 					model.queue_free())
 		else:

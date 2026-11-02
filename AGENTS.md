@@ -72,7 +72,8 @@ Record unavailable checks as untested, never as passed.
   or A on a controller). It is removed exactly once and immediately becomes
   one raw meat; no other wildlife species can be killed or collected. The
   giant rats and spiders of cave levels are monsters, not wildlife: a stunned
-  one within 75 px can be finished the same way, once, for aura.
+  one within 75 px can be finished the same way, once, for aura, and
+  walking over it does so with any input device, controller included.
   Sling and Shoo use the selected animal. Shoo applies five seconds of visible
   scared status and fast escape, with a seven-second cooldown; invalid casts do
   not spend cooldown. It interrupts feeding/hunting and existing animal stun.

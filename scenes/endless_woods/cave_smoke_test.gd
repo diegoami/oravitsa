@@ -362,18 +362,28 @@ func _run() -> void:
 	assert(is_instance_valid(rat_model) and rat_animator.current_animation == "Death", "Its Death clip plays")
 	world._collect_nearby()
 	assert(world.aura == world.AURA["rat"], "Killed once")
-	# A stunned spider is passed through, then finished with controller A.
+	# With a controller, walking over a stunned monster finishes it too (#72).
+	# Protects: controller players passing through stunned monsters unharmed.
+	var walk_rat := _creature(world, world.RAT)
+	assert(walk_rat >= 0, "The level has a second rat")
+	_put(world, walk_rat, Vector2(50, 0))
+	world._animals[walk_rat]["stun"] = 3.0
+	world._input_mode = "controller"
+	world._update_player(1.0 / 30.0)
+	assert(not world._animals[walk_rat]["alive"] and world.aura == world.AURA["rat"] * 2, "Walking over a stunned rat with a controller finishes it")
+	assert(world._dying_models.size() == 2, "The cave keeps its Death clips")
+	var dying_models: Array[Node3D] = world._dying_models.duplicate()
+	# A stunned spider never blocks her and A finishes it as well.
 	_put(world, spider, Vector2(0, 0))
 	world._animals[spider]["stun"] = 3.0
 	world.player_position += Vector2(-60, 0)
 	for step in 4:
 		assert(world._try_move(Vector2(15, 0)), "Stunned monsters never block her")
-	world._input_mode = "controller"
 	var press := InputEventJoypadButton.new()
 	press.button_index = JOY_BUTTON_A
 	press.pressed = true
 	world._unhandled_input(press)
-	assert(not world._animals[spider]["alive"] and world.aura == world.AURA["rat"] + world.AURA["spider"], "Controller A finishes a stunned spider")
+	assert(not world._animals[spider]["alive"] and world.aura == world.AURA["rat"] * 2 + world.AURA["spider"], "Controller A finishes a stunned spider")
 	# Checkpoints collect aura once each.
 	world.aura = 0
 	world.player_position = world.from_ground(level.checkpoints[0])
@@ -387,6 +397,10 @@ func _run() -> void:
 	world.player_position = world.from_ground(level.entrance)
 	world._check_cave_points()
 	assert(not world.in_cave() and world.landscape.visible and not world._lantern.visible)
+	# Protects: a Death clip still playing on the surface after she leaves (#71).
+	for model in dying_models:
+		assert(not is_instance_valid(model) or model.is_queued_for_deletion(), "Death clips do not follow her out of the cave")
+	assert(world._dying_models.is_empty())
 	assert(world._animals.size() == surface_count and world._animals[0]["position"] == surface_first, "The surface waited unchanged")
 	var here: Vector2 = world.absolute_ground(world.player_position)
 	assert(here.distance_to(cave["mouth"]) > world.CAVE_ENTER_RADIUS and here.distance_to(cave["mouth"]) < 3.0)
@@ -398,7 +412,7 @@ func _run() -> void:
 	world._check_cave_mouth()
 	world.player_position = world.from_ground(cave["mouth"] - world.landscape.origin)
 	world._check_cave_mouth()
-	assert(world.in_cave() and world._animals.size() == rats + spiders - 2, "Killed monsters stay dead")
+	assert(world.in_cave() and world._animals.size() == rats + spiders - 3, "Killed monsters stay dead")
 	world.player_position = world.from_ground(world._cave.checkpoints[0])
 	world.aura = 0
 	world._check_cave_points()
@@ -412,10 +426,10 @@ func _run() -> void:
 	var state: Dictionary = world.save_state()
 	assert(world.SAVE_GAME.validate(state) == "")
 	var key: String = world._cave_key
-	assert(state["caves"][key]["killed"].size() == 2 and state["caves"][key]["checkpoints"] == [0])
+	assert(state["caves"][key]["killed"].size() == 3 and state["caves"][key]["checkpoints"] == [0])
 	world._cave_progress = {}
 	world.apply_state(state)
-	assert(world._cave_progress[key]["killed"].size() == 2)
+	assert(world._cave_progress[key]["killed"].size() == 3)
 	var bad: Dictionary = state.duplicate(true)
 	bad["caves"][key]["killed"] = ["many"]
 	assert(world.SAVE_GAME.validate(bad) != "")
@@ -440,7 +454,7 @@ func _run() -> void:
 	world._animals[living]["position"] = world.from_ground(spot + Vector2(1.0, 0))
 	world._animals[living]["stun"] = 2.0
 	var below: Dictionary = world.save_state()
-	assert(world.SAVE_GAME.validate(below) == "" and below["underground"]["cave"] == key and below["underground"]["monsters"].size() == rats + spiders - 2)
+	assert(world.SAVE_GAME.validate(below) == "" and below["underground"]["cave"] == key and below["underground"]["monsters"].size() == rats + spiders - 3)
 	assert(Vector2(below["player"]["ground"][0], below["player"]["ground"][1]).distance_to(world._cave_return) < 0.01, "The surface is saved with her at the mouth")
 	world._exit_cave()
 	assert(not world.in_cave())
@@ -452,7 +466,7 @@ func _run() -> void:
 			restored = id
 	assert(world.to_ground(world._animals[restored]["position"]).distance_to(world._cave.checkpoints[0] + Vector2(1.0, 0)) < 0.01 and world._animals[restored]["stun"] == 2.0, "Monsters resume where they were")
 	assert(lair.distance_to(world._cave.checkpoints[0] + Vector2(1.0, 0)) > 0.01)
-	assert(world._animals.size() == rats + spiders - 2 and world._surface_animals.size() == state["animals"].size())
+	assert(world._animals.size() == rats + spiders - 3 and world._surface_animals.size() == state["animals"].size())
 	world.apply_state(below)
 	assert(world.in_cave(), "Loading underground from underground")
 	# Panic is not saved, ends on leaving and never carries her into a cave.
