@@ -6,6 +6,12 @@
   glow and rim, and Oravitsa's pets a warm one while underground, so the
   husky and kobolds no longer vanish against the floor. On the surface pets
   look as before.
+- Pets and mounts keep their whole body out of trees, rocks and walls, and
+  out of creatures (#103): each checks a nose point ahead of it as well as
+  its middle, a ridden mount's head stops at a trunk, and a pet or a mount
+  walking home never steps further into a monster, an animal or a villager
+  (it can always step away from one that walked into it). A pet still bites
+  the monster it hunts.
 - `SHA256SUMS.txt` and `release-manifest.json` always use LF line endings, so
   `sha256sum -c SHA256SUMS.txt` works on Linux without stripping CRs (#107).
 

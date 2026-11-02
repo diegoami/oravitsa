@@ -345,5 +345,48 @@ func _run() -> void:
 	# Mounts are never wildlife: no sling or shoo target, nothing to harm.
 	for data in world._animals:
 		assert(not data.has("tether"))
+	# Protects: a ridden horse that pushes its head into a tree, and a mount
+	# walking home into a creature or unable to step away from one (#103).
+	if mounts.riding():
+		mounts.toggle()
+	await _ride(world, found["horse"])
+	var woods: Node3D = world.landscape
+	var start: Vector2 = world.absolute_ground(world.player_position)
+	var trunk := Vector2.INF
+	var approach := Vector2.ZERO
+	var key := Vector2i(floori(start.x / woods.CHUNK), floori(start.y / woods.CHUNK))
+	for z in range(key.y - 2, key.y + 3):
+		for x in range(key.x - 2, key.x + 3):
+			for tree in woods._ensure_nature(Vector2i(x, z))["trees"]:
+				var t := Vector2(tree.x, tree.y)
+				for angle in 8:
+					var dir := Vector2.from_angle(angle * TAU / 8.0)
+					var clear := true
+					for d in [1.3, 1.8, 2.4, 3.0]:
+						clear = clear and woods.can_walk(t + dir * d - woods.origin, 0.6)
+					if clear and trunk == Vector2.INF:
+						trunk = t
+						approach = dir
+	assert(trunk != Vector2.INF, "A tree with open ground before it")
+	await _travel(world, trunk + approach * 3.0)
+	assert(mounts.riding())
+	for i in 60:
+		world._try_move(-approach * 6.0)
+	var rider: Vector2 = world.absolute_ground(world.player_position)
+	assert(rider.distance_to(trunk) < 2.5, "She rode up to the tree (%.2f m)" % rider.distance_to(trunk))
+	assert(woods.can_walk(rider - approach * mounts.nose("horse") - woods.origin, mounts.NOSE_RADIUS), "The horse's nose stays out of the tree")
+	var ridden_horse := _live(world, found["horse"])
+	var beast := -1
+	for id in world._animals.size():
+		if world._animals[id]["alive"] and world._animals[id]["kind"] != world.VILLAGER:
+			beast = id
+	assert(beast >= 0)
+	world._animals[beast]["position"] = world.player_position + Vector2(300, 0)
+	world._refresh_visible()
+	assert(world._active_animals.has(beast), "A creature is near")
+	var beast_at: Vector2 = world.absolute_ground(world._animals[beast]["position"])
+	var goal: Vector2 = beast_at + Vector2(10, 0)
+	assert(not mounts._fits(ridden_horse, beast_at + Vector2(0.3, 0), beast_at + Vector2(5, 0), goal) or not woods.can_walk(beast_at + Vector2(0.3, 0) - woods.origin, mounts.RADIUS), "A mount never walks into a creature")
+	assert(world.clear_of_creatures(beast_at + Vector2(0.4, 0), beast_at + Vector2(0.3, 0), mounts.RADIUS) and not world.clear_of_creatures(beast_at + Vector2(0.2, 0), beast_at + Vector2(0.3, 0), mounts.RADIUS), "Inside one, it may step away but never further in")
 	print("Mount smoke test passed: ", hamlets, " hamlets seeded with ", tally, ", identical revisits, aura requirement prompt and refusal, T / controller Y / touch button, speed x1.3/1.5/1.8 without sprint, donkey-halved stuns, horse throws on a real bump, panic dismount, aura decay dismount with the mount walking home, cave mouth wait (hidden underground, still there after), rebasing without drift or duplicates, save/load of a ride and a waiting mount, older saves and invalid records")
 	quit()

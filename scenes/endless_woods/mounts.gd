@@ -20,6 +20,8 @@ const KINDS := {
 }
 const CHANCES := [0.55, 0.85] # Cumulative: donkey most common, then mule, then horse.
 const RADIUS := 0.5 # Metres; the footprint a mount needs on walkable ground.
+const BODY := {"donkey": 1.3, "mule": 1.45, "horse": 1.9} # Metres from nose to tail.
+const NOSE_RADIUS := 0.2 # Metres of clear ground its nose needs.
 const PROMPT_RADIUS := 2.5 # Metres from a mount at which she can ride it.
 const HOME_RADIUS := 1.5 # Left this close to its tether, a mount is tethered again.
 const RETURN_SPEED := 1.3 # Metres per second, walking home on its own.
@@ -51,6 +53,26 @@ func riding() -> bool:
 
 func ridden_kind() -> String:
 	return ridden["kind"] if riding() else ""
+
+
+## Metres from a mount's middle to its nose, which must stay clear of trees,
+## rocks and walls ahead of it (#103).
+func nose(kind: String) -> float:
+	return float(BODY[kind]) * 0.5
+
+
+## Whether a mount walking on its own toward `goal` may step from `from` to `p`
+## (absolute metres): its body and nose fit the ground and it never steps
+## further into a creature (#103). The nose never reaches past the goal.
+func _fits(record: Dictionary, p: Vector2, from: Vector2, goal: Vector2) -> bool:
+	var land: Node3D = world.landscape
+	if not land.can_walk(p - land.origin, RADIUS):
+		return false
+	var ahead := p - from
+	var reach := minf(nose(record["kind"]), p.distance_to(goal))
+	if ahead.length() > 0.0001 and not land.can_walk(p + ahead.normalized() * reach - land.origin, NOSE_RADIUS):
+		return false
+	return world.clear_of_creatures(p, from, RADIUS)
 
 
 ## Her speed factor while riding, on top of how well fed she is.
@@ -235,7 +257,6 @@ func update(delta: float) -> void:
 
 
 func _walk_home(record: Dictionary, delta: float) -> void:
-	var land: Node3D = world.landscape
 	var at: Vector2 = record["at"]
 	var to_home: Vector2 = record["tether"] - at
 	var local_px: Vector2 = world._local_point([at.x, at.y])
@@ -246,7 +267,7 @@ func _walk_home(record: Dictionary, delta: float) -> void:
 	var step := to_home.limit_length(RETURN_SPEED * delta)
 	var moved := at
 	for part in [Vector2(step.x, 0), Vector2(0, step.y)]:
-		if land.can_walk(moved + part - land.origin, RADIUS):
+		if _fits(record, moved + part, moved, record["tether"]):
 			moved += part
 	record["stuck"] = 0.0 if moved.distance_to(at) > step.length() * 0.3 else float(record["stuck"]) + delta
 	if moved != at:

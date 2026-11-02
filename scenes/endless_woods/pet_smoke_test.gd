@@ -520,6 +520,33 @@ func _run() -> void:
 	assert(world._animals[rats[0]]["alive"] and _killed(1).is_empty(), "Oravitsa never kills a monster, walking over it or with A")
 	assert(pets.followers().size() == 2, "A did nothing to the pets")
 
+	# Protects: a pet that walks into a monster in its way, cannot step away
+	# from one that walked into it, or pokes its nose into a wall (#103).
+	_clear_monsters([])
+	_stand(a)
+	var walker: Dictionary = pets._record(husky, "following", a)
+	var lane_end: Vector2 = lane_pair[1]
+	_put_monster(rats[0], a.lerp(lane_end, 0.5))
+	var rat_at: Vector2 = world.absolute_ground(world._animals[rats[0]]["position"])
+	var keep: float = pets.RADIUS + world.ANIMAL_RADIUS[world.RAT] / world.METRE
+	for i in 90:
+		pets._step(walker, lane_end, 2.0 * STEP)
+		assert(walker["at"].distance_to(rat_at) >= keep - 0.001, "The pet never walks into the rat in its way")
+	walker["at"] = rat_at + toward * 0.1
+	pets._step(walker, rat_at - toward * 3.0, 0.05)
+	assert(walker["at"].distance_to(rat_at) >= 0.1 - 0.0001, "Overlapping a monster, it never steps further in")
+	assert(pets._step(walker, rat_at + toward * 3.0, 0.2) > 0.1, "It can always step away")
+	_clear_monsters([])
+	var walled := 0
+	for dir in [Vector2.LEFT, Vector2.RIGHT, Vector2.UP, Vector2.DOWN]:
+		var nosy: Dictionary = pets._record(husky, "following", a)
+		for i in 240:
+			pets._step(nosy, a + dir * 40.0, 3.0 * STEP)
+		walled += 1 if nosy["at"].distance_to(a) < 39.0 else 0
+		var nose_at: Vector2 = nosy["at"] + dir * pets.BODY["husky"] * 0.5
+		assert(world.landscape.can_walk(nose_at - pets._origin(), pets.NOSE_RADIUS), "Its nose stays out of the wall")
+	assert(walled > 0, "A wall stopped it at least once")
+
 	# Protects: pets that fail to kill a stunned, a scared or a slowed monster,
 	# kill one more than once, give aura, skip its Death clip or forget it.
 	_stand(a)
