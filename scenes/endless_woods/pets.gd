@@ -586,7 +586,8 @@ func _walk_home(record: Dictionary, delta: float) -> void:
 	if to_home.length() <= 0.2 or far or (record["stuck"] > 2.0 and world._spawn_is_hidden(world.from_ground(_local(at)), world.VILLAGER)):
 		_home(record)
 		return
-	var moved := _step(record, record["post"], RETURN_SPEED * delta)
+	var aim: Vector2 = world.detour_aim(record, record["post"], RADIUS, delta)
+	var moved := _step(record, aim, RETURN_SPEED * delta)
 	record["pace"] = moved / maxf(delta, 0.0001)
 	record["stuck"] = 0.0 if moved > RETURN_SPEED * delta * 0.3 else float(record["stuck"]) + delta
 

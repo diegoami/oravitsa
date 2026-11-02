@@ -90,6 +90,13 @@ const CAVE_RIM := preload("res://scenes/endless_woods/cave_rim.gdshader")
 ## kobolds, a warm one on Oravitsa's pets so they never read as monsters.
 const RIM_KOBOLD := Color(0.55, 0.75, 1.0, 0.85)
 const RIM_PET := Color(1.0, 0.82, 0.5, 0.45)
+## Detours (#104) for pets and mounts walking home: a grid of DETOUR_CELL
+## metres reaching DETOUR_REACH cells each way, planned after DETOUR_AFTER
+## seconds without progress and at most every DETOUR_REPLAN seconds.
+const DETOUR_CELL := 1.0
+const DETOUR_REACH := 12
+const DETOUR_AFTER := 0.4
+const DETOUR_REPLAN := 1.5
 const PLACE_NAMES := preload("res://scenes/endless_woods/place_names.gd")
 # Exploration (#66): absolute 32 m cells within EXPLORE_RADIUS cells of her
 # count as explored; hamlets and cave mouths within DISCOVER_RADIUS metres are
@@ -2287,6 +2294,61 @@ func set_rim(model: Node3D, color: Color) -> void:
 		overlay.set_shader_parameter("rim_color", color)
 	for mesh in model.find_children("*", "MeshInstance3D", true, false):
 		mesh.material_overlay = overlay
+
+
+## A way around obstacles for a pet or mount walking home (#104): absolute-
+## metre waypoints from `start` toward `goal` over a DETOUR_CELL grid within
+## DETOUR_REACH cells, on ground where `radius` fits; empty when there is none
+## or the goal is unreachable from here. Like wildlife routes it ends at the
+## open cell nearest the goal when the goal itself is blocked or out of reach.
+func plan_detour(start: Vector2, goal: Vector2, radius: float) -> PackedVector2Array:
+	var land: Node3D = landscape
+	var grid := AStarGrid2D.new()
+	grid.region = Rect2i(-DETOUR_REACH, -DETOUR_REACH, DETOUR_REACH * 2 + 1, DETOUR_REACH * 2 + 1)
+	grid.cell_size = Vector2.ONE * DETOUR_CELL
+	grid.offset = start
+	grid.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_ONLY_IF_NO_OBSTACLES
+	grid.default_compute_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+	grid.default_estimate_heuristic = AStarGrid2D.HEURISTIC_OCTILE
+	grid.update()
+	for z in range(-DETOUR_REACH, DETOUR_REACH + 1):
+		for x in range(-DETOUR_REACH, DETOUR_REACH + 1):
+			var p: Vector2 = start + Vector2(x, z) * DETOUR_CELL
+			grid.set_point_solid(Vector2i(x, z), not land.can_walk(p - land.origin, radius))
+	grid.set_point_solid(Vector2i.ZERO, false)
+	var target := Vector2i(((goal - start) / DETOUR_CELL).round()).clamp(Vector2i.ONE * -DETOUR_REACH, Vector2i.ONE * DETOUR_REACH)
+	if grid.is_point_solid(target):
+		var best := INF
+		for z in range(-DETOUR_REACH, DETOUR_REACH + 1):
+			for x in range(-DETOUR_REACH, DETOUR_REACH + 1):
+				var point := Vector2i(x, z)
+				var d := (start + Vector2(point) * DETOUR_CELL).distance_squared_to(goal)
+				if not grid.is_point_solid(point) and d < best:
+					target = point
+					best = d
+	var route := grid.get_point_path(Vector2i.ZERO, target, true)
+	if not route.is_empty():
+		route.remove_at(0)
+	return route
+
+
+## Where a pet or mount walking home to `goal` heads next (#104): straight for
+## the goal, or along a detour planned once it stops making progress. The
+## route lives in the record (absolute metres, so rebasing never moves it)
+## and is never saved; a stale one, far from where it stands, is dropped.
+func detour_aim(record: Dictionary, goal: Vector2, radius: float, delta: float) -> Vector2:
+	var at: Vector2 = record["at"]
+	var route: PackedVector2Array = record.get("route", PackedVector2Array())
+	if not route.is_empty() and at.distance_to(route[0]) > DETOUR_CELL * 3.0:
+		route = PackedVector2Array()
+	while not route.is_empty() and at.distance_to(route[0]) < DETOUR_CELL * 0.4:
+		route.remove_at(0)
+	record["replan"] = maxf(0.0, float(record.get("replan", 0.0)) - delta)
+	if route.is_empty() and float(record["stuck"]) > DETOUR_AFTER and record["replan"] <= 0.0:
+		route = plan_detour(at, goal, radius)
+		record["replan"] = DETOUR_REPLAN
+	record["route"] = route
+	return goal if route.is_empty() else route[0]
 
 
 ## Whether a pet or mount (#103) of `radius` metres at `p`, coming from `from`

@@ -388,5 +388,47 @@ func _run() -> void:
 	var goal: Vector2 = beast_at + Vector2(10, 0)
 	assert(not mounts._fits(ridden_horse, beast_at + Vector2(0.3, 0), beast_at + Vector2(5, 0), goal) or not woods.can_walk(beast_at + Vector2(0.3, 0) - woods.origin, mounts.RADIUS), "A mount never walks into a creature")
 	assert(world.clear_of_creatures(beast_at + Vector2(0.4, 0), beast_at + Vector2(0.3, 0), mounts.RADIUS) and not world.clear_of_creatures(beast_at + Vector2(0.2, 0), beast_at + Vector2(0.3, 0), mounts.RADIUS), "Inside one, it may step away but never further in")
+	# Protects: a mount walking home that stays stuck in a pocket in her sight,
+	# or jumps home instead of walking out and around (#104). A U of walls
+	# opens away from its tether, so walking straight at it never gets out.
+	if mounts.riding():
+		mounts.toggle()
+	var donkey_spec: Dictionary = found["donkey"]
+	var tether: Vector2 = donkey_spec["tether"]
+	var pocket := Vector2.INF
+	for offset in [Vector2(-8, 0), Vector2(8, 0), Vector2(0, -8), Vector2(0, 8), Vector2(-10, 0), Vector2(10, 0)]:
+		var ok := true
+		for t in 9:
+			var probe: Vector2 = tether + offset * (0.2 + 0.1 * t)
+			for side in [-4.0, 0.0, 4.0]:
+				ok = ok and woods.can_walk(probe + offset.orthogonal().normalized() * side - woods.origin, mounts.RADIUS) and not woods.is_water(probe - woods.origin, 1.0)
+		if ok and pocket == Vector2.INF:
+			pocket = tether + offset
+	assert(pocket != Vector2.INF, "Open ground beside the tether for the pocket")
+	var toward: Vector2 = pocket.direction_to(tether)
+	var across: Vector2 = toward.orthogonal()
+	var added: Array[Rect2] = []
+	for piece in [[toward * 2.0, across * 6.0 + toward * 0.4], [toward * 0.2 + across * 3.0, toward * 4.4 + across * 0.4], [toward * 0.2 - across * 3.0, toward * 4.4 + across * 0.4]]:
+		var a: Vector2 = pocket + piece[0] - piece[1] * 0.5
+		added.append(Rect2(a, Vector2.ZERO).expand(a + piece[1]).abs())
+	for wall in added:
+		woods.walls.append(wall)
+	await _travel(world, pocket.lerp(tether, 0.5) + across * 6.0)
+	var walker := _live(world, donkey_spec)
+	walker["state"] = "returning"
+	walker["at"] = pocket
+	walker["stuck"] = 0.0
+	walker["route"] = PackedVector2Array()
+	var largest := 0.0
+	for i in 900:
+		var was: Vector2 = walker["at"]
+		mounts.update(0.1)
+		if walker["state"] == "tethered":
+			break
+		largest = maxf(largest, was.distance_to(walker["at"]))
+	for wall in added:
+		woods.walls.erase(wall)
+	assert(walker["state"] == "tethered", "It got out of the pocket and home")
+	assert(largest < 0.5, "It walked all the way (largest step %.2f m)" % largest)
 	print("Mount smoke test passed: ", hamlets, " hamlets seeded with ", tally, ", identical revisits, aura requirement prompt and refusal, T / controller Y / touch button, speed x1.3/1.5/1.8 without sprint, donkey-halved stuns, horse throws on a real bump, panic dismount, aura decay dismount with the mount walking home, cave mouth wait (hidden underground, still there after), rebasing without drift or duplicates, save/load of a ride and a waiting mount, older saves and invalid records")
 	quit()

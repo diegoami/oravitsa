@@ -264,10 +264,11 @@ func _walk_home(record: Dictionary, delta: float) -> void:
 	if to_home.length() <= 0.2 or _here().distance_to(at) > SHOWN or record["stuck"] > 2.0 and world._spawn_is_hidden(local_px, world.VILLAGER):
 		_tether(record)
 		return
-	var step := to_home.limit_length(RETURN_SPEED * delta)
+	var aim: Vector2 = world.detour_aim(record, record["tether"], RADIUS, delta)
+	var step := (aim - at).limit_length(RETURN_SPEED * delta)
 	var moved := at
 	for part in [Vector2(step.x, 0), Vector2(0, step.y)]:
-		if _fits(record, moved + part, moved, record["tether"]):
+		if _fits(record, moved + part, moved, aim):
 			moved += part
 	record["stuck"] = 0.0 if moved.distance_to(at) > step.length() * 0.3 else float(record["stuck"]) + delta
 	if moved != at:
