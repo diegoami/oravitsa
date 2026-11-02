@@ -6,6 +6,11 @@
   right-stick click (R3) freezes the whole game, on the surface and in caves:
   animals, monsters, hunger, timers, animations and sound. A dimmed overlay
   shows Resume, which the same keys, a click or A also trigger.
+- Sprint (#58). In the endless woods, holding Shift or clicking the left stick
+  (L3, until she stops steering) makes Oravitsa 1.4 times as fast while she
+  gets hungry three times as fast. The fed meter shows an orange border and
+  »» chevrons meanwhile. There is no sprint while starving, stunned or
+  panicking. Speed and drain are first guesses to tune by playing.
 
 ## 0.2.0-alpha.3 — livelier caves (candidate)
 

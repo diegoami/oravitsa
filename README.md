@@ -158,7 +158,9 @@ mushrooms appear as icons and counts in the bottom-right inventory. On phones,
 the movement stick sits above the inventory. Map and Help start hidden; open
 or collapse them with their buttons, **M/H**, or controller **Select/Start**.
 **Pause** (button beside Help, **P/Esc**, or the controller's right-stick
-click) freezes the game until you resume.
+click) freezes the game until you resume. In the endless woods **Shift** (or a
+click of the left stick) sprints: faster, but she gets hungry three times as
+fast, and not at all while starving.
 
 Web export requires the **standard (non-.NET) Godot 4.7.2** editor together with
 its matching **4.7.2.stable export templates** (install them in the editor via

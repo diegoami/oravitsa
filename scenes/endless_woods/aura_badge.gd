@@ -13,12 +13,13 @@ const METER := Vector2(64, 12)
 
 var aura := 0
 var fed := 1.0 # 0 (starving) to 1 (full).
+var sprinting := false # Draws running chevrons and a hot border on the meter.
 var _flash := 0.0 # Seconds of highlight after a change.
 var _flash_color := Color.WHITE
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(ICON + 10 + BOWL + 6 + METER.x, ICON)
+	custom_minimum_size = Vector2(ICON + 10 + BOWL + 6 + METER.x + 30, ICON)
 	size = custom_minimum_size
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -55,4 +56,7 @@ func _draw() -> void:
 	var level := clampf(fed, 0.0, 1.0)
 	var color := Color("d9483b").lerp(Color("e8b84a"), clampf(level * 2.0, 0.0, 1.0)).lerp(Color("6fc24f"), clampf(level * 2.0 - 1.0, 0.0, 1.0))
 	draw_rect(Rect2(meter.position, Vector2(meter.size.x * level, meter.size.y)), color)
-	draw_rect(meter.grow(2), Color("f4ecd0"), false, 1.5)
+	draw_rect(meter.grow(2), Color("ffb347") if sprinting else Color("f4ecd0"), false, 2.5 if sprinting else 1.5)
+	if sprinting:
+		draw_string_outline(font, Vector2(meter.end.x + 6, meter.end.y + 3), "»»", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 5, Color("2a1d08"))
+		draw_string(font, Vector2(meter.end.x + 6, meter.end.y + 3), "»»", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("ffb347"))
