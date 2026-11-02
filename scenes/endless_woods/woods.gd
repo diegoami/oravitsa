@@ -17,16 +17,20 @@ const FOX_HUNT_REST := 9.0
 # may provoke it: a visible warning, then a bounded charge that can stun
 # Oravitsa. Win or lose, the animal then ignores her for AGGRO_COOLDOWN.
 const AGGRO_KINDS := [WOLF, LYNX, BOAR]
-const AGGRO_RADIUS := 260.0
-const AGGRO_DWELL := 3.0
-const AGGRO_CHANCE := 0.6
-const AGGRO_RETRY := 8.0
+# Tuned a little more troublesome in #54 (was 260 px, 3 s, 0.6, 8 s, 4 s, 25 s).
+const AGGRO_RADIUS := 290.0
+const AGGRO_DWELL := 2.4
+const AGGRO_CHANCE := 0.7
+const AGGRO_RETRY := 6.0
 const AGGRO_WARN_TIME := 1.2
-const AGGRO_CHARGE_TIME := 4.0
+const AGGRO_CHARGE_TIME := 4.5
 const AGGRO_SPEED := {WOLF: 232.0, LYNX: 228.0, BOAR: 196.0}
 const AGGRO_REACH := 12.0
 const AGGRO_PLAYER_STUN := 2.0
-const AGGRO_COOLDOWN := 25.0
+const AGGRO_COOLDOWN := 20.0
+# A wolf, lynx or boar hit by the sling bears a grudge (#63): when its stun
+# ends it warns and charges at once, if Oravitsa is within this distance.
+const GRUDGE_RADIUS := AGGRO_RADIUS * 3
 # Nearby calm wolves, lynxes and boars of different species occasionally fight.
 # The loser is stunned; neither fights again during FIGHT_COOLDOWN.
 const FIGHT_KINDS := [WOLF, LYNX, BOAR]
@@ -361,6 +365,7 @@ func _animal_record(kind: int, position: Vector2) -> Dictionary:
 	data["hunt_rest"] = 0.0
 	data["hunt_attempts"] = 0
 	data["provoke"] = 0.0
+	data["grudge"] = false
 	data["aggro"] = AGGRO_NONE
 	data["aggro_time"] = 0.0
 	data["aggro_cooldown"] = 0.0
@@ -479,6 +484,19 @@ func _end_aggression(id: int, cooldown: float) -> void:
 		data["timeout"] = 0.0
 
 
+## The visible warning that precedes a charge.
+func _warn(id: int) -> void:
+	var data := _animals[id]
+	data["aggro"] = AGGRO_WARN
+	data["aggro_time"] = AGGRO_WARN_TIME
+	data["catch_target"] = -1
+	data["catch_time"] = 0.0
+	data["burst"] = 0.0
+	_show_notice("The %s is angry — back away!" % ANIMAL_NAMES[data["kind"]].to_lower())
+	if audio != null:
+		audio.call_now(id)
+
+
 func _update_aggression(delta: float) -> void:
 	for id in _animals.size():
 		var data := _animals[id]
@@ -487,12 +505,21 @@ func _update_aggression(delta: float) -> void:
 			continue
 		# Fear, any stun, feeding (after a catch or at a food patch), a fight or
 		# leaving the active area ends an encounter.
+		# Shoo also settles a grudge; leaving the active area forgets it.
+		if not data["alive"] or not _active_animals.has(id) or data["shoo"] > 0:
+			data["grudge"] = false
 		if not data["alive"] or not _active_animals.has(id) or data["stun"] > 0 or data["shoo"] > 0 or data["feeding"] > 0 or data["eat_time"] > 0 or data["fight_with"] >= 0:
 			if data["aggro"] != AGGRO_NONE:
 				_end_aggression(id, AGGRO_COOLDOWN)
 			data["provoke"] = 0.0
 			continue
 		var distance: float = data["position"].distance_to(player_position)
+		if data["aggro"] == AGGRO_NONE and data.get("grudge", false):
+			# Its stun has just ended: no dwell, chance or cooldown.
+			data["grudge"] = false
+			if distance <= GRUDGE_RADIUS:
+				_warn(id)
+			continue
 		if data["aggro"] == AGGRO_NONE:
 			if data["aggro_cooldown"] > 0 or distance > AGGRO_RADIUS:
 				data["provoke"] = maxf(0, data["provoke"] - delta * 2)
@@ -505,14 +532,7 @@ func _update_aggression(delta: float) -> void:
 			if _hash(id, data["aggro_rolls"], 1701) >= AGGRO_CHANCE:
 				data["aggro_cooldown"] = AGGRO_RETRY
 				continue
-			data["aggro"] = AGGRO_WARN
-			data["aggro_time"] = AGGRO_WARN_TIME
-			data["catch_target"] = -1
-			data["catch_time"] = 0.0
-			data["burst"] = 0.0
-			_show_notice("The %s is angry — back away!" % ANIMAL_NAMES[data["kind"]].to_lower())
-			if audio != null:
-				audio.call_now(id)
+			_warn(id)
 		elif data["aggro"] == AGGRO_WARN:
 			data["aggro_time"] -= delta
 			if data["aggro_time"] <= 0:
@@ -1541,6 +1561,8 @@ func _on_shooed(id: int) -> void:
 
 
 func _on_sling_hit(id: int) -> void:
+	if _animals[id]["kind"] in AGGRO_KINDS:
+		_animals[id]["grudge"] = true
 	if _animals[id]["kind"] == VILLAGER:
 		_add_aura(AURA["hit_villager"], "never hit villagers")
 

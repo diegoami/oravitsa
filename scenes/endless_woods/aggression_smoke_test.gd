@@ -22,6 +22,7 @@ func _reset(world, id: int, offset: Vector2) -> void:
 	data["shoo"] = 0.0
 	data["feeding"] = 0.0
 	data["provoke"] = 0.0
+	data["grudge"] = false
 	data["aggro"] = world.AGGRO_NONE
 	data["aggro_time"] = 0.0
 	data["aggro_cooldown"] = 0.0
@@ -124,7 +125,7 @@ func _run() -> void:
 		wolf["position"] = world.player_position + near
 		world._update_aggression(0.1)
 		t += 0.1
-	assert(wolf["aggro"] == world.AGGRO_NONE and world.player_stun == 0.0 and wolf["aggro_cooldown"] > 20)
+	assert(wolf["aggro"] == world.AGGRO_NONE and world.player_stun == 0.0 and wolf["aggro_cooldown"] >= world.AGGRO_COOLDOWN - 0.5)
 	# Interruption: Shoo or a stun ends the encounter immediately.
 	_reset(world, 0, near)
 	wolf["aggro"] = world.AGGRO_CHARGE
@@ -142,6 +143,50 @@ func _run() -> void:
 	world._update_sling(1.0)
 	world._move_animals(1.0 / 30.0)
 	assert(wolf["stun"] > 0 and wolf["aggro"] == world.AGGRO_NONE)
+	# A sling hit leaves a grudge (#63): no attack while it is stunned, even if
+	# hit again, then a warning and a charge as soon as the stun ends, ignoring
+	# dwell, chance and cooldown. Shoo settles it; far away it is forgotten.
+	# Protects: predators shrugging off a sling hit, attacking while stunned,
+	# and grudges that Shoo cannot stop or that reach across the woods.
+	for case in ["grudge", "shoo", "far"]:
+		_reset(world, 0, Vector2(300, 0))
+		wolf["aggro_cooldown"] = world.AGGRO_COOLDOWN
+		wolf["aggro_rolls"] = _rolls_for(world, 0, false)
+		world.selected_target = 0
+		world.sling_cooldown = 0.0
+		world._use_skill(world.SKILL_SLING)
+		world._update_sling(1.0)
+		assert(wolf["stun"] > 0.0 and wolf["grudge"], "A sling hit leaves a grudge")
+		var frames := 0
+		while wolf["stun"] > 0.0:
+			if frames == 20:
+				world.sling_cooldown = 0.0
+				world._use_skill(world.SKILL_SLING)
+				world._update_sling(1.0) # Hit again while still stunned.
+			if frames == 25 and case == "shoo":
+				world.shoo_cooldown = 0.0
+				world._use_skill(world.SKILL_SHOO)
+				world._update_aggression(1.0 / 30.0)
+				wolf["shoo"] = 0.0 # Its fear runs out sooner than in play.
+			if frames == 25 and case == "far":
+				wolf["position"] = world.player_position + Vector2(world.GRUDGE_RADIUS + 50, 0)
+			wolf["stun"] = maxf(0.0, wolf["stun"] - 1.0 / 30.0)
+			world._update_aggression(1.0 / 30.0)
+			if wolf["stun"] > 0.0:
+				assert(wolf["aggro"] == world.AGGRO_NONE and world.player_stun == 0.0, "No attack while it is stunned")
+			frames += 1
+		world._update_aggression(1.0 / 30.0)
+		if case == "grudge":
+			assert(wolf["aggro"] == world.AGGRO_WARN, "It warns as soon as its stun ends")
+			assert(wolf["aggro_time"] > world.AGGRO_WARN_TIME - 0.1, "with the full warning to react")
+			for frame in 40:
+				world._update_aggression(1.0 / 30.0)
+			assert(wolf["aggro"] == world.AGGRO_CHARGE, "then charges")
+		else:
+			assert(wolf["aggro"] == world.AGGRO_NONE and not wolf["grudge"], "Shoo or distance settles the grudge (%s)" % case)
+		world._end_aggression(0, 0.0)
+	world.shoo_cooldown = 0.0
+	world.sling_cooldown = 0.0
 	# Boars and lynxes can be provoked; hares never are.
 	for id in [2, 3]:
 		_reset(world, id, Vector2(-150, 60))
@@ -184,7 +229,7 @@ func _run() -> void:
 	wolf["aggro_time"] = world.AGGRO_CHARGE_TIME
 	world._update_aggression(1.0 / 30.0)
 	assert(world.player_fright > 0.0 and world.player_stun == 0.0 and not world._fright_to_exit, "A charge can panic her")
-	assert(wolf["aggro"] == world.AGGRO_NONE and wolf["aggro_cooldown"] > 20, "The attack is over either way")
+	assert(wolf["aggro"] == world.AGGRO_NONE and wolf["aggro_cooldown"] >= world.AGGRO_COOLDOWN - 0.5, "The attack is over either way")
 	var gap: float = wolf["position"].distance_to(world.player_position)
 	for frame in 15:
 		world._update_player(1.0 / 30.0)
@@ -199,5 +244,5 @@ func _run() -> void:
 	assert(world._animals[1]["stun"] > 0.0, "What she bumped is still stunned")
 	world.player_fright = 0.0
 	world.fright_chance = 0.0
-	print("Aggression smoke test passed: dwell approach/retreat, failed chance retry delay, warning pause, collision-safe charge, hit stun, hunting override, disengagement cooldown, miss timeout, Shoo/stun interruption, no provocation while eating, three species only, and charges and bumps that panic her instead")
+	print("Aggression smoke test passed: dwell approach/retreat, failed chance retry delay, warning pause, collision-safe charge, hit stun, hunting override, disengagement cooldown, miss timeout, Shoo/stun interruption, no provocation while eating, sling grudges that charge once the stun ends (not while stunned, not after Shoo or far away), three species only, and charges and bumps that panic her instead")
 	quit()

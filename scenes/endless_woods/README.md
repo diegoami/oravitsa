@@ -302,14 +302,19 @@ status icons appear side by side while it is frozen, and the fear bar keeps
 emptying.
 Collision and recovery routes still apply.
 
-**Aggression toward Oravitsa.** Lingering within 260 px (about 4 m) of a wolf,
+**Aggression toward Oravitsa.** Lingering within 290 px (about 4.5 m) of a wolf,
 lynx or boar builds provocation; backing away drains it twice as fast. After
-three seconds there is a 60% chance the animal turns angry; otherwise it ignores
-her for eight seconds before another roll. An angry animal stands still for
+2.4 seconds there is a 70% chance the animal turns angry; otherwise it ignores
+her for six seconds before another roll. An angry animal stands still for
 1.2 s under a red anger-mark icon, with a HUD notice, and then charges for at most
-four seconds (wolf 232, lynx 228, boar 196 px/s; Oravitsa walks at 210).
+4.5 seconds (wolf 232, lynx 228, boar 196 px/s; Oravitsa walks at 210).
 Reaching her stuns her for two seconds; an already stunned Oravitsa is not
-stunned again. Hit or miss, the animal then loses interest for 25 seconds.
+stunned again. Hit or miss, the animal then loses interest for 20 seconds.
+These values were raised slightly in #54 (from 260 px, 3 s, 60%, 8 s, 4 s and
+25 s). A Sling hit leaves a grudge (#63): the moment its stun ends, the animal
+gives the same 1.2 s warning and charges, regardless of dwell, chance or
+cooldown, if she is within 870 px. It never attacks while stunned, even when hit
+again, and Shoo or her being farther away settles the grudge.
 Shoo, any stun, feeding (after a catch or at a food patch) or leaving the active
 area ends the encounter at once.
 A charge overrides hunting and uses ordinary collision-checked movement. There
