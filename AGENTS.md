@@ -130,6 +130,11 @@ Record unavailable checks as untested, never as passed.
   A ridden mount and any mount left away from its tether are saved at
   absolute positions, never duplicated at their hamlet. Mounts are not
   wildlife: no Sling/Shoo/Slow target, no bumps, never harmed.
+- Pets and mounts (#103) keep their nose, half a body length ahead, out of
+  trees, rocks and walls as well as their middle; riding, her moves need the
+  mount's nose clear too. A pet, or a mount walking home, never steps
+  further into a live creature (it may always step away); a hunting pet is
+  exempt only from its prey. Creatures do not avoid pets or mounts.
 - Pets (#65): about three hamlets in five keep one seeded pet near the
   clearing's edge: a cat (most common), a Shiba Inu or a husky (rare), with an
   aura threshold seeded in its band (20–40, 40–65, 65–90). The adopt prompt

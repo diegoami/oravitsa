@@ -37,6 +37,8 @@ const CHANCE := 0.6 # Share of hamlets with a pet.
 const KIND_CHANCES := [0.55, 0.88] # Cumulative: cat, then Shiba Inu, then husky.
 const MAX_FOLLOWERS := 2
 const RADIUS := 0.25 # Metres; the footprint a pet needs on walkable ground.
+const BODY := {"cat": 0.5, "shiba": 0.75, "husky": 0.95} # Metres from nose to tail.
+const NOSE_RADIUS := 0.12 # Metres of clear ground its nose needs.
 const PROMPT_RADIUS := 2.5 # Metres from a hamlet's pet at which she can adopt it.
 const DISMISS_RADIUS := 1.2 # Metres: closer than followers keep, so sending one home is deliberate.
 const POST_FROM_EDGE := 4.0 # Metres inside the clearing's edge.
@@ -88,6 +90,20 @@ func _local(at: Vector2) -> Vector2:
 
 func _can_walk(at: Vector2) -> bool:
 	return world.landscape.can_walk(_local(at), RADIUS)
+
+
+## Whether the pet may step from `from` to `p` on its way to `goal` (absolute
+## metres): its body and its nose ahead fit the ground, the nose never reaching
+## past the goal, and it never steps further into a live creature other than
+## the prey it is biting (#103).
+func _fits(record: Dictionary, p: Vector2, from: Vector2, goal: Vector2) -> bool:
+	if not _can_walk(p):
+		return false
+	var ahead := p - from
+	var reach := minf(float(BODY[record["kind"]]) * 0.5, p.distance_to(goal))
+	if ahead.length() > 0.0001 and not world.landscape.can_walk(_local(p + ahead.normalized() * reach), NOSE_RADIUS):
+		return false
+	return world.clear_of_creatures(p, from, RADIUS, int(record.get("prey", -1)))
 
 
 func title(record: Dictionary) -> String:
@@ -276,7 +292,7 @@ func _step(record: Dictionary, goal: Vector2, length: float) -> float:
 	var step := (goal - at).limit_length(length)
 	var moved := at
 	for part in [Vector2(step.x, 0), Vector2(0, step.y)]:
-		if _can_walk(moved + part):
+		if _fits(record, moved + part, moved, goal):
 			moved += part
 	if moved.distance_to(at) > 0.0005:
 		record["facing"] = (moved - at).normalized()
@@ -508,7 +524,7 @@ func place_behind(record: Dictionary, slot: int, beside: bool = false) -> void:
 	var placed := here
 	for offset in spots:
 		var spot: Vector2 = here + offset
-		if _can_walk(spot) and (not world.in_cave() or _clear_floor(here, spot)):
+		if _can_walk(spot) and world.clear_of_creatures(spot, Vector2.INF, RADIUS) and (not world.in_cave() or _clear_floor(here, spot)):
 			placed = spot
 			break
 	record["at"] = placed

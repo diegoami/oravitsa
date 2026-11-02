@@ -479,6 +479,11 @@ func _try_move(step: Vector2) -> bool:
 	var candidate := player_position + step
 	if not _can_stand(candidate, PLAYER_RADIUS):
 		return false
+	# Riding, the mount's head leads: it must not push into a tree (#103).
+	if mounts != null and mounts.riding() and step.length() > 0.0001:
+		var nose: Vector2 = candidate + step.normalized() * mounts.nose(mounts.ridden_kind()) * METRE
+		if not _can_stand(nose, mounts.NOSE_RADIUS * METRE):
+			return false
 	if _bump_animal(candidate):
 		return false
 	player_position = candidate
@@ -2282,6 +2287,22 @@ func set_rim(model: Node3D, color: Color) -> void:
 		overlay.set_shader_parameter("rim_color", color)
 	for mesh in model.find_children("*", "MeshInstance3D", true, false):
 		mesh.material_overlay = overlay
+
+
+## Whether a pet or mount (#103) of `radius` metres at `p`, coming from `from`
+## (both absolute metres), keeps clear of every live creature but `skip`: it
+## never steps further into one, so one that walked into it can always step
+## away. With `from` at Vector2.INF it must not overlap any.
+func clear_of_creatures(p: Vector2, from: Vector2, radius: float, skip: int = -1) -> bool:
+	for id in _active_animals:
+		var data: Dictionary = _animals[id]
+		if id == skip or not data["alive"]:
+			continue
+		var at := absolute_ground(data["position"])
+		var distance := p.distance_to(at)
+		if distance < radius + ANIMAL_RADIUS[data["kind"]] / METRE and distance < from.distance_to(at) - 0.0001:
+			return false
+	return true
 
 
 func _alias_clips(animator: AnimationPlayer) -> void:
