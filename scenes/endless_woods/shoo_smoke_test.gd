@@ -139,5 +139,5 @@ func _run() -> void:
 	world.cure_cooldown = 0.0
 	world._use_skill(world.SKILL_CURE)
 	assert(world.player_stun == 0.0, "Cure ends a stun")
-	print("Targeted Shoo smoke test passed: Slow halves movement then wears off, Cure ends her stun or panic,selection/range/death guards, one target, immediate strong escape, interrupt/reset, cooldown, scared/stunned markers, fear resumption, expiry and predator fear")
+	print("Targeted Shoo smoke test passed: Slow halves movement then wears off, Cure ends her stun or panic, selection/range/death guards, one target, immediate strong escape, interrupt/reset, cooldown, scared/stunned markers, fear resumption, expiry and predator fear")
 	quit()

@@ -82,6 +82,7 @@ const CHIEF_HEIGHT := 1.7
 # Caves (#45, #46): a seeded first level behind each mouth, with giant rats
 # and spiders that bite (a stun, never an injury).
 const CAVE_LEVEL := preload("res://scenes/endless_woods/cave_level.gd")
+const PLACE_NAMES := preload("res://scenes/endless_woods/place_names.gd")
 const CAVE_ENTER_RADIUS := 0.9
 const CAVE_REARM := 2.5
 const MONSTER_SIGHT := {RAT: 14.0, SPIDER: 10.0} # Metres of walking, so never through walls.
@@ -1059,6 +1060,12 @@ func _process(delta: float) -> void:
 	_check_cave_mouth()
 
 
+## The name of the cave Oravitsa is in (#56), from its saved region key.
+func _cave_name() -> String:
+	var parts := _cave_key.split(",")
+	return PLACE_NAMES.cave(Vector2i(int(parts[0]), int(parts[1])))
+
+
 func in_cave() -> bool:
 	return _cave != null
 
@@ -1139,7 +1146,7 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	_refresh_cave_creatures()
 	view.position = to_world(player_position) + CAMERA_OFFSET
 	if not quiet:
-		_show_notice("Oravitsa enters the cave: find its glowing checkpoints", 3.5)
+		_show_notice("Oravitsa enters %s: find its glowing checkpoints" % _cave_name(), 3.5)
 	_update_hud()
 
 
@@ -1812,7 +1819,7 @@ func _sync_presentation(delta: float) -> void:
 		for id in _animal_stars:
 			_animal_stars[id].set_on_top(true) # Readable against the monsters' dark bodies.
 		var near_exit: bool = to_ground(player_position).distance_to(_cave.entrance) < 3.0
-		_landmark_label.text = "Way out to the woods" if near_exit else "Cave · first level"
+		_landmark_label.text = "Way out to the woods" if near_exit else _cave_name() + " · first level"
 		return
 	if audio != null:
 		audio.update(delta)
@@ -1850,10 +1857,11 @@ func _sync_presentation(delta: float) -> void:
 		_landmark_label.text = ["Forgotten homestead", "Old standing stones", "Abandoned woodcutters’ camp", "Mossy cairns"][site["kind"]]
 	var hamlet: Dictionary = landscape.hamlet_near(absolute)
 	if not hamlet.is_empty() and absolute.distance_to(hamlet["center"]) < landscape.HAMLET_RADIUS:
-		_landmark_label.text = "Hamlet · the chieftain’s store" if near_chief else "Hamlet"
+		var hamlet_name := PLACE_NAMES.hamlet(hamlet["block"])
+		_landmark_label.text = hamlet_name + (" · the chieftain’s store" if near_chief else " · hamlet")
 	var cave: Dictionary = landscape.cave_at(Vector2i(floori(absolute.x / 256), floori(absolute.y / 128)))
 	if not cave.is_empty() and absolute.distance_to(cave["mouth"]) < 8:
-		_landmark_label.text = "Cave mouth"
+		_landmark_label.text = PLACE_NAMES.cave(cave["region"]) + " · cave mouth"
 	var inside := Rect2(4.7, -5.8, 4.6, 3.8).has_point(absolute)
 	for roof in landscape.roofs:
 		roof.visible = not inside

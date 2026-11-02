@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Hamlets and caves have names (#56) in Finnish, Swedish and Ukrainian styles,
+  such as Koivula, Björkby, Sosnivka, Hiidenluola, Trollgrottan and Vovcha
+  Pechera. The location label and the cave notice use them, and each place
+  keeps its name for good.
 - Aura slowly fades (#64): one point per minute of play while it is positive,
   on the surface and in caves. Decay alone never takes it below zero, saves
   keep the partial minute, and it stops while the game is paused.
