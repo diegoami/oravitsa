@@ -283,6 +283,59 @@ prompt and refusal, T / Y / touch, speeds, stun effects, a real bump on a
 horse, panic, aura decay with the walk home, the cave mouth, rebasing without
 drift or duplicates, and save/load (riding, waiting, older and invalid saves).
 
+## Hunters
+
+`hunters.gd` (#65) gives about 60% of hamlets one seeded hunter, posted 26 m
+from the crossing (4 m inside the clearing's edge) on open ground, strolling up
+to 2.5 m around it and turning to Oravitsa when she is near. All use the CC0
+Quaternius farmer with the clothes recoloured per kind and a primitive weapon
+on the right wrist bone: a spear (shaft and iron tip) or a bow (an arc of
+staves and a string).
+
+| Kind | Share | Aura | Reach | Stun | Cooldown | Clip |
+| --- | --- | --- | --- | --- | --- | --- |
+| Spear hunter | 55% | 20–40 | 1.6 m | 2.5 s | 2.5 s | Sword_Slash |
+| Bow hunter | 33% | 45–70 | 6 m | 2.0 s | 3.0 s | Gun_Shoot + arrow |
+| Veteran bow hunter | 12% | 75–100 | 8 m | 3.0 s | 2.0 s | Gun_Shoot + arrow |
+
+- **Asking.** Within 14 m a label reads "Bow hunter · 58 aura". Within 2.5 m
+  the Ask button reads "Ask the bow hunter to join (58 aura) [G]" ([A] on a
+  controller, no key on touch), or, disabled, "The bow hunter follows only at
+  58 aura (you have 41)", or "Two hunters already follow Oravitsa". G,
+  controller A (after the chieftain's gift, before picking up) and the button
+  ask; notices report joining and refusals. Within 1.2 m of a follower (closer
+  than followers keep) the button reads "Send the bow hunter home" and sends it.
+- **Following.** A follower starts walking once she is over 3 m away and stops
+  within 2.2 m (no jitter at one limit), at her current speed (riding and
+  sprint included), a quarter faster beyond 4.5 m. Two followers keep 0.9 m
+  apart. Farther than 25 m, off-screen beyond 8 m, or stuck for 1.5 s, it
+  appears just behind her. Hunters are not in the animal list: no collision
+  or bump with her, no Sling/Shoo/Slow target, no harm.
+- **Leaving.** Aura below a follower's threshold (decay, villager penalties)
+  sends it home at once: "The spear hunter leaves: Oravitsa's aura fell below
+  30". It walks back at 1.4 m/s (far from her, or stuck out of sight, it simply
+  gets there); underground it leaves by the way out.
+- **Caves.** Entering, changing level, leaving and loading put her followers
+  beside her on open floor. Underground they find their way around walls with
+  the monsters' walking map. Each strikes when its cooldown is over: the awake,
+  unscared monster within reach and nearest to Oravitsa, with the cave floor
+  open along the whole line (no shot or thrust through walls). The stun is
+  immediate (the arrow is only drawn), gives no aura and kills nothing; stunned
+  monsters then follow the usual rules. On the surface hunters never fight.
+- **Streaming and saves.** Records hold absolute ground positions. Hamlet
+  hunters appear and leave with the villagers; a hamlet never shows a hunter
+  that is following her. The save's optional `hunters` list holds at most two
+  followers (hamlet block, kind, threshold); on loading they stand beside her,
+  also underground. A record that no longer matches its hamlet's seed is
+  dropped; saves from before have none.
+
+`hunter_smoke_test.gd` covers seeding, bands and variety, identical revisits,
+the prompt and label, refusals, G / A / touch joining and dismissing, the limit
+of two, keeping up, waiting with hysteresis, catching up, pass-through, aura
+decay, walking home, no duplicates, cave entry, both levels and exit, walking
+around walls, each kind's reach, stun and cooldown, the nearest-to-her choice,
+no shots through walls, no killing, and saving on the surface and below.
+
 ## Cave levels
 
 Walking into a cave mouth (within 0.9 m) enters that cave's first level

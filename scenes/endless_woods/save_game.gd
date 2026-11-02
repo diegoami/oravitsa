@@ -170,6 +170,18 @@ static func validate(data: Dictionary) -> String:
 				ridden += 1 if mount["state"] == "ridden" else 0
 			if ridden > 1:
 				return "the saved mounts are invalid"
+		# Hunter followers (#65) are optional: older saves have none. At most two,
+		# each named by its hamlet block, kind and aura threshold.
+		if data.has("hunters"):
+			var hunters = data["hunters"]
+			if not hunters is Array or hunters.size() > 2:
+				return "the saved hunters are invalid"
+			for hunter in hunters:
+				if not hunter is Dictionary or not hunter.get("kind") in ["spear", "bow", "veteran"] or not _number(hunter.get("threshold"), 0, 100):
+					return "a saved hunter is invalid"
+				var home = hunter.get("hamlet")
+				if not home is Array or home.size() != 2 or not _number(home[0], -1e7, 1e7) or not _number(home[1], -1e7, 1e7):
+					return "a saved hunter is invalid"
 		if data.has("underground"):
 			var underground = data["underground"]
 			if not underground is Dictionary or not underground.get("cave") is String or not caves.has(underground["cave"]) or not RegEx.create_from_string("^-?\\d{1,9},-?\\d{1,9}$").search(underground["cave"]):

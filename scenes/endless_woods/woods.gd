@@ -134,6 +134,8 @@ const FRIGHT_TO_EXIT := 0.5
 const FRIGHT_TURNS := [0.0, PI / 4, -PI / 4, PI / 2, -PI / 2, PI * 0.75, -PI * 0.75]
 # Hamlet mounts (#67): donkeys, mules and horses she can ride with enough aura.
 const MOUNTS := preload("res://scenes/endless_woods/mounts.gd")
+# Hunter companions (#65): spear and bow hunters who follow her with enough aura.
+const HUNTERS := preload("res://scenes/endless_woods/hunters.gd")
 var origin_cells := Vector2i.ZERO
 var _harvested: Dictionary = {}
 var _cached_cells: Dictionary = {}
@@ -165,6 +167,8 @@ var _explored_from := Vector2i(1 << 30, 1 << 30)
 var _offer_button: Button
 var mounts: Node
 var _mount_button: Button
+var hunters: Node
+var _hunter_button: Button
 var _villager_check := 0.0
 var _cave: Node3D = null
 var _surface_landscape: Node3D
@@ -234,6 +238,12 @@ func _build_world() -> void:
 	mounts.setup(self)
 	_mount_button = _hud_toggle(canvas, func(): mounts.toggle())
 	_mount_button.visible = false
+	hunters = HUNTERS.new()
+	hunters.name = "HunterRules"
+	add_child(hunters)
+	hunters.setup(self)
+	_hunter_button = _hud_toggle(canvas, func(): hunters.toggle())
+	_hunter_button.visible = false
 	_layout_hud()
 
 
@@ -246,6 +256,8 @@ func _layout_hud() -> void:
 		_offer_button.position = Vector2(viewport_size.x * 0.5 - 118, viewport_size.y - 156)
 		_mount_button.size = Vector2(320, 34)
 		_mount_button.position = Vector2(viewport_size.x * 0.5 - 160, viewport_size.y - 196)
+		_hunter_button.size = Vector2(420, 34)
+		_hunter_button.position = Vector2(viewport_size.x * 0.5 - 210, viewport_size.y - 236)
 
 
 func _fit_help_panel() -> void:
@@ -277,6 +289,7 @@ func _update_hud() -> void:
 		_offer_button.visible = _offer_ready()
 		_offer_button.text = "Give food to the chieftain" + (" [A]" if _input_mode == "controller" else (" [O]" if keys else ""))
 		_update_mount_button(keys)
+		_update_hunter_button(keys)
 	if not is_instance_valid(_ambience_button) or audio == null:
 		return
 	_ambience_button.visible = _instructions_visible
@@ -284,11 +297,11 @@ func _update_hud() -> void:
 	_ambience_button.text = "Forest " + audio.level_text(audio.ambience_level) + (" [9]" if keys else "")
 	_animal_sound_button.text = "Animals " + audio.level_text(audio.animal_level) + (" [0]" if keys else "")
 	if keys:
-		_hint_label.text += "\nShift: sprint (hungrier)\nO: give food to a village chieftain\nT: ride or leave a donkey, mule or horse\n9 / 0: forest / animal volume"
+		_hint_label.text += "\nShift: sprint (hungrier)\nO: give food to a village chieftain\nT: ride or leave a donkey, mule or horse\nG: ask a hunter to follow, or send one home\n9 / 0: forest / animal volume"
 	elif _input_mode == "controller":
-		_hint_label.text += "\nLeft stick click (L3): sprint (hungrier)\nY: ride or leave a donkey, mule or horse"
+		_hint_label.text += "\nLeft stick click (L3): sprint (hungrier)\nY: ride or leave a donkey, mule or horse\nA beside a hunter: ask it to follow, or send it home"
 	else:
-		_hint_label.text += "\nTap Ride beside a donkey, mule or horse"
+		_hint_label.text += "\nTap Ride beside a donkey, mule or horse\nTap Ask beside a hunter to have it follow you"
 	_fit_help_panel()
 
 
@@ -308,9 +321,30 @@ func _update_mount_button(keys: bool) -> void:
 		_mount_button.disabled = true
 
 
+## The hunter button (#65): beside a hamlet hunter it asks it to follow, or
+## states the aura it needs; right beside a follower it sends it home.
+func _update_hunter_button(keys: bool) -> void:
+	var key := " [A]" if _input_mode == "controller" else (" [G]" if keys else "")
+	var near: Dictionary = hunters.nearest()
+	var ask: String = hunters.prompt(near)
+	_hunter_button.visible = not ask.is_empty() and not _world_map_visible
+	_hunter_button.disabled = ask in ["aura", "full"]
+	match ask:
+		"dismiss":
+			_hunter_button.text = "Send the %s home%s" % [hunters.title(near), key]
+		"join":
+			_hunter_button.text = "Ask the %s to join (%d aura)%s" % [hunters.title(near), hunters.threshold(near), key]
+		"aura":
+			_hunter_button.text = "The %s follows only at %d aura (you have %d)" % [hunters.title(near), hunters.threshold(near), aura]
+		"full":
+			_hunter_button.text = "Two hunters already follow Oravitsa"
+
+
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_O:
 		_offer_food()
+	elif event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_G or event.physical_keycode == KEY_G):
+		hunters.toggle()
 	elif event is InputEventKey and event.pressed and not event.echo and (event.keycode == KEY_T or event.physical_keycode == KEY_T):
 		mounts.toggle()
 	elif event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_9, KEY_0]:
@@ -978,6 +1012,7 @@ func save_state() -> Dictionary:
 		"explored": _flat_cells(explored.keys()),
 		"discovered": {"hamlets": _flat_cells(discovered_hamlets.keys()), "caves": _flat_cells(discovered_caves.keys())},
 		"mounts": mounts.save(),
+		"hunters": hunters.save(),
 	}
 	if in_cave():
 		var offset: Vector2 = to_ground(player_position) - _cave.entrance
@@ -1097,6 +1132,8 @@ func apply_state(data: Dictionary) -> void:
 	_regrowth_check = 0.0
 	# Saves from before mounts (#67) have none away from home and no ride.
 	mounts.apply(data.get("mounts", []), data.has("underground"))
+	# Saves from before hunters (#65) have no followers.
+	hunters.apply(data.get("hunters", []))
 	view.position = to_world(player_position) + CAMERA_OFFSET
 	_refresh_visible()
 	_sync_presentation(0.0)
@@ -1137,6 +1174,7 @@ func _resume_cave(underground: Dictionary) -> void:
 	_loaded_center = Vector2i(-999, -999)
 	_refresh_cave_creatures()
 	view.position = to_world(player_position) + CAMERA_OFFSET
+	hunters.arrive() # Her followers stand beside her where she was.
 	_sync_presentation(0.0)
 
 
@@ -1180,8 +1218,10 @@ func _process(delta: float) -> void:
 		_villager_check = 0.5
 		_update_villagers()
 		mounts.refresh()
+		hunters.refresh()
 	super._process(delta)
 	mounts.update(delta)
+	hunters.update(delta)
 	_explore()
 	_check_cave_mouth()
 
@@ -1312,6 +1352,7 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	_loaded_center = Vector2i(-999, -999)
 	_refresh_cave_creatures()
 	view.position = to_world(player_position) + CAMERA_OFFSET
+	hunters.arrive() # Her followers come in beside her.
 	if not quiet:
 		_show_notice("Oravitsa enters %s: find its glowing checkpoints" % _cave_name(), 3.5)
 	_update_hud()
@@ -1396,6 +1437,7 @@ func _change_level(depth: int, quiet: bool = false) -> void:
 	_loaded_center = Vector2i(-999, -999)
 	_refresh_cave_creatures()
 	view.position = to_world(player_position) + CAMERA_OFFSET
+	hunters.arrive()
 	_sync_presentation(0.0)
 	if not quiet:
 		if depth == 2:
@@ -1434,6 +1476,7 @@ func _exit_cave(quiet: bool = false) -> void:
 	player_position = _local_point([_cave_return.x, _cave_return.y])
 	_cave_armed = false
 	view.position = to_world(player_position) + CAMERA_OFFSET
+	hunters.arrive()
 	_refresh_visible()
 	_sync_presentation(0.0)
 	if not quiet:
@@ -1490,6 +1533,7 @@ func _process_cave(delta: float) -> void:
 		return
 	_refresh_cave_creatures()
 	_move_cave_creatures(delta)
+	hunters.update(delta) # Followers keep up and stun monsters in reach.
 	_update_sling(delta)
 	_tick_slow(delta)
 	_update_hunger(delta)
@@ -1918,6 +1962,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_offer_food()
 		get_viewport().set_input_as_handled()
 		return
+	# Beside a hunter, A asks it to follow or sends it home (#65).
+	if event is InputEventJoypadButton and event.pressed and event.is_action_pressed("pick_up") and hunters.can_ask():
+		hunters.toggle()
+		get_viewport().set_input_as_handled()
+		return
 	super._unhandled_input(event)
 
 
@@ -2155,6 +2204,8 @@ func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
 	if mounts != null:
 		mounts.sync(delta)
+	if hunters != null:
+		hunters.sync(delta)
 	if _world_map_visible:
 		_landmark_label.visible = false
 	if _player_marker == null:

@@ -62,6 +62,9 @@ Sprint (endless woods): hold Shift, or click the left stick (L3); it makes
 Oravitsa hungrier.
 Ride a hamlet's donkey (15 aura), mule (35) or horse (70): T, controller Y,
 or the Ride button beside it; the same gets her off.
+Hunters at some hamlets follow her with enough aura (spear 20-40, bow 45-70,
+veteran bow 75-100): G, controller A or the Ask button beside one; the same
+right beside a follower sends it home. At most two; they stun cave monsters.
 Save/load the endless woods: K/L, the buttons under Help, or X/B on a
 controller while Help is open. Sound volume: 9 (forest) and 0 (animals).
 

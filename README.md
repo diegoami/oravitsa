@@ -108,6 +108,19 @@ requirement it leaves her and walks home. Mounts never go into caves: they
 wait at the mouth. Press T / Y again to get off; the mount waits where she
 left it, and saves remember it.
 
+About three hamlets in five also have a **hunter** standing near the edge of
+the clearing: a spear hunter (green), a bow hunter (brown) or, rarely, a
+veteran bow hunter. A label above each shows the aura it asks for: 20–40 for a
+spear hunter, 45–70 for a bow hunter, 75–100 for a veteran. Next to one, press
+**G** (controller **A**, or the Ask button) to ask it to follow; the button says
+how much aura it needs when you have too little. Up to two hunters follow
+Oravitsa a few metres behind, keep up when she sprints or rides, and come into
+caves with her, down to the second level and back out. Underground they stun
+rats, spiders, goblins and kobolds that come within reach (the spear close by,
+bows from 6 or 8 m, never through walls); nobody is killed. If her aura falls
+below a hunter's threshold it goes home, and pressing G / A right beside a
+follower sends it home too. Saves remember who follows her.
+
 On higher ground there are **cave mouths**, each with its own name (Hiidenluola,
 Trollgrottan, Vovcha Pechera…). Signposts at road crossings point the way to
 the nearest hamlet and cave, with their names and distances. Walk into one to enter that cave's
@@ -243,7 +256,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype (twenty-six smoke scripts). It rejects logged errors immediately
+foraging prototype (twenty-seven smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.

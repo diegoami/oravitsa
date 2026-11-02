@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Hunter companions (#65): about three hamlets in five have a spear hunter,
+  a bow hunter or, rarely, a veteran bow hunter, each asking for its own aura
+  (20–40, 45–70 or 75–100, shown above it and on the Ask button). Press G,
+  controller A or the button to have up to two follow Oravitsa. They keep up,
+  follow her into caves and between levels, and stun nearby monsters there
+  (never through walls, never killing). Too little aura sends a hunter home.
+  Saves keep her followers.
 - Donkeys, mules and horses (#67): each hamlet keeps one or two by the store
   tent. With enough aura (donkey 15, mule 35, horse 70) press T, controller Y
   or the Ride button to ride one: faster (×1.3, ×1.5, ×1.8) but no sprint. A

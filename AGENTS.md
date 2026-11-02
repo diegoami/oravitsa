@@ -41,11 +41,11 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twenty-six smoke scripts, including targeted
+`verify.py` imports and runs all twenty-seven smoke scripts, including targeted
 Shoo, endless-world travel/rebasing/ecology/food regrowth, wildlife behaviour
 loops, fox foraging, hare collection, aggression, fights, save/load, audio wiring, hamlets and
 cave mouths, aura/feeding/villagers/chieftain gifts, both cave levels and their
-monsters, pausing, mounts, queued streaming,
+monsters, pausing, mounts, hunter companions, queued streaming,
 offscreen wildlife spawning and the retained foraging prototype. A gate must reject Godot
 error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
@@ -127,6 +127,20 @@ Record unavailable checks as untested, never as passed.
   A ridden mount and any mount left away from its tether are saved at
   absolute positions, never duplicated at their hamlet. Mounts are not
   wildlife: no Sling/Shoo/Slow target, no bumps, never harmed.
+- Hunters (#65): about three hamlets in five have one seeded hunter near the
+  clearing's edge: spear (most common), bow or veteran bow (rare), with an aura
+  threshold seeded in its band (20–40, 45–70, 75–100). The join prompt and a
+  floating label state it; below it she cannot recruit. At most two follow
+  her, a few metres behind, never blocking or bumping her, catching up by
+  appearing just behind her when far or off-screen. Aura below a follower's
+  threshold sends it home at once with a notice; asking a follower again does
+  too. They go into caves, down and up levels and out with her. Underground
+  only, each stuns the awake, unscared monster nearest to her within reach
+  along open floor (spear 1.6 m/2.5 s/2.5 s cooldown, bow 6 m/2.0 s/3.0 s,
+  veteran 8 m/3.0 s/2.0 s), never through walls, for no aura; nothing is
+  killed and they never fight wildlife. Followers are saved (hamlet, kind,
+  threshold) and never duplicated at their hamlet; the rest regenerate.
+  Hunters are no Sling/Shoo/Slow target and cannot be harmed.
 - Hamlets and caves have Finnish, Swedish or Ukrainian-style names
   (`place_names.gd`) chosen from their absolute block or region, so a name
   never changes with streaming, rebasing or loading. Signposts at road
@@ -165,7 +179,9 @@ Record unavailable checks as untested, never as passed.
   LT casts Shoo and RT casts Sling directly, once per pull (fire at 0.6,
   re-arm below 0.3). LB casts Slow and RB casts Cure directly; there is no
   skill selection or cycling. In the endless woods Y (keyboard T, or the
-  Ride button) gets on or off a mount; elsewhere it does nothing. A collects food.
+  Ride button) gets on or off a mount; elsewhere it does nothing. A collects food;
+  beside a chieftain it gives food, and beside a hunter (keyboard G, or the
+  Ask button) it asks the hunter to follow or sends a follower home.
   Map/Help start hidden (M/H; Select/Start). In the endless woods M/Select
   cycles the local map, the explored world map and none; exploration and
   discovered hamlets and caves are absolute and saved. Pause (the HUD button, P/Esc;
