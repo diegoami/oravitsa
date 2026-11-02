@@ -1303,6 +1303,15 @@ func map_center() -> Vector2:
 	return _cave_return if in_cave() else absolute_ground(player_position)
 
 
+## While the world map is open, right-stick flicks zoom it (#105): up or left
+## zooms in, down or right zooms out. Otherwise they cycle sling targets.
+func _cycle_sling_target(step: int) -> void:
+	if _world_map_visible:
+		_world_map.zoom_by(step)
+		return
+	super._cycle_sling_target(step)
+
+
 ## M / Select cycles the local map, the explored world map (#66) and neither.
 func _toggle_map() -> void:
 	if _map_visible:
@@ -2063,6 +2072,13 @@ func _offer_food() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# + / − zoom the open world map (#105).
+	if _world_map_visible and event is InputEventKey and event.pressed and not event.echo:
+		var step: int = {KEY_EQUAL: -1, KEY_PLUS: -1, KEY_KP_ADD: -1, KEY_MINUS: 1, KEY_KP_SUBTRACT: 1}.get(event.keycode, 0)
+		if step != 0:
+			_world_map.zoom_by(step)
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_Y:
 		mounts.toggle()
 		get_viewport().set_input_as_handled()

@@ -145,8 +145,10 @@ rock is built in the chunk that holds its centre.
 - **World map (#66).** Walking marks the absolute 32 m cells within two cells
   of Oravitsa as explored, and coming within 60 m of a hamlet's centre or a
   cave mouth discovers it. M / Select cycles the local map, the world map and
-  neither. The world map (`world_map.gd`) covers the screen at 4 m per pixel,
-  centred on her (underground, on her cave's mouth). It draws explored cells
+  neither. The world map (`world_map.gd`) covers the screen, opening at 4 m per
+  pixel; + / −, the mouse wheel, its + / − buttons or right-stick flicks zoom
+  it from 1 to 32 m per pixel (#105), and crowded place names are left out.
+  It is centred on her (underground, on her cave's mouth). It draws explored cells
   in their ground colour, with roads and water, leaves the rest dark, and
   marks discovered hamlets and caves by name. The skill bar, bag and labels
   hide while it is open. Explored cells and discoveries are saved as flat
