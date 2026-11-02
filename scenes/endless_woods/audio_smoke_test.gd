@@ -114,10 +114,54 @@ func _run() -> void:
 	wolf["provoke"] = world.AGGRO_DWELL
 	world._update_aggression(0.01)
 	assert(wolf["aggro"] == world.AGGRO_WARN and 0 in audio._voice_owner, "The warning is audible")
+	# Caves (#61): entering pauses the surface layers and starts the looping
+	# cave drone and drips, turns on the echo and lets rats and spiders call;
+	# leaving restores the surface exactly.
+	# Protects: surface birdsong underground, cave sounds left on outside, and
+	# voices of one level playing for creatures of the other.
+	var land: Node3D = world.landscape
+	var cave := {}
+	for rz in range(-3, 4):
+		for rx in range(-3, 4):
+			if cave.is_empty():
+				cave = land.cave_at(Vector2i(rx, rz))
+	world._enter_cave(cave, true)
+	assert(audio.underground and audio.active_calls() == 0, "Surface calls end at the mouth")
+	assert(audio._cave_ambience.size() == 2)
+	for player in audio._cave_ambience:
+		assert(player.bus == "Ambience" and player.stream.loop_mode == AudioStreamWAV.LOOP_FORWARD and player.playing != audio.silent)
+	for player in players:
+		# Headless (silent) players never start, and Godot only pauses a
+		# playing stream; with real audio this is the pause itself.
+		assert(player.stream_paused or not player.playing, "The surface ambience waits underground")
+	var animals_bus := AudioServer.get_bus_index("Animals")
+	assert(AudioServer.is_bus_effect_enabled(animals_bus, audio._reverb) and AudioServer.get_bus_effect(animals_bus, audio._reverb) is AudioEffectReverb, "Calls echo underground")
+	var monster := -1
+	for id in world._active_animals:
+		if monster < 0:
+			monster = id
+	if monster < 0:
+		world.player_position = world.from_ground(Vector2(world._cave.spawns[0].x, world._cave.spawns[0].y))
+		world._loaded_center = Vector2i(-999, -999)
+		world._refresh_cave_creatures()
+		for id in world._active_animals:
+			if monster < 0:
+				monster = id
+	world._animals[monster]["position"] = world.player_position + Vector2(60, 0)
+	world._animals[monster]["stun"] = 0.0
+	audio._gap = 0.0
+	assert(audio.call_now(monster), "A %s calls in the cave" % world.ANIMAL_NAMES[world._animals[monster]["kind"]])
+	world._exit_cave(true)
+	assert(not audio.underground and audio.active_calls() == 0)
+	for player in audio._cave_ambience:
+		assert(not player.playing)
+	for player in players:
+		assert(not player.stream_paused and player.playing != audio.silent, "The surface ambience resumes")
+	assert(not AudioServer.is_bus_effect_enabled(animals_bus, audio._reverb))
 	DirAccess.remove_absolute(SETTINGS)
 	if had_settings:
 		var restore := FileAccess.open(SETTINGS, FileAccess.WRITE)
 		restore.store_string(previous)
 		restore.close()
-	print("Audio smoke test passed: two looping ambience layers, listener on Oravitsa, spaced calls, two-voice limit, earshot limit, call intervals, voices follow rebases, ambience survives rebases, despawn stops calls, 100/60/30/Off levels and mute persist, warning call")
+	print("Audio smoke test passed: two looping ambience layers, listener on Oravitsa, spaced calls, two-voice limit, earshot limit, call intervals, voices follow rebases, ambience survives rebases, despawn stops calls, 100/60/30/Off levels and mute persist, warning call, cave drone/drips with echo and monster calls that swap back on leaving")
 	quit()

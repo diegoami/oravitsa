@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Caves sound like caves (#61): underground the wind and birdsong pause and a
+  low drone and dripping water play instead, rats squeak and spiders hiss, and
+  calls echo. Leaving the cave brings the woods back where they were. All
+  sounds are synthesized by `tools/synth_audio.py` (CC0).
 - A zoomed-out world map (#66): press Map (M / Select) a second time to see
   everywhere Oravitsa has been, with roads, water and the hamlets and caves she
   has found, by name. Exploration is saved. Nearby places no longer share

@@ -1212,6 +1212,9 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 	if not _cave_progress.has(_cave_key):
 		_cave_progress[_cave_key] = {"checkpoints": [], "killed": []}
 	var progress: Dictionary = _cave_progress[_cave_key]
+	if audio != null:
+		audio.release_voices()
+		audio.set_underground(true)
 	_cave_return = cave["mouth"] + cave["facing"] * 2.2
 	var mouth: Vector2 = cave["mouth"] - landscape.origin
 	for sprite in _active_animals.values():
@@ -1264,6 +1267,9 @@ func _enter_cave(cave: Dictionary, quiet: bool = false) -> void:
 
 func _exit_cave(quiet: bool = false) -> void:
 	player_fright = 0.0
+	if audio != null:
+		audio.release_voices()
+		audio.set_underground(false)
 	for sprite in _active_animals.values():
 		sprite.queue_free()
 	_active_animals.clear()
@@ -1927,6 +1933,8 @@ func _sync_presentation(delta: float) -> void:
 	_player_marker.show_states([["scared", player_fright / FRIGHT_TIME]] if player_fright > 0.0 else [])
 	_player_marker.visible = player_fright > 0.0
 	_player_marker.set_on_top(true)
+	if audio != null:
+		audio.update(delta) # Monsters squeak and hiss underground too (#61).
 	if in_cave():
 		if is_instance_valid(_lantern):
 			_lantern.position = heroine.position + Vector3.UP * 1.7
@@ -1935,8 +1943,6 @@ func _sync_presentation(delta: float) -> void:
 		var near_exit: bool = to_ground(player_position).distance_to(_cave.entrance) < 3.0
 		_landmark_label.text = "Way out to the woods" if near_exit else _cave_name() + " · first level"
 		return
-	if audio != null:
-		audio.update(delta)
 	var near_chief := false
 	for id in _animal_models:
 		var data: Dictionary = _animals[id]

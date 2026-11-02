@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthesize the endless woods' ambience and animal calls (CC0, no services).
+"""Synthesize the endless woods' ambience, cave ambience and creature calls (CC0, no services).
 
 Every sound is generated from fixed seeds with the standard library, so the
 WAV files are reproducible and carry no third-party licence. Run it again to
@@ -195,6 +195,71 @@ def hare_thump():
     return normalize(out, 0.6)
 
 
+def cave_drone():
+    """Low cave air: a resonant rumble with faint hollow partials, 21 s loop."""
+    rng = random.Random(21311)
+    seconds = 21
+    loop = seconds * RATE
+    fade = 2 * RATE
+    count = loop + fade
+    rumble = lowpass(lowpass(noise(rng, count), 140), 180)
+    hollow = bandpass(noise(rng, count), 310, 6.0)
+    out = []
+    for i in range(count):
+        t = (i % loop) / loop
+        # Integer cycles per loop keep the slow breathing seamless.
+        breath = 0.7 + 0.2 * math.sin(2 * math.pi * 3 * t) + 0.1 * math.sin(2 * math.pi * 7 * t + 0.8)
+        hum = 0.05 * math.sin(2 * math.pi * 55 * i / RATE) + 0.03 * math.sin(2 * math.pi * 82.5 * i / RATE)
+        out.append((rumble[i] * 9.0 + hollow[i] * 0.6) * breath + hum * breath)
+    return normalize(loop_crossfade(out, loop, fade), 0.45)
+
+
+def cave_drips():
+    """Sparse water drips with a short echo over silence, 17 s loop."""
+    rng = random.Random(17411)
+    count = 17 * RATE
+    out = [0.0] * count
+    start = 0.5
+    while start < 15.8:
+        pitch = rng.uniform(900, 1700)
+        level = rng.uniform(0.3, 0.7)
+        for echo, (delay, gain) in enumerate([(0.0, 1.0), (0.19, 0.35), (0.41, 0.15)]):
+            first = int((start + delay) * RATE)
+            phase = 0.0
+            for k in range(int(0.11 * RATE)):
+                i = first + k
+                if i >= count:
+                    break
+                t = k / RATE
+                f = pitch * (1 + 0.9 * math.exp(-t * 60))  # The plink falls in pitch.
+                phase += 2 * math.pi * f / RATE
+                out[i] += level * gain * math.sin(phase) * math.exp(-t * 38) * min(1.0, t / 0.002)
+        start += rng.uniform(0.7, 2.6)
+    return normalize(out, 0.4)
+
+
+def rat_squeak():
+    out = []
+    for k, length in enumerate([0.07, 0.05, 0.09]):
+        out += tone(length, lambda t, k=k, length=length: 2600 + 900 * math.sin(math.pi * t / length) - 150 * k, [1.0, 0.25], vibrato=0.02, attack=0.004, release=0.03)
+        out += [0.0] * int(0.06 * RATE)
+    return normalize(out, 0.55)
+
+
+def spider_hiss():
+    rng = random.Random(507)
+    length = 0.8
+    hiss = bandpass(noise(rng, int(length * RATE)), 5200, 1.4)
+    clicks = [0.0] * len(hiss)
+    for c in range(5):
+        at = int((0.05 + c * 0.13) * RATE)
+        for k in range(int(0.004 * RATE)):
+            if at + k < len(clicks):
+                clicks[at + k] = rng.uniform(-1, 1) * (1 - k / (0.004 * RATE))
+    out = [(h * 2.2 + c * 0.5) * envelope(i / RATE, 0.05, length, 0.3) for i, (h, c) in enumerate(zip(hiss, clicks))]
+    return normalize(out, 0.6)
+
+
 SOUNDS = {
     "ambience_wind.wav": wind_loop,
     "ambience_birds.wav": bird_loop,
@@ -204,6 +269,10 @@ SOUNDS = {
     "deer_bark.wav": deer_bark,
     "fox_yip.wav": fox_yip,
     "hare_thump.wav": hare_thump,
+    "cave_drone.wav": cave_drone,
+    "cave_drips.wav": cave_drips,
+    "rat_squeak.wav": rat_squeak,
+    "spider_hiss.wav": spider_hiss,
 }
 
 

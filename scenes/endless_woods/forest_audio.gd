@@ -10,12 +10,18 @@ const MAX_CALLS := 2
 const MIN_GAP := 1.2
 const LEVELS := [1.0, 0.6, 0.3, 0.0]
 const AMBIENCE := {"ambience_wind": -15.0, "ambience_birds": -19.0}
+# Underground (#61) the surface layers pause and these play instead, and the
+# Animals bus gets a reverb so calls echo off the walls.
+const CAVE_AMBIENCE := {"cave_drone": -13.0, "cave_drips": -17.0}
 var forest: Node2D
 var listener: AudioListener3D
 var ambience_level := 0
 var animal_level := 0
 var calls_played := 0
 var _ambience: Array[AudioStreamPlayer] = []
+var _cave_ambience: Array[AudioStreamPlayer] = []
+var underground := false
+var _reverb := -1 # Index of the cave reverb on the Animals bus.
 var _voices: Array[AudioStreamPlayer3D] = []
 var _voice_owner: Array[int] = []
 var _voice_left: Array[float] = []
@@ -32,10 +38,10 @@ var _gap := 0.0
 func setup(owner_forest: Node2D) -> void:
 	forest = owner_forest
 	name = "ForestAudio"
-	_calls = {forest.WOLF: "wolf_howl", forest.LYNX: "lynx_growl", forest.BOAR: "boar_grunt", forest.DEER: "deer_bark", forest.FOX: "fox_yip", forest.HARE: "hare_thump"}
-	_volume = {forest.WOLF: -5.0, forest.LYNX: -6.0, forest.BOAR: -6.0, forest.DEER: -8.0, forest.FOX: -8.0, forest.HARE: -12.0}
+	_calls = {forest.WOLF: "wolf_howl", forest.LYNX: "lynx_growl", forest.BOAR: "boar_grunt", forest.DEER: "deer_bark", forest.FOX: "fox_yip", forest.HARE: "hare_thump", forest.RAT: "rat_squeak", forest.SPIDER: "spider_hiss"}
+	_volume = {forest.WOLF: -5.0, forest.LYNX: -6.0, forest.BOAR: -6.0, forest.DEER: -8.0, forest.FOX: -8.0, forest.HARE: -12.0, forest.RAT: -10.0, forest.SPIDER: -9.0}
 	# Seconds between one animal's calls; rare predators call least often.
-	_interval = {forest.WOLF: Vector2(28, 55), forest.LYNX: Vector2(30, 60), forest.BOAR: Vector2(12, 26), forest.DEER: Vector2(18, 40), forest.FOX: Vector2(15, 35), forest.HARE: Vector2(20, 45)}
+	_interval = {forest.WOLF: Vector2(28, 55), forest.LYNX: Vector2(30, 60), forest.BOAR: Vector2(12, 26), forest.DEER: Vector2(18, 40), forest.FOX: Vector2(15, 35), forest.HARE: Vector2(20, 45), forest.RAT: Vector2(9, 22), forest.SPIDER: Vector2(12, 28)}
 	for bus in ["Ambience", "Animals"]:
 		if AudioServer.get_bus_index(bus) < 0:
 			AudioServer.add_bus()
@@ -53,6 +59,26 @@ func setup(owner_forest: Node2D) -> void:
 		if not silent:
 			player.play()
 		_ambience.append(player)
+	for sound in CAVE_AMBIENCE:
+		var player := AudioStreamPlayer.new()
+		player.stream = load(AUDIO + sound + ".wav")
+		player.bus = "Ambience"
+		player.volume_db = CAVE_AMBIENCE[sound]
+		add_child(player)
+		_cave_ambience.append(player)
+	var animals := AudioServer.get_bus_index("Animals")
+	for i in AudioServer.get_bus_effect_count(animals):
+		if AudioServer.get_bus_effect(animals, i) is AudioEffectReverb:
+			_reverb = i
+	if _reverb < 0:
+		var reverb := AudioEffectReverb.new()
+		reverb.room_size = 0.75
+		reverb.damping = 0.35
+		reverb.wet = 0.35
+		reverb.dry = 0.9
+		AudioServer.add_bus_effect(animals, reverb)
+		_reverb = AudioServer.get_bus_effect_count(animals) - 1
+	AudioServer.set_bus_effect_enabled(animals, _reverb, false)
 	ambience_started = true
 	listener = AudioListener3D.new()
 	listener.name = "OravitsaEars"
@@ -73,9 +99,26 @@ func setup(owner_forest: Node2D) -> void:
 	_apply_levels()
 
 
+## Swaps the surface ambience for the cave's and turns the echo on, or back.
+## The surface layers pause rather than stop, so they resume where they were.
+func set_underground(value: bool) -> void:
+	underground = value
+	for player in _ambience:
+		player.stream_paused = value
+	for player in _cave_ambience:
+		if value and not silent:
+			player.play()
+		elif not value:
+			player.stop()
+	if _reverb >= 0:
+		AudioServer.set_bus_effect_enabled(AudioServer.get_bus_index("Animals"), _reverb, value)
+
+
 func _exit_tree() -> void:
 	# Release playbacks before shutdown, or the engine reports streams in use.
-	for player in _ambience:
+	if _reverb >= 0:
+		AudioServer.set_bus_effect_enabled(AudioServer.get_bus_index("Animals"), _reverb, false)
+	for player in _ambience + _cave_ambience:
 		player.stop()
 		player.stream = null
 	for voice in _voices:
@@ -131,7 +174,7 @@ func call_now(id: int) -> bool:
 		return false
 	var kind: int = forest._animals[id]["kind"]
 	if not _calls.has(kind):
-		return false # Villagers and cave monsters have no recorded calls.
+		return false # Villagers have no calls.
 	var voice := _voices[slot]
 	voice.stream = load(AUDIO + _calls[kind] + ".wav")
 	voice.volume_db = _volume[kind]
