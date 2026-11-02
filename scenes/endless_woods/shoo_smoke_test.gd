@@ -97,5 +97,47 @@ func _run() -> void:
 	assert(world._animal_stars[1].icons == ["scared"])
 	assert(world._animal_players[1].current_animation == "Gallop")
 	assert(world._animals[3]["alive"])
-	print("Targeted Shoo smoke test passed: selection/range/death guards, one target, immediate strong escape, interrupt/reset, cooldown, scared/stunned markers, fear resumption, expiry and predator fear")
+	# Slow (#59) halves the selected creature's movement for SLOW_TIME, with a
+	# snail icon, and is not spent on an out-of-range target.
+	# Protects: Slow doing nothing, never ending, or wasting its cooldown.
+	var wolf: Dictionary = world._animals[1]
+	world.selected_target = 1
+	var start: Vector2 = wolf["position"]
+	wolf["position"] = world.player_position + Vector2(world.SLING_RANGE + 1, 0)
+	world._use_skill(world.SKILL_SLOW)
+	assert(world.slow_cooldown == 0.0 and wolf["slow"] == 0.0, "Out of range, Slow is not spent")
+	var moved := []
+	for slowed in [false, true]:
+		wolf["position"] = start
+		wolf["shoo"] = 3.0
+		wolf["stun"] = 0.0
+		wolf["velocity"] = Vector2(world.SHOO_FLEE_SPEED, 0)
+		if slowed:
+			world.slow_cooldown = 0.0
+			world._use_skill(world.SKILL_SLOW)
+			assert(world.slow_cooldown == world.SLOW_COOLDOWN and wolf["slow"] == world.SLOW_TIME)
+		world._move_animals(0.1)
+		moved.append(wolf["position"].distance_to(start))
+	assert(moved[0] > 1.0 and moved[1] < moved[0] * 0.6 and moved[1] > 0.0, "Slowed, it covers about half the ground: %s" % [moved])
+	assert("slowed" in world._status_states(1).map(func(state): return state[0]))
+	world._tick_slow(world.SLOW_TIME)
+	assert(wolf["slow"] == 0.0 and world._slow_scale(1) == 1.0, "Slow wears off")
+	# Cure (#59) works on Oravitsa alone: it ends her stun or panic, even while
+	# stunned, and is not spent when there is nothing to cure.
+	world.player_stun = 0.0
+	world.player_fright = 0.0
+	world._use_skill(world.SKILL_CURE)
+	assert(world.cure_cooldown == 0.0 and world._cure_button.disabled)
+	world.player_fright = 1.5
+	world._update_hud()
+	assert(not world._cure_button.disabled)
+	world._use_skill(world.SKILL_CURE)
+	assert(world.player_fright == 0.0 and world.cure_cooldown == world.CURE_COOLDOWN and world._cure_glow > 0.0, "Cure ends panic")
+	world.player_stun = 1.0
+	world._use_skill(world.SKILL_CURE)
+	assert(world.player_stun == 1.0, "Cure waits for its cooldown")
+	world.cure_cooldown = 0.0
+	world._use_skill(world.SKILL_CURE)
+	assert(world.player_stun == 0.0, "Cure ends a stun")
+	print("Targeted Shoo smoke test passed: Slow halves movement then wears off, Cure ends her stun or panic,selection/range/death guards, one target, immediate strong escape, interrupt/reset, cooldown, scared/stunned markers, fear resumption, expiry and predator fear")
 	quit()

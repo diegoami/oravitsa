@@ -82,7 +82,8 @@ func _run() -> void:
 	world.shoo_cooldown = 4.25
 	world.sling_cooldown = 1.5
 	world.player_stun = 0.75
-	world.active_skill = 1
+	world.slow_cooldown = 3.5
+	world.cure_cooldown = 9.0
 	# Animal statuses, a gone slot and an encounter in progress.
 	assert(world._animals.size() >= 3)
 	world._animals[0]["stun"] = 3.25
@@ -111,7 +112,7 @@ func _run() -> void:
 	assert(world.to_ground(world.player_position).length() < 645, "Loading must rebase near the restored location")
 	assert(world.raw_meat == 3 and world.basket + world.berries_basket == bag)
 	assert(is_equal_approx(world.shoo_cooldown, 4.25) and is_equal_approx(world.sling_cooldown, 1.5))
-	assert(is_equal_approx(world.player_stun, 0.75) and world.active_skill == 1)
+	assert(is_equal_approx(world.player_stun, 0.75) and is_equal_approx(world.slow_cooldown, 3.5) and is_equal_approx(world.cure_cooldown, 9.0))
 	assert(is_equal_approx(world._food_clock, clock), "Timers do not advance while the game is closed")
 	assert(world._harvested.has(key) and is_equal_approx(world._harvested[key]["ready_at"], due), "Regrowth deadlines survive loading")
 	var restored_food: Vector2i = world._world_cell(world.from_ground(food_absolute - world.landscape.origin))

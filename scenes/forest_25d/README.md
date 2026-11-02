@@ -41,9 +41,9 @@ with quieter grass variation and broad, slow water ripples to reduce shimmer.
 ## Controls
 
 - Left stick / D-pad: walk; right-stick flicks: cycle animal targets.
-- LT: Shoo; RT: Sling (once per pull). LB/RB + Y: choose and cast a skill.
+- LT: Shoo; RT: Sling (once per pull). LB: Slow; RB: Cure.
 - A: pick up nearby food.
-- WASD/arrows: walk; left click: target; right click/F: sling; Space: scare target.
+- WASD/arrows: walk; left click: target; right click/F: sling; Space: scare target; E: slow target; R: cure herself.
 - Shoo shares Sling's range and applies five seconds of visible scared status (an icon with a time-left bar)
   and fast escape away from Oravitsa, with a seven-second cooldown.
 - Keyboard/touch retain walk-over collection; touch skills are bottom left and

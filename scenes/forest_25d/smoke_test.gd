@@ -112,16 +112,17 @@ func _run() -> void:
 	shoulder.pressed = true
 	Input.parse_input_event(shoulder)
 	await process_frame
-	assert(clearing.active_skill == 0)
 	shoulder.pressed = false
 	Input.parse_input_event(shoulder)
-	var cast := InputEventJoypadButton.new()
-	cast.button_index = JOY_BUTTON_Y
-	cast.pressed = true
-	Input.parse_input_event(cast)
+	assert(clearing.slow_cooldown > 0 or not clearing._valid_sling_target(clearing.selected_target), "LB casts Slow")
+	clearing.player_stun = 1.0
+	var cure := InputEventJoypadButton.new()
+	cure.button_index = JOY_BUTTON_RIGHT_SHOULDER
+	cure.pressed = true
+	Input.parse_input_event(cure)
 	await process_frame
-	assert(clearing.shoo_cooldown > 0)
-	cast.pressed = false
-	Input.parse_input_event(cast)
+	assert(clearing.player_stun == 0.0 and clearing.cure_cooldown > 0, "RB casts Cure")
+	cure.pressed = false
+	Input.parse_input_event(cure)
 	print("2.5D smoke test passed: shared controller/HUD, sprite depth and gait, terrain height, water/bridge/walls/doorway, roof cutaway, rigged deer, screen targeting, non-lethal sling and 3D pickup removal")
 	quit()

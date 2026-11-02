@@ -841,7 +841,7 @@ func save_state() -> Dictionary:
 		"version": SAVE_GAME.VERSION,
 		"game": ProjectSettings.get_setting("application/config/version", ""),
 		"world": WORLD_ID,
-		"player": {"ground": ground, "stun": player_stun, "shoo_cooldown": shoo_cooldown, "sling_cooldown": sling_cooldown, "active_skill": active_skill},
+		"player": {"ground": ground, "stun": player_stun, "shoo_cooldown": shoo_cooldown, "sling_cooldown": sling_cooldown, "slow_cooldown": slow_cooldown, "cure_cooldown": cure_cooldown},
 		"inventory": {"mushrooms": basket, "berries": berries_basket, "raw_meat": raw_meat},
 		"clock": {"food": _food_clock, "population_tick": _population_tick, "fight_tick": _fight_tick},
 		"harvested": harvested,
@@ -931,7 +931,9 @@ func apply_state(data: Dictionary) -> void:
 	player_fright = 0.0
 	shoo_cooldown = float(data["player"]["shoo_cooldown"])
 	sling_cooldown = float(data["player"]["sling_cooldown"])
-	active_skill = int(data["player"]["active_skill"])
+	# Saves from before Slow and Cure (#59) have no cooldowns for them.
+	slow_cooldown = float(data["player"].get("slow_cooldown", 0.0))
+	cure_cooldown = float(data["player"].get("cure_cooldown", 0.0))
 	basket = int(data["inventory"]["mushrooms"])
 	berries_basket = int(data["inventory"]["berries"])
 	raw_meat = int(data["inventory"]["raw_meat"])
@@ -1193,6 +1195,7 @@ func _process_cave(delta: float) -> void:
 	_refresh_cave_creatures()
 	_move_cave_creatures(delta)
 	_update_sling(delta)
+	_tick_slow(delta)
 	_update_hunger(delta)
 	_check_cave_points()
 	if not in_cave():
@@ -1329,7 +1332,7 @@ func _move_cave_creatures(delta: float) -> void:
 		var heading := position.direction_to(target) if position.distance_to(target) > 4.0 else Vector2.ZERO
 		var velocity: Vector2 = data["velocity"]
 		velocity = velocity.move_toward(heading * speed, 600.0 * delta)
-		var step := velocity * delta
+		var step := velocity * delta * _slow_scale(id)
 		var candidate := position
 		if _can_animal_move(id, candidate + Vector2(step.x, 0)):
 			candidate.x += step.x
@@ -1386,6 +1389,16 @@ func _update_player(delta: float) -> void:
 	sprinting = _sprint_wanted and player_position != before
 	if sprinting != was:
 		_update_hud()
+
+
+func _has_affliction() -> bool:
+	return player_stun > 0.0 or player_fright > 0.0
+
+
+## Cure ends panic as well as stun.
+func _end_afflictions() -> void:
+	player_stun = 0.0
+	player_fright = 0.0
 
 
 func _stun_player(seconds: float, source: Vector2) -> bool:
@@ -1592,7 +1605,7 @@ func _move_villager(id: int, delta: float) -> void:
 	var heading := position.direction_to(target) if position.distance_to(target) > 6.0 else Vector2.ZERO
 	var velocity: Vector2 = data["velocity"]
 	velocity = velocity.move_toward(heading * speed, 220.0 * delta)
-	var step := velocity * delta
+	var step := velocity * delta * _slow_scale(id)
 	var candidate := position
 	if _can_animal_move(id, candidate + Vector2(step.x, 0)):
 		candidate.x += step.x

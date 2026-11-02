@@ -8,3 +8,4 @@ Hand-written SVG for Oravitsa (2026-10-28), dedicated to the public domain
 - `angry.svg`: anger mark (warning before a charge).
 - `charging.svg`: impact burst.
 - `fighting.svg`: scuffle cloud.
+- `slowed.svg`: a snail, while the Slow skill holds a creature back (#59).
