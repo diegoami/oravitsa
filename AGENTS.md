@@ -115,6 +115,9 @@ Record unavailable checks as untested, never as passed.
   hamlet's chieftain keeps to his post at his store tent and takes food gifts, one
   random bag item each (not while stunned or scared). Villagers and
   chieftains are seeded per hamlet and never saved.
+- Hamlets and caves have Finnish, Swedish or Ukrainian-style names
+  (`place_names.gd`) chosen from their absolute block or region, so a name
+  never changes with streaming, rebasing or loading.
 - Each cave mouth leads to its seeded first level. The surface freezes while
   Oravitsa is underground. Saving works there: the save keeps the surface,
   her spot in the cave and the living monsters' positions and stuns. Rats

@@ -126,6 +126,13 @@ rock is built in the chunk that holds its centre.
   trees, rocks or food ("bare gardens"), and no animal spawns or has its home
   there; wandering animals may pass through. The label reads "Hamlet",
   and the map shows a small house icon. Villagers live there (see below).
+- **Names (#56).** `place_names.gd` names each hamlet from a pool of 24
+  Finnish (-la/-lä), Swedish (-by, -vik, -dal…) and Ukrainian (-ivka…) village
+  names, and each cave from 24 Finnish (-luola, -kolo), Swedish (-grottan) and
+  Ukrainian (*pechera*) cave names, by hashing its absolute hamlet block or
+  landmark region. Nothing is stored: the same place always gets the same name.
+  The location label shows "Koivula · hamlet", "Hiidenluola · cave mouth" and,
+  underground, "Hiidenluola · first level"; entering a cave names it.
 - **Cave mouths.** Each leads to a seeded first level (see below). A landmark
   region without a homestead gets a cave with an 80% chance, on the highest of
   14 seeded candidate spots at least 0.55 m above the base terrain. Candidates

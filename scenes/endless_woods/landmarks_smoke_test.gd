@@ -171,13 +171,26 @@ func _run() -> void:
 	var after: Dictionary = land.hamlet_near(hamlet["center"])
 	assert(after["houses"] == before["houses"] and after["store"] == before["store"], "Hamlets regenerate identically after rebasing")
 	assert(land._hamlet_cache.size() < 40 and land._cave_cache.size() < 60, "Feature caches stay bounded")
-	# Labels at the hamlet and the cave mouth.
+	# Labels at the hamlet and the cave mouth carry their names (#56), which
+	# depend on the absolute place alone: the same after rebasing, from the
+	# themed pools, and varied between places.
+	# Protects: names that change with streaming, rebasing or loading.
+	var names: Object = world.PLACE_NAMES
+	var hamlet_name: String = names.hamlet(after["block"])
+	assert(hamlet_name == names.hamlet(before["block"]) and hamlet_name in names.HAMLETS)
 	world._sync_presentation(0.0)
-	assert(world._landmark_label.text == "Hamlet")
+	assert(world._landmark_label.text == hamlet_name + " · hamlet")
+	var seen := {}
+	for h in hamlets:
+		seen[names.hamlet(h["block"])] = true
+	for c in caves:
+		assert(names.cave(c["region"]) in names.CAVES)
+		seen[names.cave(c["region"])] = true
+	assert(seen.size() > (hamlets.size() + caves.size()) / 3, "Names vary between places")
 	await _assert_rendered(world, after, {})
 	var cave: Dictionary = caves[0]
 	await _travel(world, cave["mouth"] + cave["facing"] * 2)
-	assert(world._landmark_label.text == "Cave mouth")
+	assert(world._landmark_label.text == names.cave(cave["region"]) + " · cave mouth")
 	assert(world.absolute_ground(world.player_position).distance_to(cave["mouth"]) < 3)
 	await _assert_rendered(world, {}, cave)
 	# A save from before hamlets existed can put Oravitsa or an animal where a
@@ -235,5 +248,5 @@ func _run() -> void:
 			moves += 1
 		world.player_position = start
 	assert(moves >= 3, "Oravitsa can walk away beside the boar")
-	print("Landmarks smoke test passed: ", hamlets.size(), " hamlets (", houses, " closed houses) and ", caves.size(), " cave mouths; solid houses/store tents/rock matching their drawn meshes (", open_samples, " open samples beside rock), open entrances and crossings, passable door and cave trails, bare clearings, no spawns inside, deterministic after rebasing, bounded caches, labels and old saves moved out of new houses")
+	print("Landmarks smoke test passed: ", hamlets.size(), " hamlets (", houses, " closed houses) and ", caves.size(), " cave mouths; solid houses/store tents/rock matching their drawn meshes (", open_samples, " open samples beside rock), open entrances and crossings, passable door and cave trails, bare clearings, no spawns inside, deterministic after rebasing, bounded caches, labels with stable themed names, and old saves moved out of new houses")
 	quit()
