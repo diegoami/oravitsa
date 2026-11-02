@@ -131,8 +131,20 @@ rock is built in the chunk that holds its centre.
   names, and each cave from 24 Finnish (-luola, -kolo), Swedish (-grottan) and
   Ukrainian (*pechera*) cave names, by hashing its absolute hamlet block or
   landmark region. Nothing is stored: the same place always gets the same name.
+  Names step through the pool on an x + 5y lattice, so neighbours differ: two
+  caves sharing a name are at least about 690 m apart, two hamlets 1.9 km.
   The location label shows "Koivula · hamlet", "Hiidenluola · cave mouth" and,
   underground, "Hiidenluola · first level"; entering a cave names it.
+- **World map (#66).** Walking marks the absolute 32 m cells within two cells
+  of Oravitsa as explored, and coming within 60 m of a hamlet's centre or a
+  cave mouth discovers it. M / Select cycles the local map, the world map and
+  neither. The world map (`world_map.gd`) covers the screen at 4 m per pixel,
+  centred on her (underground, on her cave's mouth). It draws explored cells
+  in their ground colour, with roads and water, leaves the rest dark, and
+  marks discovered hamlets and caves by name. The skill bar, bag and labels
+  hide while it is open. Explored cells and discoveries are saved as flat
+  absolute coordinate lists (`explored`, `discovered`); saves from before have
+  none.
 - **Signposts (#55).** At a road crossing with a hamlet or cave mouth between
   40 and 600 m away, `landscape.signpost_at` places a post on the first free
   off-road corner (3.6 m diagonally from the crossing, over 2.4 m from any

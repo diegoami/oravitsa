@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A zoomed-out world map (#66): press Map (M / Select) a second time to see
+  everywhere Oravitsa has been, with roads, water and the hamlets and caves she
+  has found, by name. Exploration is saved. Nearby places no longer share
+  names.
 - Signposts at road crossings (#55) point to the nearest hamlet and cave,
   with their names and distances, such as "Koivula hamlet · 260 m". They
   stand beside the road and never block it.

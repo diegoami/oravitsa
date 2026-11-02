@@ -211,6 +211,71 @@ func _run() -> void:
 	press.button_index = JOY_BUTTON_B
 	world._unhandled_input(press)
 	assert(world.raw_meat == 9)
+	world._toggle_instructions()
+	# The explored world map (#66): walking explores absolute cells, coming
+	# near a hamlet or cave mouth discovers it by name, and both survive
+	# rebasing and saving. M / Select cycles local map, world map and none.
+	# Protects: lost or shifted exploration, discoveries without names, and a
+	# world map that cannot be opened or closed.
+	var land: Node3D = world.landscape
+	var hamlet := {}
+	var cave := {}
+	for by in range(-2, 3):
+		for bx in range(-2, 3):
+			if hamlet.is_empty():
+				hamlet = land.hamlet_at(Vector2i(bx, by))
+	for rz in range(-3, 4):
+		for rx in range(-3, 4):
+			if cave.is_empty():
+				cave = land.cave_at(Vector2i(rx, rz))
+	assert(not hamlet.is_empty() and not cave.is_empty())
+	world.explored = {}
+	world.discovered_hamlets = {}
+	world.discovered_caves = {}
+	await _travel(world, hamlet["center"] + Vector2(0, 8))
+	world._explore()
+	var hamlet_cell := Vector2i(((hamlet["center"] + Vector2(0, 8)) / world.EXPLORE_CELL).floor())
+	assert(world.explored.has(hamlet_cell) and world.explored.size() >= 9, "Walking explores the cells around her")
+	assert(world.discovered_hamlets.has(hamlet["block"]) and world.discovered_hamlets[hamlet["block"]]["name"] == world.PLACE_NAMES.hamlet(hamlet["block"]), "A hamlet she reaches is discovered by name")
+	await _travel(world, cave["mouth"] + cave["facing"] * 4.0)
+	world._explore()
+	assert(world.discovered_caves.has(cave["region"]) and world.discovered_caves[cave["region"]]["name"] == world.PLACE_NAMES.cave(cave["region"]))
+	var explored_count: int = world.explored.size()
+	await _travel(world, cave["mouth"] + Vector2(4000, 0))
+	await _travel(world, cave["mouth"] + cave["facing"] * 4.0)
+	world._explore()
+	assert(world.explored.has(hamlet_cell), "Exploration is absolute: rebasing never shifts it")
+	var mapped: Dictionary = world.save_state()
+	assert(world.SAVE_GAME.validate(mapped) == "")
+	world.explored = {}
+	world.discovered_hamlets = {}
+	world.discovered_caves = {}
+	world.apply_state(mapped)
+	assert(world.explored.has(hamlet_cell) and world.explored.size() >= explored_count, "Exploration survives saving")
+	assert(world.discovered_hamlets.has(hamlet["block"]) and world.discovered_caves.has(cave["region"]), "Discoveries survive saving")
+	var old_save := mapped.duplicate(true)
+	old_save.erase("explored")
+	old_save.erase("discovered")
+	assert(world.SAVE_GAME.validate(old_save) == "", "Saves from before the world map still load")
+	var bad_map := mapped.duplicate(true)
+	bad_map["explored"] = [1, "x"]
+	assert(world.SAVE_GAME.validate(bad_map) != "")
+	bad_map["explored"] = [1]
+	assert(world.SAVE_GAME.validate(bad_map) != "")
+	world._map_visible = false
+	world._world_map_visible = false
+	world._toggle_map()
+	assert(world._minimap.visible and not world._world_map.visible and "World map" in world._map_toggle.text)
+	world._toggle_map()
+	assert(not world._minimap.visible and world._world_map.visible, "The second press opens the world map")
+	await process_frame # Draws it.
+	world._enter_cave(cave, true)
+	world._update_hud()
+	assert(world.map_center() == world._cave_return)
+	await process_frame # Draws it underground, centred on the mouth.
+	world._exit_cave(true)
+	world._toggle_map()
+	assert(not world._minimap.visible and not world._world_map.visible, "The third press closes the maps")
 	_clean()
-	print("Save smoke test passed: missing-save feedback, long-distance rebased round trip, inventory/cooldowns/stun, harvest deadlines, animal states, paused timers, streaming after load, backup on replace, corrupt/incompatible/foreign/invalid rejection without loss, rename-failure injection keeping the last readable save, controller and HUD access")
+	print("Save smoke test passed: missing-save feedback, long-distance rebased round trip, inventory/cooldowns/stun, harvest deadlines, animal states, paused timers, streaming after load, backup on replace, corrupt/incompatible/foreign/invalid rejection without loss, rename-failure injection keeping the last readable save, controller and HUD access, explored world map and discoveries saved across rebases with a map cycle")
 	quit()

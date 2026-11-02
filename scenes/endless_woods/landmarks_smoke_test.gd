@@ -187,6 +187,15 @@ func _run() -> void:
 		assert(names.cave(c["region"]) in names.CAVES)
 		seen[names.cave(c["region"])] = true
 	assert(seen.size() > (hamlets.size() + caves.size()) / 3, "Names vary between places")
+	# Nearby places never share a name: caves within 650 m, hamlets within 1.8 km.
+	for list in [[caves, "mouth", 650.0], [hamlets, "center", 1800.0]]:
+		for i in list[0].size():
+			for j in range(i + 1, list[0].size()):
+				var a: Dictionary = list[0][i]
+				var b: Dictionary = list[0][j]
+				if a[list[1]].distance_to(b[list[1]]) < list[2]:
+					var same: bool = names.cave(a["region"]) == names.cave(b["region"]) if list[1] == "mouth" else names.hamlet(a["block"]) == names.hamlet(b["block"])
+					assert(not same, "Neighbouring places have different names")
 	# Signposts (#55) at road crossings point to real hamlets and caves by
 	# name, stand off the road, and are rebuilt identically after rebasing.
 	# Protects: signs to places that do not exist, wrong names, signs that
