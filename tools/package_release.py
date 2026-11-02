@@ -96,11 +96,11 @@ Project and asset provenance: https://github.com/diegoami/oravitsa/tree/{commit}
         digest = hashlib.sha256(archive.read_bytes()).hexdigest()
         manifest["artifacts"].append({"name": archive.name, "bytes": archive.stat().st_size, "sha256": digest})
         print(f"Packaged {archive.name}: {archive.stat().st_size / 1048576:.1f} MiB")
-    (output / "release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (output / "release-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
     checksums = [f"{item['sha256']}  {item['name']}" for item in manifest["artifacts"]]
     digest = hashlib.sha256((output / "release-manifest.json").read_bytes()).hexdigest()
     checksums.append(f"{digest}  release-manifest.json")
-    (output / "SHA256SUMS.txt").write_text("\n".join(checksums) + "\n", encoding="utf-8")
+    (output / "SHA256SUMS.txt").write_text("\n".join(checksums) + "\n", encoding="utf-8", newline="\n")
     print(f"Release artifacts: {output}")
 
 
