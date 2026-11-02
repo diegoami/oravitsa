@@ -30,6 +30,7 @@ const SHOWN := 90.0 # Metres within which mounts are drawn.
 const MAX_AWAY := 32 # Mounts left away from home; beyond this the oldest walks home.
 const CAVE_STOP := 1.7 # Metres from a cave mouth at which she has to get off.
 const STATES := ["ridden", "waiting", "returning"]
+const BOB := {"Walk": 0.03, "Gallop": 0.08} # Metres she rises per beat of each clip (#106).
 const RIDER_HIP := 0.62 # Metres from her feet to where she sits, in her sprite.
 
 var world: Node2D
@@ -442,4 +443,18 @@ func sync(delta: float) -> void:
 			animator.speed_scale = rate
 	if riding():
 		var seat: float = KINDS[ridden["kind"]]["seat"]
-		world.heroine.position = _ground(here) + Vector3.UP * (seat - RIDER_HIP)
+		world.heroine.position = _ground(here) + Vector3.UP * (seat - RIDER_HIP + rider_bob(ridden))
+
+
+## How far above her seat Oravitsa rises right now (#106): she bobs twice per
+## stride of the mount's Walk or Gallop clip, higher at a gallop, and sits
+## still while it stands. Her pose itself is still one frame.
+func rider_bob(record: Dictionary) -> float:
+	if not record.has("animator"):
+		return 0.0
+	var animator: AnimationPlayer = record["animator"]
+	var lift: float = BOB.get(animator.current_animation, 0.0)
+	if lift <= 0.0 or animator.current_animation_length <= 0.0:
+		return 0.0
+	var phase: float = animator.current_animation_position / animator.current_animation_length
+	return lift * absf(sin(phase * TAU * 2.0))

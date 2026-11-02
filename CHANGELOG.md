@@ -18,6 +18,9 @@
 - The world map zooms (#105) from 1 to 32 m per pixel: + / −, the mouse
   wheel, the + / − buttons on it, or right-stick flicks while it is open. The
   footer shows the scale, and place names that would overlap are left out.
+- Riding, Oravitsa rises and settles in time with her mount's walk or gallop
+  (#106, partly): a code-only bob, higher at a gallop, until a seated riding
+  animation exists. She sits still while the mount stands.
 - `SHA256SUMS.txt` and `release-manifest.json` always use LF line endings, so
   `sha256sum -c SHA256SUMS.txt` works on Linux without stripping CRs (#107).
 

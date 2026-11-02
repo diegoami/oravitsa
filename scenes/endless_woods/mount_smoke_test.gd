@@ -134,6 +134,24 @@ func _run() -> void:
 	var feet: Vector3 = world.to_world(world.player_position)
 	assert(world.heroine.position.y > feet.y + 0.1, "She sits up on the mount")
 	assert(_live(world, donkey)["node"].position.distance_to(feet) < 0.05, "The mount is under her")
+	# Protects: a rider frozen while her mount walks or gallops, or one that
+	# bobs on a standing mount (#106).
+	var gait: AnimationPlayer = _live(world, donkey)["animator"]
+	assert(mounts.rider_bob(_live(world, donkey)) == 0.0, "Still while the mount stands")
+	var peaks := {}
+	for clip in ["Walk", "Gallop"]:
+		gait.play(clip)
+		var highest := 0.0
+		var lowest := 1.0
+		for i in 16:
+			gait.seek(gait.current_animation_length * i / 16.0, true)
+			var bob: float = mounts.rider_bob(_live(world, donkey))
+			highest = maxf(highest, bob)
+			lowest = minf(lowest, bob)
+		peaks[clip] = highest
+		assert(lowest < 0.005 and highest > mounts.BOB[clip] * 0.9, "She rises and settles with the %s" % clip)
+	assert(peaks["Gallop"] > peaks["Walk"], "Higher at a gallop")
+	gait.play("Idle")
 	world._update_hud()
 	assert(world._mount_button.text == "Get off the donkey [T]")
 	world._unhandled_key_input(_key(KEY_T))
