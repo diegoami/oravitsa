@@ -339,11 +339,10 @@ func _run() -> void:
 	world.player_stun = 0.0
 	await _monster_behaviour(world, level, rat, spider)
 	_panic(world, level, rat, spider)
-	# Awake monsters cannot be finished; Sling stuns, then walk-over kills.
+	# Only hares can be killed (#74): a stunned monster survives walk-over,
+	# controller walk-over and A, and pays no aura.
+	# Protects: monster kills, kill aura and Death clips coming back.
 	world._input_mode = "keyboard"
-	_put(world, rat, Vector2(40, 0))
-	world._collect_nearby()
-	assert(world._animals[rat]["alive"], "Only a stunned monster can be killed")
 	world.selected_target = rat
 	world.sling_cooldown = 0.0
 	_put(world, rat, Vector2(220, 0))
@@ -352,38 +351,37 @@ func _run() -> void:
 		world._update_sling(1.0 / 30.0)
 	assert(world._animals[rat]["stun"] > 0.0)
 	world.aura = 0
-	_put(world, rat, Vector2(50, 0))
-	var rat_model: Node3D = world._animal_models[rat]
-	var rat_animator: AnimationPlayer = world._animal_players[rat]
-	var rat_index: int = world._animals[rat]["cave_index"]
+	_put(world, rat, Vector2(40, 0))
 	world._collect_nearby()
-	assert(not world._animals[rat]["alive"] and world.aura == world.AURA["rat"], "A stunned rat is finished for aura")
-	assert(rat_index in world._cave_progress[world._cave_key]["killed"])
-	assert(is_instance_valid(rat_model) and rat_animator.current_animation == "Death", "Its Death clip plays")
-	world._collect_nearby()
-	assert(world.aura == world.AURA["rat"], "Killed once")
-	# With a controller, walking over a stunned monster finishes it too (#72).
-	# Protects: controller players passing through stunned monsters unharmed.
-	var walk_rat := _creature(world, world.RAT)
-	assert(walk_rat >= 0, "The level has a second rat")
-	_put(world, walk_rat, Vector2(50, 0))
-	world._animals[walk_rat]["stun"] = 3.0
 	world._input_mode = "controller"
 	world._update_player(1.0 / 30.0)
-	assert(not world._animals[walk_rat]["alive"] and world.aura == world.AURA["rat"] * 2, "Walking over a stunned rat with a controller finishes it")
-	assert(world._dying_models.size() == 2, "The cave keeps its Death clips")
-	var dying_models: Array[Node3D] = world._dying_models.duplicate()
-	# A stunned spider never blocks her and A finishes it as well.
-	_put(world, spider, Vector2(0, 0))
-	world._animals[spider]["stun"] = 3.0
-	world.player_position += Vector2(-60, 0)
-	for step in 4:
-		assert(world._try_move(Vector2(15, 0)), "Stunned monsters never block her")
 	var press := InputEventJoypadButton.new()
 	press.button_index = JOY_BUTTON_A
 	press.pressed = true
 	world._unhandled_input(press)
-	assert(not world._animals[spider]["alive"] and world.aura == world.AURA["rat"] * 2 + world.AURA["spider"], "Controller A finishes a stunned spider")
+	assert(world._animals[rat]["alive"] and world._active_animals.has(rat) and world.aura == 0, "A stunned rat cannot be killed")
+	assert(world._cave_progress[world._cave_key]["killed"].is_empty())
+	world._sync_presentation(0.0)
+	assert(world._animal_players[rat].current_animation != "Death")
+	# Stunned or scared monsters neither block, bump nor bite her.
+	# Protects: being stopped or stunned by a monster she has stunned or shooed.
+	world._input_mode = "keyboard"
+	for id in [rat, spider]:
+		for scared in [false, true]:
+			_reset_monster(world, id, Vector2(30, 0))
+			world._animals[id]["stun" if not scared else "shoo"] = 3.0
+			world.player_stun = 0.0
+			world._bite_grace = 0.0
+			for step in 4:
+				assert(world._try_move(Vector2(15, 0)), "A %s monster never blocks her" % ("scared" if scared else "stunned"))
+			assert(world.player_stun == 0.0 and world.player_fright == 0.0)
+			_put(world, id, Vector2(20, 0))
+			for frame in 15:
+				world._move_cave_creatures(1.0 / 30.0)
+			assert(world.player_stun == 0.0 and world._animals[id]["attack_time"] == 0.0, "It does not bite")
+			world.player_position -= Vector2(60, 0)
+	_reset_monster(world, rat, Vector2(5000, 5000))
+	_reset_monster(world, spider, Vector2(5000, 5000))
 	# Checkpoints collect aura once each.
 	world.aura = 0
 	world.player_position = world.from_ground(level.checkpoints[0])
@@ -397,22 +395,18 @@ func _run() -> void:
 	world.player_position = world.from_ground(level.entrance)
 	world._check_cave_points()
 	assert(not world.in_cave() and world.landscape.visible and not world._lantern.visible)
-	# Protects: a Death clip still playing on the surface after she leaves (#71).
-	for model in dying_models:
-		assert(not is_instance_valid(model) or model.is_queued_for_deletion(), "Death clips do not follow her out of the cave")
-	assert(world._dying_models.is_empty())
 	assert(world._animals.size() == surface_count and world._animals[0]["position"] == surface_first, "The surface waited unchanged")
 	var here: Vector2 = world.absolute_ground(world.player_position)
 	assert(here.distance_to(cave["mouth"]) > world.CAVE_ENTER_RADIUS and here.distance_to(cave["mouth"]) < 3.0)
 	world._check_cave_mouth()
 	assert(not world.in_cave(), "Leaving does not immediately re-enter")
 	assert(world._can_save())
-	# Progress persists: on return the dead stay dead and checkpoints stay taken.
+	# Progress persists: on return every monster is back and checkpoints stay taken.
 	await _travel(world, cave["mouth"] + cave["facing"] * 4.0)
 	world._check_cave_mouth()
 	world.player_position = world.from_ground(cave["mouth"] - world.landscape.origin)
 	world._check_cave_mouth()
-	assert(world.in_cave() and world._animals.size() == rats + spiders - 3, "Killed monsters stay dead")
+	assert(world.in_cave() and world._animals.size() == rats + spiders, "No monster was killed")
 	world.player_position = world.from_ground(world._cave.checkpoints[0])
 	world.aura = 0
 	world._check_cave_points()
@@ -426,10 +420,14 @@ func _run() -> void:
 	var state: Dictionary = world.save_state()
 	assert(world.SAVE_GAME.validate(state) == "")
 	var key: String = world._cave_key
-	assert(state["caves"][key]["killed"].size() == 3 and state["caves"][key]["checkpoints"] == [0])
+	assert(state["caves"][key]["killed"].is_empty() and state["caves"][key]["checkpoints"] == [0])
 	world._cave_progress = {}
 	world.apply_state(state)
-	assert(world._cave_progress[key]["killed"].size() == 3)
+	assert(world._cave_progress[key]["killed"].is_empty())
+	# Saves from before #74 keep the monsters they killed absent.
+	var legacy: Dictionary = state.duplicate(true)
+	legacy["caves"][key]["killed"] = [0]
+	assert(world.SAVE_GAME.validate(legacy) == "")
 	var bad: Dictionary = state.duplicate(true)
 	bad["caves"][key]["killed"] = ["many"]
 	assert(world.SAVE_GAME.validate(bad) != "")
@@ -454,7 +452,7 @@ func _run() -> void:
 	world._animals[living]["position"] = world.from_ground(spot + Vector2(1.0, 0))
 	world._animals[living]["stun"] = 2.0
 	var below: Dictionary = world.save_state()
-	assert(world.SAVE_GAME.validate(below) == "" and below["underground"]["cave"] == key and below["underground"]["monsters"].size() == rats + spiders - 3)
+	assert(world.SAVE_GAME.validate(below) == "" and below["underground"]["cave"] == key and below["underground"]["monsters"].size() == rats + spiders)
 	assert(Vector2(below["player"]["ground"][0], below["player"]["ground"][1]).distance_to(world._cave_return) < 0.01, "The surface is saved with her at the mouth")
 	world._exit_cave()
 	assert(not world.in_cave())
@@ -466,7 +464,7 @@ func _run() -> void:
 			restored = id
 	assert(world.to_ground(world._animals[restored]["position"]).distance_to(world._cave.checkpoints[0] + Vector2(1.0, 0)) < 0.01 and world._animals[restored]["stun"] == 2.0, "Monsters resume where they were")
 	assert(lair.distance_to(world._cave.checkpoints[0] + Vector2(1.0, 0)) > 0.01)
-	assert(world._animals.size() == rats + spiders - 3 and world._surface_animals.size() == state["animals"].size())
+	assert(world._animals.size() == rats + spiders and world._surface_animals.size() == state["animals"].size())
 	world.apply_state(below)
 	assert(world.in_cave(), "Loading underground from underground")
 	# Panic is not saved, ends on leaving and never carries her into a cave.
@@ -492,5 +490,5 @@ func _run() -> void:
 	bad = below.duplicate(true)
 	bad["underground"]["cave"] = "no,cave"
 	assert(world.SAVE_GAME.validate(bad) != "")
-	print("Cave smoke test passed: seeded connected level (", cells, " cells, ", rats, " rats, ", spiders, " spiders, ", checkpoint_count, " checkpoints), entry/exit through the mouth, frozen surface, dark lantern lighting, monsters that find their way around walls by walking distance, scurry, lunge and leave her room after a bite, panic instead of stuns, bites only stun (shorter when well fed), Sling then walk-over/controller-A kills for aura with Death clips, once-only checkpoints, persistence across visits and saves, saving and loading underground")
+	print("Cave smoke test passed: seeded connected level (", cells, " cells, ", rats, " rats, ", spiders, " spiders, ", checkpoint_count, " checkpoints), entry/exit through the mouth, frozen surface, dark lantern lighting, monsters that find their way around walls by walking distance, scurry, lunge and leave her room after a bite, panic instead of stuns, bites only stun (shorter when well fed), Sling stuns but no monster can be killed, stunned or scared monsters neither block, bump nor bite her, once-only checkpoints, persistence across visits and saves, saving and loading underground")
 	quit()

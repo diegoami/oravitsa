@@ -71,9 +71,9 @@ Record unavailable checks as untested, never as passed.
   hare that is currently stunned and within 75 px can be collected (walk-over,
   or A on a controller). It is removed exactly once and immediately becomes
   one raw meat; no other wildlife species can be killed or collected. The
-  giant rats and spiders of cave levels are monsters, not wildlife: a stunned
-  one within 75 px can be finished the same way, once, for aura, and
-  walking over it does so with any input device, controller included.
+  giant rats and spiders of cave levels are monsters, not wildlife, and are
+  never killed either. A stunned or scared one does not affect her: it
+  neither bites, bumps nor blocks her, and she walks through it.
   Sling and Shoo use the selected animal. Shoo applies five seconds of visible
   scared status and fast escape, with a seven-second cooldown; invalid casts do
   not spend cooldown. It interrupts feeding/hunting and existing animal stun.
@@ -94,8 +94,7 @@ Record unavailable checks as untested, never as passed.
   icons above the animal, never as text. Timed states have a time-left bar,
   and stun and fear can show together.
 - Aura is the endless world's points: a HUD icon with the number on top.
-  Gains: finishing a giant rat (+5) or spider (+10), a cave checkpoint (+20,
-  once each) and food given to a hamlet's chieftain (+1 berries/mushroom, +3
+  Gains: a cave checkpoint (+20, once each) and food given to a hamlet's chieftain (+1 berries/mushroom, +3
   raw meat). Losses: shooing (−5) or hitting (−10) a villager or chieftain.
 - Feeding: a fed level from 0 to 100, shown beside aura, falls 0.3 per
   second. Every 120 s Oravitsa eats one random bag item (berries +25,
@@ -116,8 +115,7 @@ Record unavailable checks as untested, never as passed.
   and spiders find their way around walls and bite, which only stuns her
   (1.5 s at most); there is still no health or death. After a bite the pack
   backs off and no monster can bite until two seconds after the stun, so she
-  can always get away. Killed monsters and collected checkpoints persist per cave
-  in the save.
+  can always get away. Collected checkpoints persist per cave in the save.
 - In the endless world wolves/lynxes are more frequent, sprint in longer and
   faster spurts, hunt both prey species and despawn after 180 hungry seconds.
   Endless foxes also hunt hares but rarely catch them. The finite scenes

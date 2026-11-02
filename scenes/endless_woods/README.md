@@ -79,7 +79,7 @@ used.) A notice reports every success or failure.
 The save is versioned JSON holding only bounded state: the world identity,
 Oravitsa's absolute ground position, stun, both cooldowns, the selected skill,
 inventory (berries, mushrooms, raw meat), aura, the fed level and meal timer,
-cave progress (collected checkpoints and killed monsters per cave), the food
+cave progress (collected checkpoints per cave, plus killed monsters from older saves), the food
 clock, depleted food records
 (absolute cell and deadline) and at most 208 animal records (absolute
 position/home/target plus status, hunger and cooldown timers). Terrain, trees and
@@ -222,10 +222,9 @@ and checkpoint crystals glow blue.
   pack keeps 2.5 m away, and no monster can bite until two seconds after the
   stun, so she can always get away. Rats are faster (185 px/s) than spiders
   (140 px/s), but a half-fed Oravitsa outruns both. Shoo drives one off along
-  the tunnels. Sling stuns one, which can then be finished by walking to it,
-  with any input device, or with controller A, for aura (rat +5, spider +10).
-  Its Death clip plays, and leaving the cave removes any that are still
-  playing. Awake ones cannot be killed.
+  the tunnels and Sling stuns one. A scared or stunned monster neither bites,
+  bumps nor blocks her, and she walks through it. Monsters are never killed:
+  only hares are (#74).
 - **Panic.** Anywhere in the endless world, about a third of the stuns she
   would suffer (bumps, charges, bites) become panic instead, which breaks
   chains of stuns. For two seconds she runs by herself at 1.25× speed, away
@@ -237,16 +236,16 @@ and checkpoint crystals glow blue.
 - **Freezing and saving.** While Oravitsa is underground, the surface
   landscape, food and wildlife are hidden and kept exactly as they were. The
   map shows "Underground". The sunlit way out returns her just outside the
-  mouth. Killed monsters and collected checkpoints are kept per cave and
-  saved. Saving works underground: the save holds the waiting surface with
+  mouth. Collected checkpoints are kept per cave and saved. Saves from
+  before #74 may also list killed monsters, which stay absent. Saving works underground: the save holds the waiting surface with
   her at the cave mouth, plus an `underground` section with the cave, her
   offset from the way out and each living monster's index, offset and stun.
   Loading re-enters that cave and puts them back; loading any save while
   underground first leaves the cave.
 
 `cave_smoke_test.gd` covers seeding and variety, connectivity, entry and
-exit, the frozen surface, lighting, bites, Sling-then-kill by walk-over (also
-with a controller) and controller A, Death clips that end on leaving, once-only checkpoints, persistence across visits and saves,
+exit, the frozen surface, lighting, bites, monsters that cannot be killed and leave
+her alone while stunned or scared, once-only checkpoints, persistence across visits and saves,
 and saving and loading underground.
 
 ## Wildlife
