@@ -124,6 +124,20 @@ static func validate(data: Dictionary) -> String:
 		var feeding = data.get("fed")
 		if not feeding is Dictionary or not _number(feeding.get("level"), 0, 100) or not _number(feeding.get("meal_timer"), 0, 3600):
 			return "the saved feeding is invalid"
+		# Exploration (#66) is optional: older saves have none.
+		var lists := [data.get("explored", [])]
+		var discovered = data.get("discovered", {})
+		if not discovered is Dictionary:
+			return "the saved map is invalid"
+		lists.append(discovered.get("hamlets", []))
+		lists.append(discovered.get("caves", []))
+		for i in lists.size():
+			var flat = lists[i]
+			if not flat is Array or flat.size() % 2 != 0 or flat.size() > (400000 if i == 0 else 20000):
+				return "the saved map is invalid"
+			for value in flat:
+				if not _number(value, -1e7, 1e7) or float(value) != floorf(float(value)):
+					return "the saved map is invalid"
 		var caves = data.get("caves", {})
 		if not caves is Dictionary or caves.size() > 5000:
 			return "the saved cave progress is invalid"

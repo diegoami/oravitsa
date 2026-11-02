@@ -163,6 +163,8 @@ and prompts that follow keyboard/mouse, controller, or touch input. Berries and
 mushrooms appear as icons and counts in the bottom-right inventory. On phones,
 the movement stick sits above the inventory. Map and Help start hidden; open
 or collapse them with their buttons, **M/H**, or controller **Select/Start**.
+In the endless woods a second press of Map opens the **world map**: everywhere
+Oravitsa has been, with the hamlets and caves she has found and their names.
 **Pause** (button beside Help, **P/Esc**, or the controller's right-stick
 click) freezes the game until you resume. In the endless woods **Shift** (or a
 click of the left stick) sprints: faster, but she gets hungry three times as

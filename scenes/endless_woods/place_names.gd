@@ -18,17 +18,19 @@ const CAVES := [
 ]
 
 
-static func _pick(pool: Array, key: Vector2i, salt: int) -> String:
-	var n := (key.x * 73856093) ^ (key.y * 19349663) ^ (salt * 83492791)
-	n = (n ^ (n >> 13)) * 1274126177
-	return pool[(n & 0x7fffffff) % pool.size()]
+## Names step through the pool on a lattice (x + 5 y), so neighbours always
+## differ: the closest places sharing a name are (-1, 5), (4, 4) or (-5, 1)
+## blocks or regions apart, at least about 690 m for caves (256 × 128 m
+## regions) and 1.9 km for hamlets (512 × 384 m blocks).
+static func _pick(pool: Array, key: Vector2i, offset: int) -> String:
+	return pool[posmod(key.x + key.y * 5 + offset, pool.size())]
 
 
 ## The name of the hamlet in absolute hamlet block `block`.
 static func hamlet(block: Vector2i) -> String:
-	return _pick(HAMLETS, block, 5601)
+	return _pick(HAMLETS, block, 0)
 
 
 ## The name of the cave in absolute landmark region `region`.
 static func cave(region: Vector2i) -> String:
-	return _pick(CAVES, region, 5602)
+	return _pick(CAVES, region, 11)

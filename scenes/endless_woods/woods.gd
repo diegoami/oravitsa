@@ -83,6 +83,12 @@ const CHIEF_HEIGHT := 1.7
 # and spiders that bite (a stun, never an injury).
 const CAVE_LEVEL := preload("res://scenes/endless_woods/cave_level.gd")
 const PLACE_NAMES := preload("res://scenes/endless_woods/place_names.gd")
+# Exploration (#66): absolute 32 m cells within EXPLORE_RADIUS cells of her
+# count as explored; hamlets and cave mouths within DISCOVER_RADIUS metres are
+# discovered. Both are saved and drawn on the world map.
+const EXPLORE_CELL := 32.0
+const EXPLORE_RADIUS := 2
+const DISCOVER_RADIUS := 60.0
 const CAVE_ENTER_RADIUS := 0.9
 const CAVE_REARM := 2.5
 const MONSTER_SIGHT := {RAT: 14.0, SPIDER: 10.0} # Metres of walking, so never through walls.
@@ -130,6 +136,12 @@ var _sprint_latched := false # L3 sprints until she stops steering.
 var _meal_timer := MEAL_INTERVAL
 var _food_rng := RandomNumberGenerator.new() # Picks which bag item is eaten or offered.
 var _aura_badge: Control
+var _world_map: Control
+var _world_map_visible := false
+var explored := {} # Absolute Vector2i cell -> true.
+var discovered_hamlets := {} # Absolute block -> {"at": centre, "name": name}.
+var discovered_caves := {} # Absolute region -> {"at": mouth, "name": name}.
+var _explored_from := Vector2i(1 << 30, 1 << 30)
 var _offer_button: Button
 var _villager_check := 0.0
 var _cave: Node3D = null
@@ -180,6 +192,12 @@ func _build_world() -> void:
 	_aura_badge.set_script(load("res://scenes/endless_woods/aura_badge.gd"))
 	_aura_badge.name = "Aura"
 	canvas.add_child(_aura_badge)
+	_world_map = Control.new()
+	_world_map.set_script(load("res://scenes/endless_woods/world_map.gd"))
+	_world_map.name = "WorldMap"
+	_world_map.set("forest", self)
+	canvas.add_child(_world_map)
+	canvas.move_child(_world_map, 0) # Under the HUD buttons, so Map stays clickable.
 	_offer_button = _hud_toggle(canvas, _offer_food)
 	_offer_button.visible = false
 	_layout_hud()
@@ -205,6 +223,15 @@ func _fit_help_panel() -> void:
 
 func _update_hud() -> void:
 	super._update_hud()
+	if is_instance_valid(_world_map):
+		_world_map.visible = _world_map_visible
+		# The open world map takes the screen below the top buttons.
+		for node in [_skill_bar, _inventory, _landmark_label, _notice_label]:
+			node.visible = not _world_map_visible
+		if _world_map_visible:
+			_world_map.queue_redraw()
+		var key := " [Select]" if _input_mode == "controller" else ("" if _input_mode == "touch" else " [M]")
+		_map_toggle.text = ("+ World map" if _map_visible else ("− Map" if _world_map_visible else "+ Map")) + key
 	var keys := _input_mode != "controller" and _input_mode != "touch"
 	if is_instance_valid(_aura_badge):
 		_aura_badge.aura = aura
@@ -846,6 +873,22 @@ func _open_ground_near(point: Vector2, actor_radius: float, outside_settlements:
 ## world itself regenerates from its seeds; nothing like a world map is stored.
 ## Underground, the frozen surface is saved with Oravitsa at the cave mouth,
 ## plus where she and the living monsters are, relative to the way out.
+## Cells as a flat [x0, y0, x1, y1, …] array, compact in the save file.
+static func _flat_cells(cells: Array) -> Array:
+	var flat := []
+	for cell in cells:
+		flat.append(cell.x)
+		flat.append(cell.y)
+	return flat
+
+
+static func _cells(flat: Array) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for i in range(0, flat.size() - 1, 2):
+		cells.append(Vector2i(int(flat[i]), int(flat[i + 1])))
+	return cells
+
+
 func save_state() -> Dictionary:
 	var animals := []
 	for data in (_surface_animals if in_cave() else _animals):
@@ -875,6 +918,8 @@ func save_state() -> Dictionary:
 		"aura_decay": _aura_decay,
 		"fed": {"level": fed, "meal_timer": _meal_timer},
 		"caves": _cave_progress.duplicate(true),
+		"explored": _flat_cells(explored.keys()),
+		"discovered": {"hamlets": _flat_cells(discovered_hamlets.keys()), "caves": _flat_cells(discovered_caves.keys())},
 	}
 	if in_cave():
 		var offset: Vector2 = to_ground(player_position) - _cave.entrance
@@ -976,6 +1021,18 @@ func apply_state(data: Dictionary) -> void:
 	var caves: Dictionary = data.get("caves", {})
 	for key in caves:
 		_cave_progress[key] = {"checkpoints": caves[key]["checkpoints"].map(func(v): return int(v)), "killed": caves[key]["killed"].map(func(v): return int(v))}
+	# Saves from before the world map (#66) start with nothing explored.
+	explored = {}
+	for cell in _cells(data.get("explored", [])):
+		explored[cell] = true
+	_explored_from = Vector2i(1 << 30, 1 << 30)
+	discovered_hamlets = {}
+	discovered_caves = {}
+	var discovered: Dictionary = data.get("discovered", {})
+	for block in _cells(discovered.get("hamlets", [])):
+		_discover_hamlet(block)
+	for region in _cells(discovered.get("caves", [])):
+		_discover_cave(region)
 	_villager_check = 0.0
 	_regrowth_check = 0.0
 	view.position = to_world(player_position) + CAMERA_OFFSET
@@ -1057,7 +1114,62 @@ func _process(delta: float) -> void:
 		_villager_check = 0.5
 		_update_villagers()
 	super._process(delta)
+	_explore()
 	_check_cave_mouth()
+
+
+## Marks the cells around Oravitsa as explored and discovers hamlets and cave
+## mouths close by. Underground nothing changes on the surface map.
+func _explore() -> void:
+	if in_cave():
+		return
+	var here := absolute_ground(player_position)
+	var cell := Vector2i((here / EXPLORE_CELL).floor())
+	if cell == _explored_from:
+		return
+	_explored_from = cell
+	for dz in range(-EXPLORE_RADIUS, EXPLORE_RADIUS + 1):
+		for dx in range(-EXPLORE_RADIUS, EXPLORE_RADIUS + 1):
+			if dx * dx + dz * dz <= EXPLORE_RADIUS * EXPLORE_RADIUS + 1:
+				explored[cell + Vector2i(dx, dz)] = true
+	var hamlet: Dictionary = landscape.hamlet_near(here)
+	if not hamlet.is_empty() and here.distance_to(hamlet["center"]) < DISCOVER_RADIUS and not discovered_hamlets.has(hamlet["block"]):
+		_discover_hamlet(hamlet["block"])
+	var region := Vector2i(floori(here.x / 256), floori(here.y / 128))
+	for dz in [-1, 0, 1]:
+		for dx in [-1, 0, 1]:
+			var cave: Dictionary = landscape.cave_at(region + Vector2i(dx, dz))
+			if not cave.is_empty() and here.distance_to(cave["mouth"]) < DISCOVER_RADIUS and not discovered_caves.has(cave["region"]):
+				_discover_cave(cave["region"])
+
+
+func _discover_hamlet(block: Vector2i) -> void:
+	var hamlet: Dictionary = (_surface_landscape if in_cave() else landscape).hamlet_at(block)
+	if not hamlet.is_empty():
+		discovered_hamlets[block] = {"at": hamlet["center"], "name": PLACE_NAMES.hamlet(block)}
+
+
+func _discover_cave(region: Vector2i) -> void:
+	var cave: Dictionary = (_surface_landscape if in_cave() else landscape).cave_at(region)
+	if not cave.is_empty():
+		discovered_caves[region] = {"at": cave["mouth"], "name": PLACE_NAMES.cave(region)}
+
+
+## Where the world map is centred: Oravitsa, or her cave's mouth underground.
+func map_center() -> Vector2:
+	return _cave_return if in_cave() else absolute_ground(player_position)
+
+
+## M / Select cycles the local map, the explored world map (#66) and neither.
+func _toggle_map() -> void:
+	if _map_visible:
+		_map_visible = false
+		_world_map_visible = true
+	elif _world_map_visible:
+		_world_map_visible = false
+	else:
+		_map_visible = true
+	_update_hud()
 
 
 ## The name of the cave Oravitsa is in (#56), from its saved region key.
@@ -1805,6 +1917,8 @@ func _status_states(id: int) -> Array:
 
 func _sync_presentation(delta: float) -> void:
 	super._sync_presentation(delta)
+	if _world_map_visible:
+		_landmark_label.visible = false
 	if _player_marker == null:
 		_player_marker = Node3D.new()
 		_player_marker.set_script(STATUS_MARKER)

@@ -143,7 +143,9 @@ Record unavailable checks as untested, never as passed.
   LT casts Shoo and RT casts Sling directly, once per pull (fire at 0.6,
   re-arm below 0.3). LB casts Slow and RB casts Cure directly; there is no
   skill selection or cycling, and Y casts nothing. A collects food.
-  Map/Help start hidden (M/H; Select/Start). Pause (the HUD button, P/Esc;
+  Map/Help start hidden (M/H; Select/Start). In the endless woods M/Select
+  cycles the local map, the explored world map and none; exploration and
+  discovered hamlets and caves are absolute and saved. Pause (the HUD button, P/Esc;
   R3) freezes the whole game, surface and caves, until Resume. L3 sprints.
 - Keep the approved eight-direction Oravitsa walk and movement-driven gait.
   Do not replace it with the uncorrected source model.
