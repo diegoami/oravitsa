@@ -19,6 +19,8 @@ before.
 - A mount or pet walking home no longer presses against what is in its way
   (#104): once it stops making progress it plans a short detour around
   houses, trees and walls, as wildlife does, and walks the rest of the way.
+  Its detour avoids creatures standing in the way and is planned again while
+  it is still stuck (#116), and diagonal steps keep the nose clear (#117).
 - The world map zooms (#105) from 1 to 32 m per pixel: + / −, the mouse
   wheel, the + / − buttons on it, or right-stick flicks while it is open. The
   footer shows the scale, and place names that would overlap are left out.

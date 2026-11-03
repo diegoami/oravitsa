@@ -268,9 +268,11 @@ func _walk_home(record: Dictionary, delta: float) -> void:
 	var aim: Vector2 = world.detour_aim(record, record["tether"], RADIUS, delta)
 	var step := (aim - at).limit_length(RETURN_SPEED * delta)
 	var moved := at
-	for part in [Vector2(step.x, 0), Vector2(0, step.y)]:
-		if _fits(record, moved + part, moved, aim):
-			moved += part
+	# The whole step, else one axis of it; each checked where it moves (#117).
+	for option in [step, Vector2(step.x, 0), Vector2(0, step.y)]:
+		if option.length() > 0.0001 and _fits(record, at + option, at, aim):
+			moved = at + option
+			break
 	record["stuck"] = 0.0 if moved.distance_to(at) > step.length() * 0.3 else float(record["stuck"]) + delta
 	if moved != at:
 		record["facing"] = (moved - at).normalized()

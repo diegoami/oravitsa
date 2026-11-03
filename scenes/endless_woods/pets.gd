@@ -286,14 +286,18 @@ func update(delta: float) -> void:
 			_stroll(record, delta)
 
 
-## Steps `at` toward `goal` by at most `length` metres, sliding along walls.
+## Steps `at` toward `goal` by at most `length` metres, sliding along walls:
+## the whole step if it fits, else the part along one axis that does. Each
+## option is checked in the direction it actually moves, so the nose of a
+## diagonal step is checked too (#117).
 func _step(record: Dictionary, goal: Vector2, length: float) -> float:
 	var at: Vector2 = record["at"]
 	var step := (goal - at).limit_length(length)
 	var moved := at
-	for part in [Vector2(step.x, 0), Vector2(0, step.y)]:
-		if _fits(record, moved + part, moved, goal):
-			moved += part
+	for option in [step, Vector2(step.x, 0), Vector2(0, step.y)]:
+		if option.length() > 0.0001 and _fits(record, at + option, at, goal):
+			moved = at + option
+			break
 	if moved.distance_to(at) > 0.0005:
 		record["facing"] = (moved - at).normalized()
 	record["at"] = moved

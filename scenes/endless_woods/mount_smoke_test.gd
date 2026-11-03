@@ -448,5 +448,69 @@ func _run() -> void:
 		woods.walls.erase(wall)
 	assert(walker["state"] == "tethered", "It got out of the pocket and home")
 	assert(largest < 0.5, "It walked all the way (largest step %.2f m)" % largest)
+	# Protects (review of v0.3.0-alpha.2): a diagonal step that puts a pet's or
+	# mount's nose inside a blocker although each axis alone was clear (#117),
+	# and a pet or mount walking home in her sight that stays stuck behind a
+	# creature standing in its way (#116).
+	var open_spot := Vector2.INF
+	var here_now: Vector2 = world.absolute_ground(world.player_position)
+	for r in range(0, 40, 2):
+		for angle in 12:
+			var probe: Vector2 = here_now + Vector2.from_angle(angle * TAU / 12.0) * r
+			if open_spot == Vector2.INF and woods.can_walk(probe - woods.origin, 2.5) and woods.can_walk(probe + Vector2(3.4, 0) - woods.origin, 2.5) and not woods.is_water(probe - woods.origin, 4.0):
+				open_spot = probe
+	assert(open_spot != Vector2.INF, "Open ground for the fixtures")
+	await _travel(world, open_spot + Vector2(1.6, 2.0))
+	for data in world._animals:
+		data["position"] = world.player_position + Vector2(30000, 30000)
+	world._refresh_visible()
+	var pets_node: Node = world.pets
+	var fake_pet := {"kind": "husky", "hamlet": Vector2i(9999, 9999), "threshold": 70, "post": open_spot + Vector2(1.8, 0), "facing": Vector2.RIGHT}
+	var fake_mount := {"kind": "horse", "hamlet": Vector2i(9999, 9999), "index": 0, "tether": open_spot + Vector2(10, 10), "facing": Vector2.RIGHT}
+	for who in ["pet", "mount"]:
+		var reach: float = pets_node.BODY["husky"] * 0.5 if who == "pet" else mounts.nose("horse")
+		var corner: Vector2 = open_spot + Vector2(0.1, 0.1) + Vector2.ONE.normalized() * reach
+		var post := Vector3(corner.x, corner.y, 0.1)
+		woods._static_blockers.append(post)
+		var mover: Dictionary
+		if who == "pet":
+			mover = pets_node._record(fake_pet, "returning", open_spot)
+			pets_node._step(mover, open_spot + Vector2(10, 10), sqrt(0.02))
+		else:
+			mover = mounts._record(fake_mount, "returning", open_spot)
+			mounts._walk_home(mover, sqrt(0.02) / mounts.RETURN_SPEED)
+		var tip: Vector2 = mover["at"] + mover["facing"] * reach
+		assert(woods.can_walk(tip - woods.origin, pets_node.NOSE_RADIUS if who == "pet" else mounts.NOSE_RADIUS), "A diagonal step keeps the %s's nose clear" % who)
+		woods._static_blockers.erase(post)
+	var rat_id := -1
+	for id in world._animals.size():
+		if world._animals[id]["kind"] != world.VILLAGER:
+			rat_id = id
+			break
+	world._animals[rat_id]["alive"] = true
+	world._animals[rat_id]["stun"] = 0.0
+	world._animals[rat_id]["position"] = world.from_ground(open_spot + Vector2(1.5, 0) - woods.origin)
+	world._refresh_visible()
+	assert(world._active_animals.has(rat_id))
+	var blocker_at: Vector2 = world.absolute_ground(world._animals[rat_id]["position"])
+	var walkers := [pets_node._record({"kind": "husky", "hamlet": Vector2i(9999, 9999), "threshold": 70, "post": open_spot + Vector2(3.2, 0), "facing": Vector2.RIGHT}, "returning", open_spot),
+		mounts._record({"kind": "horse", "hamlet": Vector2i(9999, 9999), "index": 0, "tether": open_spot + Vector2(3.4, 0), "facing": Vector2.RIGHT}, "returning", open_spot)]
+	for walker_record in walkers:
+		var is_pet: bool = walker_record.has("post")
+		var biggest := 0.0
+		var seconds := 0.0
+		while seconds < 20.0 and walker_record["state"] == "returning":
+			var before_at: Vector2 = walker_record["at"]
+			if is_pet:
+				pets_node._walk_home(walker_record, 0.1)
+			else:
+				mounts._walk_home(walker_record, 0.1)
+			seconds += 0.1
+			if walker_record["state"] == "returning":
+				biggest = maxf(biggest, before_at.distance_to(walker_record["at"]))
+		var label := "pet" if is_pet else "mount"
+		assert(walker_record["state"] != "returning" and seconds < 15.0, "The %s walks around the creature in its way and gets home (%.1f s)" % [label, seconds])
+		assert(biggest < 0.5, "The %s walked, never jumped (largest step %.2f m)" % [label, biggest])
+		assert(blocker_at == world.absolute_ground(world._animals[rat_id]["position"]), "The creature never moved")
 	print("Mount smoke test passed: ", hamlets, " hamlets seeded with ", tally, ", identical revisits, aura requirement prompt and refusal, T / controller Y / touch button, speed x1.3/1.5/1.8 without sprint, donkey-halved stuns, horse throws on a real bump, panic dismount, aura decay dismount with the mount walking home, cave mouth wait (hidden underground, still there after), rebasing without drift or duplicates, save/load of a ride and a waiting mount, older saves and invalid records")
 	quit()
