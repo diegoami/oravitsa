@@ -1,6 +1,10 @@
 # Changes
 
-## Unreleased
+## 0.3.0-alpha.2 — visibility, movement and map fixes (candidate)
+
+A small fix release for the known issues of 0.3.0-alpha.1. Existing controls
+are unchanged (the open world map gains zoom inputs) and older saves load as
+before.
 
 - Dark creatures stay visible in caves (#102): kobolds have a faint cool
   glow and rim, and Oravitsa's pets a warm one while underground, so the
@@ -24,7 +28,7 @@
 - `SHA256SUMS.txt` and `release-manifest.json` always use LF line endings, so
   `sha256sum -c SHA256SUMS.txt` works on Linux without stripping CRs (#107).
 
-## 0.3.0-alpha.1 — deeper caves, mounts and pets (candidate)
+## 0.3.0-alpha.1 — deeper caves, mounts and pets
 
 Larger than earlier alphas: new skills and controls, places with names,
 signposts and a world map, a second cave level, mounts, and dog and cat pets
