@@ -85,8 +85,12 @@ func _run() -> void:
 	assert(demo.bot.foods_collected >= 3, "Bot actually gathers food")
 	assert(not demo.discovered_hamlets.is_empty() and not demo.discovered_caves.is_empty(), "Bot reaches real villages and cave discoveries")
 	assert(demo.bot.gifts_given > 0, "Bot gives food to a chieftain for aura")
+	assert(demo.bot.mushrooms_collected >= 6, "Bot deliberately stocks up on mushrooms")
+	assert(demo.bot.caves_explored > 0, "Bot explores checkpoints and exits a cave without needing pets")
 	# A nearby threat is handled through the real selected-target skill path.
 	assert(demo.bot.hares_collected > 0, "Bot stuns and collects hares through ordinary gameplay")
+	if demo.in_cave():
+		demo._exit_cave(true) # Surface fixture for the following isolated skill checks.
 	for id in demo._active_animals:
 		if demo._animals[id]["kind"] in demo.AGGRO_KINDS:
 			demo._animals[id]["position"] += Vector2(3000, 3000)
@@ -136,9 +140,10 @@ func _run() -> void:
 	assert(demo.bot.goal_kind == "hamlet" and "Visiting" in demo.bot.activity)
 	assert(demo.bot.seek_landmark("cave", Vector2.ZERO), "Bot seeks a real cave mouth")
 	assert(demo.bot.goal_kind == "cave" and "cave mouth" in demo.bot.activity)
-	opening.demo_time = opening.DEMO_SECONDS
-	opening._process(0.0)
-	assert(old_demo.get_ref() == null and opening.demo_time == 0.0, "Attract loops discard demo state")
+	var kept_food: int = demo.bot.foods_collected
+	opening.demo_time = 600.0
+	opening._process(0.1)
+	assert(old_demo.get_ref() == demo and demo.bot.foods_collected == kept_food, "Continuous demo preserves its world and progress beyond the old reset time")
 	demo = opening.world
 	# Start needs a release, repeats cannot skip, and instructions freeze time.
 	_key(KEY_ENTER, true)
@@ -215,5 +220,5 @@ func _run() -> void:
 		assert(not FileAccess.file_exists(game.SAVE_GAME.PATH))
 	opening.free()
 	await process_frame
-	print("Opening smoke test passed: unattended bot gathers, avoids scenery, Shoos, Cures, repeats, isolates inputs and saves, freezes instructions, resizes, and hands a fresh world to the player")
+	print("Opening smoke test passed: continuous bot gathers mushrooms, explores caves, visits villages, avoids scenery, Shoos, Cures, preserves demo progress, isolates inputs and saves, freezes instructions, resizes, and hands a fresh world to the player")
 	quit()
