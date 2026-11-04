@@ -51,7 +51,10 @@ error output, a nonzero exit, timeout and a missing completion marker: Godot
 can exit zero after an assertion or script error. CI uses this same runner.
 Logged errors terminate the process immediately; timeouts retain diagnostics.
 Native export startup uses `tools/verify.py --native-smoke <executable>` for
-the same log-aware error handling. Offline Python art tests use mock clients.
+the same log-aware error handling. To run one smoke script on its own, use
+`godot --headless --path . -s scenes/.../<name>_smoke_test.gd` under a
+timeout and read its output for `SCRIPT ERROR`: a failed assertion there
+leaves Godot running instead of exiting, so the timeout is the failure signal. Offline Python art tests use mock clients.
 `Build desktop and Web` also exports Web/Linux and starts the Linux package.
 Before merging, check the final PR SHA's CI, not a previous run.
 
