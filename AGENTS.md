@@ -1,5 +1,10 @@
 # Oravitsa
 
+**Next session priority:** surface the pending independent release review in
+[docs/RELEASES.md](docs/RELEASES.md#next-action-round-3-release-review) before other
+work, unless the owner changes the priority. The owner deferred it; do not start
+it in the implementing session.
+
 Godot 4.7.2 / GDScript, Compatibility renderer. The default opening in
 `scenes/opening/` runs a continuous bot demo, then rules/controls and a fresh
 player session. Gameplay is the streamed endless 2.5D Mossbank world in `scenes/endless_woods/`, extending the finite

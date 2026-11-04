@@ -1,5 +1,56 @@
 # Milestone releases
 
+## Next action: round-3 release review
+
+The owner deferred this review to the next session. Surface it first when the
+repository is opened again, unless the owner changes the priority. Do not start
+the review in the implementing session.
+
+Use a **fresh session on a model family other than GPT or Claude**: both
+families implemented parts of this candidate. The owner chooses and starts
+the independent reviewer.
+
+Copy this prompt:
+
+```text
+Independently review Oravitsa release milestone #115, round 3:
+https://github.com/diegoami/oravitsa/issues/115
+
+Repository: C:\Users\diego\projects\oravitsa
+Proposed release: v0.3.0-alpha.2
+Exact candidate: b4fdf981d7a14c25ed6a570a49b69911ebc5767a
+Previous milestone: v0.3.0-alpha.1
+Previous commit: 58c23f61b96fff082abed2e919e5cdf6f3c74ed0
+
+Read AGENTS.md, docs/RELEASES.md, docs/review-release.md and milestone #115
+with all comments. Confirm that the issue still names this exact candidate.
+Use the required fresh detached worktree; preserve existing checkouts.
+
+Review the complete release range and dependencies, including the earlier
+findings and the #124/#125 fixes in merged PR #126. Reproduce findings,
+search for duplicates, and post an exact-SHA VERDICT: AGREE or BLOCK on #115,
+signed with your tool/model. Verify claims independently; implementer tests
+are evidence, not your own review.
+
+Browser/device/listening/paced-play checks have no owner deferral. Record
+untested checks honestly and apply the release-review policy.
+
+Do not edit project source, commit, push, merge, tag, publish or deploy.
+```
+
+Milestone #115 is the canonical record of gate results, artifacts, hashes,
+prior verdicts and remaining checks. Round 2 blocked the previous candidate;
+PR #126 contains implementation fixes, not a replacement review verdict.
+The owner approved merging that PR, not waiving review or manual checks.
+No tag or release has been published.
+
+This reminder is documentation-only on `docs/round3-review-next`, separate
+from the frozen candidate. Its local copies in the opening checkout are
+intentional next-session reminders; preserve them. Do not substitute the
+reminder branch's HEAD for the candidate or add it to the frozen review scope.
+After the review or an owner decision, update/remove this block and its
+README/AGENTS pointers so the next action stays current.
+
 A milestone is a release: an annotated `vX.Y.Z` tag on `main`, at exactly the
 reviewed commit from which its artifacts are built. Ordinary PRs, documentation
 changes and accumulated commits do not trigger a milestone automatically.

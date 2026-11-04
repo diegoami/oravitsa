@@ -1,5 +1,8 @@
 # Oravitsa
 
+**Next action: independent release review.**
+[Saved prompt and frozen candidate](docs/RELEASES.md#next-action-round-3-release-review).
+
 Contribution and verification rules: [AGENTS.md](AGENTS.md). Independent
 [PR reviews](docs/review-pr.md) use a separate session; formal
 [milestone reviews](docs/RELEASES.md) happen before a release tag.
