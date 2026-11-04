@@ -194,8 +194,7 @@ func _update_player(delta: float) -> void:
 	cure_cooldown = maxf(0.0, cure_cooldown - delta)
 	_cure_glow = maxf(0.0, _cure_glow - delta)
 	_notice_time = maxf(0.0, _notice_time - delta)
-	var direction := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	direction = (direction + _touch_controls.direction).limit_length()
+	var direction := _movement_direction()
 	var panic := _panic_direction(delta)
 	if panic != Vector2.ZERO:
 		direction = panic
@@ -211,6 +210,11 @@ func _update_player(delta: float) -> void:
 	_camera.position = player_position
 	if _input_mode != "controller":
 		_collect_nearby()
+
+
+## Player steering; the isolated attract world supplies its bot's direction.
+func _movement_direction() -> Vector2:
+	return (Input.get_vector("move_left", "move_right", "move_forward", "move_back") + _touch_controls.direction).limit_length()
 
 
 ## Oravitsa's walking speed; in the endless woods it depends on how well fed

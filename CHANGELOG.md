@@ -1,5 +1,16 @@
 # Changes
 
+## Unreleased
+
+- Launch into a labelled bot-driven demo with the normal food/aura/hunger HUD
+  and a small translucent floating Start button (#120). Oravitsa gathers,
+  stuns and collects hares, seeks real villages and cave mouths, gives food
+  to chieftains and uses Shoo/Cure. Local routes and a progress watchdog
+  recover from blocked goals; a fresh demo repeats every five minutes.
+- Start opens scrollable rules and keyboard/controller/touch controls.
+  Separate confirmation begins a clean player-controlled world after held
+  controls are released. The demo never loads or writes the manual save.
+
 ## 0.3.0-alpha.2 — visibility, movement and map fixes (candidate)
 
 A small fix release for the known issues of 0.3.0-alpha.1. Existing controls

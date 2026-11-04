@@ -1,7 +1,18 @@
 # Endless Mossbank woods
 
-The default `woods.tscn` extends the tested 2.5D presentation and the shared
-forest simulation. The earlier finite scenes remain available under
+The playable `woods.tscn` extends the tested 2.5D presentation and the shared
+forest simulation. The default launch goes through `scenes/opening/opening.tscn`:
+a clearly labelled, bot-controlled demo gathers food, stuns/collects hares,
+seeks villages/cave mouths, gives food to chieftains and uses Shoo/Cure, with
+the normal HUD visible. A small translucent floating Start button opens a
+scrollable rules/controls splash and confirmation.
+The demo accepts no player gameplay input, never reads/writes saves and loops
+with a fresh world every 300 seconds. It stays on the surface. Routes and
+goals use absolute positions, and a net-progress watchdog plans a reachable
+escape if she stalls or oscillates. Start freezes it; confirmation discards it
+and creates a normal fresh `woods.tscn`, after held controls are released.
+Running `woods.tscn` directly still starts gameplay immediately, including in
+the existing scene smoke scripts. The earlier finite scenes remain available under
 `scenes/forest_25d/` and `scenes/forest_2d/`.
 
 ## World generation
