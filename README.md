@@ -18,9 +18,12 @@ Open this folder in **Godot 4.7.2** and press **F5**, or run
 explores, gathers food and reacts to wildlife without player steering. Choose
 **Start** (click/tap, Enter or controller A/Start), read the rules and controls,
 then confirm **Begin game**. This creates a fresh playable world; the demo never
-loads or writes the manual save. Release held controls to begin. The demo repeats
-every five minutes. Its normal HUD shows food, aura and hunger; the bot also
-stuns and collects hares and seeks real villages and cave mouths. During play,
+loads or writes the manual save. Release held controls to begin. The demo plays
+continuously until Start, preserving its world and progress. Its normal HUD
+shows food, aura and hunger. She stocks up on mushrooms, stuns and collects
+hares, visits villages and explores cave checkpoints before returning outside.
+Pets are optional: she may adopt one when she has enough aura, and help it
+finish hindered cave monsters. During play,
 use **WASD / arrows** to walk. The camera follows Oravitsa;
 map and help start hidden, toggled with **M/H** or their buttons. Walking over
 food collects it with keyboard/touch; on controller press **A/Cross** nearby.
@@ -265,7 +268,7 @@ python3 tools/verify.py --godot /path/to/standard/godot
 ```
 
 The runner imports and checks both forests, queued streaming and the retained
-foraging prototype and the bot/start/instructions flow (twenty-eight smoke scripts). It rejects logged errors immediately
+foraging prototype and the continuous bot/start/cave flow (twenty-nine smoke scripts). It rejects logged errors immediately
 and preserves output on timeouts. Native package startup uses the same log
 checks via `python3 tools/verify.py --native-smoke /path/to/export`.
 The offline art tests mock paid APIs; they make no uploads or paid requests.

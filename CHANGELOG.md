@@ -8,9 +8,13 @@ gains zoom inputs), and older saves still load.
 
 - Launch into a labelled bot-driven demo with the normal food/aura/hunger HUD
   and a small translucent floating Start button (#120). Oravitsa gathers,
-  stuns and collects hares, seeks real villages and cave mouths, gives food
-  to chieftains and uses Shoo/Cure. Local routes and a progress watchdog
-  recover from blocked goals; a fresh demo repeats every five minutes.
+  stocks up on mushrooms, stuns and collects hares, visits villages, gives
+  food to chieftains and explores cave checkpoints before returning outside.
+  She may adopt a pet through the normal aura rules and help it finish cave
+  monsters. Caves never require a pet to enter or explore. Local routes and
+  a progress watchdog recover from blocked goals. The autonomous demo keeps
+  playing until Start, preserving its progress without a timed restart or
+  staged loadout.
 - Start opens scrollable rules and keyboard/controller/touch controls.
   Separate confirmation begins a clean player-controlled world after held
   controls are released. The demo never loads or writes the manual save.

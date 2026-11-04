@@ -6,7 +6,6 @@ const DEMO_WORLD := preload("res://scenes/opening/demo_world.gd")
 const GAME := preload("res://scenes/endless_woods/woods.tscn")
 const ACCEPT_KEYS := [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]
 const ACCEPT_BUTTONS := [JOY_BUTTON_A, JOY_BUTTON_START]
-const DEMO_SECONDS := 300.0
 var state := DEMO
 var world: Node2D
 var canvas: CanvasLayer
@@ -149,10 +148,6 @@ func _process(delta: float) -> void:
 	if state == DEMO:
 		demo_time += delta
 		caption.text = world.bot.activity
-		# A fresh attract loop also bounds demo state and avoids a permanently
-		# depleted or starved demonstration after hours on a title screen.
-		if demo_time >= DEMO_SECONDS:
-			_new_demo()
 	elif state == RULES:
 		rules.get_v_scroll_bar().value += scroll_axis * delta * 300.0
 	elif state == STARTING and guard <= 0.0 and touches.is_empty() and not Input.is_anything_pressed():

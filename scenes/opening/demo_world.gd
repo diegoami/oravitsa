@@ -40,14 +40,12 @@ func _load_game() -> void:
 	pass
 
 
-func _check_cave_mouth() -> void:
-	pass # The attract sequence demonstrates the surface; caves remain playable.
-
-
 func _collect_nearby() -> void:
 	var food_before := basket + berries_basket
+	var mushrooms_before := basket
 	var meat_before := raw_meat
 	super._collect_nearby()
 	if bot != null:
 		bot.foods_collected += maxi(0, basket + berries_basket - food_before)
+		bot.mushrooms_collected += maxi(0, basket - mushrooms_before)
 		bot.hares_collected += maxi(0, raw_meat - meat_before)

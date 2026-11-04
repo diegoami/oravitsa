@@ -3,13 +3,20 @@
 The playable `woods.tscn` extends the tested 2.5D presentation and the shared
 forest simulation. The default launch goes through `scenes/opening/opening.tscn`:
 a clearly labelled, bot-controlled demo gathers food, stuns/collects hares,
-seeks villages/cave mouths, gives food to chieftains and uses Shoo/Cure, with
+visits villages, enters cave levels, gives food to chieftains and uses skills, with
 the normal HUD visible. A small translucent floating Start button opens a
 scrollable rules/controls splash and confirmation.
-The demo accepts no player gameplay input, never reads/writes saves and loops
-with a fresh world every 300 seconds. It stays on the surface. Routes and
-goals use absolute positions, and a net-progress watchdog plans a reachable
-escape if she stalls or oscillates. Start freezes it; confirmation discards it
+The demo accepts no player gameplay input and never reads/writes saves. It
+plays continuously, without a timed restart, staged inventory or companions.
+Needs and nearby opportunities drive mushroom gathering, hare collection,
+village visits and pet adoption through the normal aura/prompt rules.
+Inside a first cave level, she navigates to checkpoints, hinders monsters and
+returns outside; no pet is needed to explore. With a healthy follower she can
+also help it finish the remaining monsters. A completed-cave revisit still
+walks far enough inside to rearm the exit before leaving. The bot currently
+does not deliberately descend to second levels. Surface routes and goals use
+absolute positions, and a net-progress watchdog plans a reachable escape if
+she stalls or oscillates. Start freezes it; confirmation discards it
 and creates a normal fresh `woods.tscn`, after held controls are released.
 Running `woods.tscn` directly still starts gameplay immediately, including in
 the existing scene smoke scripts. The earlier finite scenes remain available under
