@@ -136,7 +136,10 @@ Record unavailable checks as untested, never as passed.
   further into a live creature (it may always step away); a hunting pet is
   exempt only from its prey. Creatures do not avoid pets or mounts.
   A pet or mount walking home that stops making progress plans a short
-  detour around what blocks it (#104) instead of pressing on in a line.
+  detour around what blocks it, creatures included, and plans again while
+  still stuck (#104, #116), instead of pressing on in a line. Each step is
+  checked in the direction it moves, so a diagonal one keeps the nose clear
+  too (#117).
 - Pets (#65): about three hamlets in five keep one seeded pet near the
   clearing's edge: a cat (most common), a Shiba Inu or a husky (rare), with an
   aura threshold seeded in its band (20–40, 40–65, 65–90). The adopt prompt

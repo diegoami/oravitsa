@@ -2314,11 +2314,16 @@ func set_rim(model: Node3D, color: Color) -> void:
 
 ## A way around obstacles for a pet or mount walking home (#104): absolute-
 ## metre waypoints from `start` toward `goal` over a DETOUR_CELL grid within
-## DETOUR_REACH cells, on ground where `radius` fits; empty when there is none
-## or the goal is unreachable from here. Like wildlife routes it ends at the
-## open cell nearest the goal when the goal itself is blocked or out of reach.
+## DETOUR_REACH cells, on ground where `radius` fits and clear of every live
+## creature, as movement requires (#116); empty when there is none or the goal
+## is unreachable from here. Like wildlife routes it ends at the open cell
+## nearest the goal when the goal itself is blocked or out of reach.
 func plan_detour(start: Vector2, goal: Vector2, radius: float) -> PackedVector2Array:
 	var land: Node3D = landscape
+	var creatures := []
+	for id in _active_animals:
+		if _animals[id]["alive"]:
+			creatures.append([absolute_ground(_animals[id]["position"]), radius + ANIMAL_RADIUS[_animals[id]["kind"]] / METRE])
 	var grid := AStarGrid2D.new()
 	grid.region = Rect2i(-DETOUR_REACH, -DETOUR_REACH, DETOUR_REACH * 2 + 1, DETOUR_REACH * 2 + 1)
 	grid.cell_size = Vector2.ONE * DETOUR_CELL
@@ -2330,7 +2335,10 @@ func plan_detour(start: Vector2, goal: Vector2, radius: float) -> PackedVector2A
 	for z in range(-DETOUR_REACH, DETOUR_REACH + 1):
 		for x in range(-DETOUR_REACH, DETOUR_REACH + 1):
 			var p: Vector2 = start + Vector2(x, z) * DETOUR_CELL
-			grid.set_point_solid(Vector2i(x, z), not land.can_walk(p - land.origin, radius))
+			var solid: bool = not land.can_walk(p - land.origin, radius)
+			for creature in creatures:
+				solid = solid or p.distance_to(creature[0]) < creature[1]
+			grid.set_point_solid(Vector2i(x, z), solid)
 	grid.set_point_solid(Vector2i.ZERO, false)
 	var target := Vector2i(((goal - start) / DETOUR_CELL).round()).clamp(Vector2i.ONE * -DETOUR_REACH, Vector2i.ONE * DETOUR_REACH)
 	if grid.is_point_solid(target):
@@ -2349,7 +2357,8 @@ func plan_detour(start: Vector2, goal: Vector2, radius: float) -> PackedVector2A
 
 
 ## Where a pet or mount walking home to `goal` heads next (#104): straight for
-## the goal, or along a detour planned once it stops making progress. The
+## the goal, or along a detour planned once it stops making progress. Still
+## stuck on a route (a creature stepped into it), it plans again (#116). The
 ## route lives in the record (absolute metres, so rebasing never moves it)
 ## and is never saved; a stale one, far from where it stands, is dropped.
 func detour_aim(record: Dictionary, goal: Vector2, radius: float, delta: float) -> Vector2:
@@ -2360,7 +2369,7 @@ func detour_aim(record: Dictionary, goal: Vector2, radius: float, delta: float) 
 	while not route.is_empty() and at.distance_to(route[0]) < DETOUR_CELL * 0.4:
 		route.remove_at(0)
 	record["replan"] = maxf(0.0, float(record.get("replan", 0.0)) - delta)
-	if route.is_empty() and float(record["stuck"]) > DETOUR_AFTER and record["replan"] <= 0.0:
+	if float(record["stuck"]) > DETOUR_AFTER and record["replan"] <= 0.0:
 		route = plan_detour(at, goal, radius)
 		record["replan"] = DETOUR_REPLAN
 	record["route"] = route
