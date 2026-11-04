@@ -1883,17 +1883,22 @@ func _move_speed() -> float:
 ## her sprint, never while starving, stunned or panicking. Only frames in which
 ## she actually moves count as sprinting for hunger and the HUD.
 func _update_player(delta: float) -> void:
-	var direction: Vector2 = Input.get_vector("move_left", "move_right", "move_forward", "move_back") + _touch_controls.direction
+	var direction := _movement_direction()
 	var steering := direction.length_squared() > 0.0
 	if not steering:
 		_sprint_latched = false
-	_sprint_wanted = steering and (_sprint_latched or Input.is_action_pressed("sprint")) and fed > 0.0 and player_stun <= 0.0 and player_fright <= 0.0 and not mounts.riding()
+	_sprint_wanted = steering and _sprint_requested() and fed > 0.0 and player_stun <= 0.0 and player_fright <= 0.0 and not mounts.riding()
 	var before := player_position
 	super._update_player(delta)
 	var was := sprinting
 	sprinting = _sprint_wanted and player_position != before
 	if sprinting != was:
 		_update_hud()
+
+
+## The attract world never takes sprint input from the player.
+func _sprint_requested() -> bool:
+	return _sprint_latched or Input.is_action_pressed("sprint")
 
 
 ## Cure has work when she is stunned or panicking, or a following pet within

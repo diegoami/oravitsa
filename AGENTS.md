@@ -1,7 +1,8 @@
 # Oravitsa
 
-Godot 4.7.2 / GDScript, Compatibility renderer. The default is the streamed
-endless 2.5D Mossbank world in `scenes/endless_woods/`, extending the finite
+Godot 4.7.2 / GDScript, Compatibility renderer. The default opening in
+`scenes/opening/` runs a disposable bot demo, then rules/controls and a fresh
+player session. Gameplay is the streamed endless 2.5D Mossbank world in `scenes/endless_woods/`, extending the finite
 presentation in `scenes/forest_25d/`; its simulation, controls and HUD
 extend `scenes/forest_2d/forest.gd`. Read the world guide there before changing
 it. The older 2D forest and `prototypes/foraging_2d/` remain usable.
@@ -41,7 +42,7 @@ python3 tools/verify.py --godot /path/to/godot
 python3 tools/export.py all --godot /path/to/godot
 ```
 
-`verify.py` imports and runs all twenty-seven smoke scripts, including targeted
+`verify.py` imports and runs all twenty-eight smoke scripts, including the opening bot/start flow and targeted
 Shoo, endless-world travel/rebasing/ecology/food regrowth, wildlife behaviour
 loops, fox foraging, hare collection, aggression, fights, save/load, audio wiring, hamlets and
 cave mouths, aura/feeding/villagers/chieftain gifts, both cave levels and their

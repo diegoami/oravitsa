@@ -1,7 +1,8 @@
 # Mossbank woods: a streamed 2.5D world
 
-The default scene is `res://scenes/forest_25d/clearing.tscn`. Run
-`godot --path .` or press F5. The playable world is **192 × 192 metres**, sixteen
+This retained scene is `res://scenes/forest_25d/clearing.tscn`; run it with F6.
+F5 / `godot --path .` opens the demo/Start flow and then the endless woods.
+This finite playable world is **192 × 192 metres**, sixteen
 times the area of the original 48 × 48 m clearing. The project retains the original
 2D forest at `res://scenes/forest_2d/forest.tscn`.
 

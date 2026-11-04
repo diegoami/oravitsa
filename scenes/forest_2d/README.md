@@ -2,7 +2,8 @@
 
 Open `res://scenes/forest_2d/forest.tscn` and run it with **F6** (Run Current
 Scene). This is a retained scene: **F5** starts the project's default scene,
-the endless Mossbank woods (`scenes/endless_woods/woods.tscn`). The map has **416 × 416 cells of 114 px** each, 10.56 times the previous
+the demo and Start flow (`scenes/opening/opening.tscn`), leading to the endless
+Mossbank woods (`scenes/endless_woods/woods.tscn`). The map has **416 × 416 cells of 114 px** each, 10.56 times the previous
 128 × 128 map area. Grass and dirt textures are split into 11 × 11 tile atlases.
 Atlas cells are placed in sequence and mirrored at each 11-cell edge so the
 painting joins continuously. A shader blends dirt softly into grass. A fixed

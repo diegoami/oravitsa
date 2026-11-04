@@ -12,6 +12,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKES = (
+    ("scenes/opening/smoke_test.gd", "Opening smoke test passed:"),
     ("scenes/forest_2d/smoke_test.gd", "Forest smoke test passed:"),
     ("scenes/forest_2d/mobile_smoke_test.gd", "Mobile smoke test passed:"),
     ("scenes/forest_2d/sling_smoke_test.gd", "Sling smoke test passed:"),
