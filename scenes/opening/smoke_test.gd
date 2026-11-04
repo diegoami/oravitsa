@@ -3,6 +3,13 @@ extends SceneTree
 ## Protects: an idle/player-driven demo, stuck automation, a skipped splash,
 ## demo save writes, advancing instructions, and dirty/bot-driven player runs.
 
+class SignpostProbe:
+	extends "res://scenes/endless_woods/landscape.gd"
+	var requests: Array[Vector2i] = []
+	func signpost_at(column: int, row: int) -> Dictionary:
+		requests.append(Vector2i(column, row))
+		return super.signpost_at(column, row)
+
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -30,6 +37,49 @@ func _place_threat(world: Node2D) -> int:
 	return -1
 
 
+## Both the decision and the destination lookup must use the nearby real
+## crossing, including on negative coordinates. Observe their actual calls.
+func _check_signposts(world: Node2D) -> void:
+	var landscape: Node3D = world.landscape
+	var spy := SignpostProbe.new()
+	var bot = load("res://scenes/opening/demo_bot.gd").new(world)
+	world.landscape = spy
+	var inventory := Vector2i(world.basket, world.raw_meat)
+	world.basket = 12
+	world.raw_meat = 3 # This check is about landmarks, not nearby hare hunting.
+	for at in [Vector2(390, 5), Vector2(-122, 5), Vector2(650, 133)]:
+		var row := 1 if at.y > 100.0 else 0
+		var expected := Vector2i.ZERO
+		var best := INF
+		for column in range(-3, 5):
+			var distance: float = at.distance_squared_to(landscape.crossing(column, row))
+			if distance < best:
+				best = distance
+				expected = Vector2i(column, row)
+		bot.visited.clear()
+		spy.requests.clear()
+		bot._choose_goal(at)
+		assert(not spy.requests.is_empty() and spy.requests[0] == expected, "Goal choice consults the nearby real crossing")
+		spy.requests.clear()
+		bot.seek_landmark("hamlet", at)
+		assert(spy.requests[0] == expected, "Destination lookup consults the nearby real crossing")
+	world.landscape = landscape
+	world.basket = inventory.x
+	world.raw_meat = inventory.y
+	spy.free()
+
+
+## Real completed actions count as progress while she stops to give food or
+## help a pet. Cooldowns/status timers alone must not hide a stalled bot.
+func _bot_progress(world: Node2D) -> Array:
+	var checkpoints := 0
+	var kills := 0
+	for progress in world._cave_progress.values():
+		checkpoints += progress.get("checkpoints", []).size() + progress.get("deep", []).size()
+		kills += progress.get("killed", []).size() + progress.get("killed_deep", []).size()
+	return [world.bot.foods_collected, world.bot.hares_collected, world.bot.gifts_given, world.bot.companions_adopted, checkpoints, kills]
+
+
 func _run() -> void:
 	var opening = load("res://scenes/opening/opening.tscn").instantiate()
 	root.add_child(opening)
@@ -37,6 +87,11 @@ func _run() -> void:
 	await process_frame
 	var demo: Node2D = opening.world
 	demo.set_process(false)
+	_check_signposts(demo)
+	# This seed exercises the intentional village stop that a movement-only
+	# watchdog misclassified as a stall after correcting the signpost route.
+	demo._food_rng.seed = 3
+	demo._fright_rng.seed = 3
 	assert(opening.state == opening.DEMO and "DEMO MODE" in opening.demo_badge.text)
 	assert(demo.get_node("HUD").visible and not demo._pause.visible)
 	assert(not demo._can_save() and not demo.is_processing_unhandled_input())
@@ -69,15 +124,20 @@ func _run() -> void:
 	# Run five simulated minutes with ordinary gameplay updates, including food
 	# depletion, wildlife, hunger, streaming and animation. No scripted pickups.
 	var progress_at: Vector2 = demo.absolute_ground(demo.player_position)
+	var completed_actions := _bot_progress(demo)
 	var stationary := 0.0
 	for frame in 9000:
 		demo._process(1.0 / 30.0)
 		assert(demo._can_stand(demo.player_position), "Bot never walks through scenery")
 		if frame % 90 == 89:
 			var at: Vector2 = demo.absolute_ground(demo.player_position)
-			stationary = stationary + 3.0 if at.distance_to(progress_at) < 0.5 else 0.0
+			var actions := _bot_progress(demo)
+			stationary = stationary + 3.0 if at.distance_to(progress_at) < 0.5 and actions == completed_actions else 0.0
+			if stationary >= 9.0:
+				print("Bot progress failure at ", (frame + 1) / 30, " s: ", at, " activity=", demo.bot.activity, " goal=", demo.bot.goal, " kind=", demo.bot.goal_kind, " cave=", demo._cave_depth, " stun=", demo.player_stun, " panic=", demo.player_fright)
 			assert(stationary < 9.0, "Bot must recover from stalled or oscillating movement")
 			progress_at = at
+			completed_actions = actions
 		if frame % 300 == 0:
 			await process_frame
 	print("Demo observations: walked ", demo.bot.distance_walked, " m; food ", demo.bot.foods_collected, "; hares ", demo.bot.hares_collected, "; gifts ", demo.bot.gifts_given, "; reactions ", demo.bot.reactions)
@@ -196,6 +256,15 @@ func _run() -> void:
 	Input.action_press("move_right")
 	assert(game._movement_direction().x > 0.0, "Player controls work after confirmation")
 	Input.action_release("move_right")
+	# The opening node remains, but its overlay is gone. Resizing must reach
+	# the player's HUD without invoking a layout on the freed opening UI.
+	await process_frame
+	await process_frame
+	assert(not is_instance_valid(opening.card))
+	for size in [Vector2i(800, 500), Vector2i(1024, 576), Vector2i(640, 360)]:
+		root.size = size
+		await process_frame
+		assert(game.get_node("HUD").visible and game._pause.button.visible)
 	# Touch buttons also work with the project's mouse emulation disabled.
 	var touch_opening = load("res://scenes/opening/opening.tscn").instantiate()
 	root.add_child(touch_opening)

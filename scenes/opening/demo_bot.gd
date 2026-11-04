@@ -188,7 +188,7 @@ func _choose_goal(at: Vector2) -> void:
 			activity = "Meeting a village " + world.pets.title(_adopt_target)
 			return
 	if food_stock >= 12 or (world.fed >= 65.0 and food_stock >= 6):
-		var sign: Dictionary = world.landscape.signpost_at(roundi(at.x / 256.0), roundi((at.y - 5.0) / 128.0))
+		var sign := _signpost_near(at)
 		var interest := -INF
 		var destination := ""
 		for arm in sign.get("arms", []):
@@ -226,10 +226,15 @@ func _choose_goal(at: Vector2) -> void:
 	goal = at + Vector2.from_angle(heading) * 24.0
 
 
+func _signpost_near(at: Vector2) -> Dictionary:
+	# Match the landscape's road-grid inverse, including road_x's +70 m.
+	return world.landscape.signpost_at(roundi((at.x - 70.0) / 256.0), roundi((at.y - 5.0) / 128.0))
+
+
 func seek_landmark(kind: String, at: Vector2) -> bool:
 	# The same seeded destinations used by signposts: real villages/caves,
 	# never invented points of interest. Lookups and routes stay bounded.
-	var sign: Dictionary = world.landscape.signpost_at(roundi(at.x / 256.0), roundi((at.y - 5.0) / 128.0))
+	var sign := _signpost_near(at)
 	for arm in sign.get("arms", []):
 		if arm["kind"] != kind or float(visited.get(arm["target"], 0.0)) > elapsed:
 			continue

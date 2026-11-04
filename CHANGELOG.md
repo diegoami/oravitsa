@@ -18,6 +18,9 @@ gains zoom inputs), and older saves still load.
 - Start opens scrollable rules and keyboard/controller/touch controls.
   Separate confirmation begins a clean player-controlled world after held
   controls are released. The demo never loads or writes the manual save.
+  Resizing after play begins no longer tries to lay out the freed opening
+  overlay (#124). The bot's signpost lookup includes the road grid's offset
+  when choosing a nearby crossing (#125).
 
 - Dark creatures stay visible in caves (#102): kobolds have a faint cool
   glow and rim, and Oravitsa's pets a warm one while underground, so the

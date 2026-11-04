@@ -177,6 +177,7 @@ func _activate() -> void:
 
 
 func _begin_game() -> void:
+	get_viewport().size_changed.disconnect(_layout)
 	remove_child(world)
 	world.free()
 	world = GAME.instantiate()
