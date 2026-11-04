@@ -17,6 +17,19 @@ func _key(code: Key, pressed: bool, echo: bool = false) -> void:
 	Input.parse_input_event(event)
 
 
+## A long autonomous run need not end beside the same empty tile. Place the
+## skill fixture on verified open ground within the bot's reaction radius.
+func _place_threat(world: Node2D) -> int:
+	for distance in [180.0, 240.0, 300.0, 120.0, 60.0]:
+		for angle in 16:
+			var point: Vector2 = world.player_position + Vector2.from_angle(angle * TAU / 16.0) * distance
+			if world._can_stand(point, world.ANIMAL_RADIUS[world.WOLF]):
+				world._animals.append(world._animal_record(world.WOLF, point))
+				return world._animals.size() - 1
+	assert(false, "Threat fixture needs clear ground within reaction range")
+	return -1
+
+
 func _run() -> void:
 	var opening = load("res://scenes/opening/opening.tscn").instantiate()
 	root.add_child(opening)
@@ -74,12 +87,14 @@ func _run() -> void:
 	assert(demo.bot.gifts_given > 0, "Bot gives food to a chieftain for aura")
 	# A nearby threat is handled through the real selected-target skill path.
 	assert(demo.bot.hares_collected > 0, "Bot stuns and collects hares through ordinary gameplay")
-	demo._add_animal(demo.WOLF, demo._world_cell(demo.player_position) + Vector2i(2, 0))
-	var wolf: int = demo._animals.size() - 1
-	demo._animals[wolf]["position"] = demo.player_position + Vector2(180, 0)
-	demo._animals[wolf]["stun"] = 0.0
-	demo._animals[wolf]["shoo"] = 0.0
+	for id in demo._active_animals:
+		if demo._animals[id]["kind"] in demo.AGGRO_KINDS:
+			demo._animals[id]["position"] += Vector2(3000, 3000)
+	var wolf := _place_threat(demo)
+	assert(demo._can_stand(demo._animals[wolf]["position"], demo.ANIMAL_RADIUS[demo.WOLF]))
 	demo._refresh_visible()
+	demo.player_stun = 0.0
+	demo.player_fright = 0.0
 	demo.shoo_cooldown = 0.0
 	demo.bot.update(0.05)
 	assert(demo._animals[wolf]["shoo"] > 0.0 and demo.shoo_cooldown > 0.0, "Bot Shoos wildlife")

@@ -49,6 +49,11 @@ Web: serve the extracted folder over HTTP (for example python3 -m http.server
 8000), then open http://127.0.0.1:8000/. Do not open index.html using file://.
 For a public website use an HTTPS static host. No game backend is required.
 
+The opening is DEMO MODE: a bot plays automatically, with the normal HUD.
+Choose Start (click/tap, Enter, or controller A/Start), read the rules and
+controls, then confirm Begin game. Release held controls to begin a fresh
+player-controlled session. Demo progress never changes the manual save.
+
 Move: WASD/arrows, left stick/D-pad, or touch joystick.
 Shoo: Space. Sling: select an animal, then right mouse/F. A stunned hare can
 be collected for raw meat by walking to it (controller: A).

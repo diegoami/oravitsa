@@ -1,6 +1,10 @@
 # Changes
 
-## Unreleased
+## 0.3.0-alpha.2 — arcade opening, visibility and movement fixes (candidate)
+
+An automatic opening demo and clearer first-play instructions accompany the
+fixes for 0.3.0-alpha.1. Gameplay controls remain familiar (the open world map
+gains zoom inputs), and older saves still load.
 
 - Launch into a labelled bot-driven demo with the normal food/aura/hunger HUD
   and a small translucent floating Start button (#120). Oravitsa gathers,
@@ -10,12 +14,6 @@
 - Start opens scrollable rules and keyboard/controller/touch controls.
   Separate confirmation begins a clean player-controlled world after held
   controls are released. The demo never loads or writes the manual save.
-
-## 0.3.0-alpha.2 — visibility, movement and map fixes (candidate)
-
-A small fix release for the known issues of 0.3.0-alpha.1. Existing controls
-are unchanged (the open world map gains zoom inputs) and older saves load as
-before.
 
 - Dark creatures stay visible in caves (#102): kobolds have a faint cool
   glow and rim, and Oravitsa's pets a warm one while underground, so the
