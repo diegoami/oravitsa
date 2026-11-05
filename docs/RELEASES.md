@@ -1,32 +1,37 @@
 # Milestone releases
 
-## Next action: alpha release publication decision
+## Current release
 
-Round 3 is complete: [OpenCode / GLM-5.3-Flash returned AGREE](https://github.com/diegoami/oravitsa/issues/115#issuecomment-6662634244)
-for `b4fdf981d7a14c25ed6a570a49b69911ebc5767a`, with no new findings.
-The reviewer independently confirmed the #124/#125 fixes.
+[Oravitsa v0.3.0-alpha.2](https://github.com/diegoami/oravitsa/releases/tag/v0.3.0-alpha.2) is published as a
+GitHub prerelease, with Windows, Linux and Web ZIPs, a manifest and checksums.
+
+The annotated tag points to exactly
+`b4fdf981d7a14c25ed6a570a49b69911ebc5767a`.
+[Round 3 independently returned AGREE](https://github.com/diegoami/oravitsa/issues/115#issuecomment-6662634244);
+the reviewer confirmed #124/#125 fixed, with no new findings.
 
 The owner explicitly [deferred the remaining manual checks for this alpha](https://github.com/diegoami/oravitsa/issues/115#issuecomment-6663947439):
-real-browser play/performance and Web resizing/phone layouts, physical
-controller/touchscreen use, listening/audio quality, and paced human play of
-the final packages. They remain **untested, not passed**. Independent review
-was not waived, and this deferral does not apply automatically to later releases.
+browser play/performance and Web resizing/phone layouts, physical
+controller/touchscreen use, listening/audio quality, and paced final-package
+play. Those checks remain **untested, not passed**. This is an alpha-only
+deferral; independent review was not waived.
 
-The prepared release is `v0.3.0-alpha.2`, on exactly the reviewed SHA above.
-[Milestone #115](https://github.com/diegoami/oravitsa/issues/115) is the canonical
-record of commands, gate results, artifacts, hashes, verdicts and owner decisions.
+[Completed milestone #115](https://github.com/diegoami/oravitsa/issues/115)
+records the tag object, clean tag-build evidence, final published hashes,
+review verdicts and owner authorizations. All five uploaded asset sizes and
+server-computed SHA-256 digests were verified before and after publication.
+The first tag-build import crashed natively; its log was retained and the
+unchanged-source retry passed the complete gates before any upload.
 
-**Remaining action:** obtain an explicit owner instruction to tag and publish.
-Then follow the tag/build/package/smoke/hash steps below, on a clean checkout of
-the annotated tag pointing to that exact SHA. List the deferred checks honestly
-in the release notes. The deferral and previous merge approvals are not a
-tag/publication instruction. No tag, release or deployment has been created.
+The previously pending review and publication decisions are complete. No
+website deployment was performed. Closure of reviewer findings remains the
+owner's decision.
 
-Keep the documentation-only reminder branch `docs/round3-review-next` separate
-from the reviewed source. Its local copies in the opening checkout are
-intentional reminders; preserve them. Do not substitute the reminder branch's
-HEAD for the candidate or add it to the frozen review scope. Update this block
-and its README/AGENTS pointers after publication or an owner change of plan.
+This publication record is documentation-only on `docs/round3-review-next`,
+separate from the immutable published tag. Its local copies in the opening
+checkout are intentional release-status reminders. Preserve them, check the
+actual checkout SHA before new work, and do not substitute the reminder
+branch's HEAD for the released source. Update this section for future releases.
 
 A milestone is a release: an annotated `vX.Y.Z` tag on `main`, at exactly the
 reviewed commit from which its artifacts are built. Ordinary PRs, documentation

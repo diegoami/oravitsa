@@ -1,6 +1,6 @@
 # Changes
 
-## 0.3.0-alpha.2 — arcade opening, visibility and movement fixes (candidate)
+## 0.3.0-alpha.2 — arcade opening, visibility and movement fixes
 
 An automatic opening demo and clearer first-play instructions accompany the
 fixes for 0.3.0-alpha.1. Gameplay controls remain familiar (the open world map
