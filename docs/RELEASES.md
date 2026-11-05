@@ -1,5 +1,38 @@
 # Milestone releases
 
+## Current release
+
+[Oravitsa v0.3.0-alpha.2](https://github.com/diegoami/oravitsa/releases/tag/v0.3.0-alpha.2) is published as a
+GitHub prerelease, with Windows, Linux and Web ZIPs, a manifest and checksums.
+
+The annotated tag points to exactly
+`b4fdf981d7a14c25ed6a570a49b69911ebc5767a`.
+[Round 3 independently returned AGREE](https://github.com/diegoami/oravitsa/issues/115#issuecomment-6662634244);
+the reviewer confirmed #124/#125 fixed, with no new findings.
+
+The owner explicitly [deferred the remaining manual checks for this alpha](https://github.com/diegoami/oravitsa/issues/115#issuecomment-6663947439):
+browser play/performance and Web resizing/phone layouts, physical
+controller/touchscreen use, listening/audio quality, and paced final-package
+play. Those checks remain **untested, not passed**. This is an alpha-only
+deferral; independent review was not waived.
+
+[Completed milestone #115](https://github.com/diegoami/oravitsa/issues/115)
+records the tag object, clean tag-build evidence, final published hashes,
+review verdicts and owner authorizations. All five uploaded asset sizes and
+server-computed SHA-256 digests were verified before and after publication.
+The first tag-build import crashed natively; its log was retained and the
+unchanged-source retry passed the complete gates before any upload.
+
+The previously pending review and publication decisions are complete. No
+website deployment was performed. Closure of reviewer findings remains the
+owner's decision.
+
+This publication record is documentation-only on `docs/round3-review-next`,
+separate from the immutable published tag. Its local copies in the opening
+checkout are intentional release-status reminders. Preserve them, check the
+actual checkout SHA before new work, and do not substitute the reminder
+branch's HEAD for the released source. Update this section for future releases.
+
 A milestone is a release: an annotated `vX.Y.Z` tag on `main`, at exactly the
 reviewed commit from which its artifacts are built. Ordinary PRs, documentation
 changes and accumulated commits do not trigger a milestone automatically.

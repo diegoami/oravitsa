@@ -1,5 +1,8 @@
 # Oravitsa
 
+**Release status:** read [docs/RELEASES.md](docs/RELEASES.md#current-release)
+before release work; it records the published alpha, review and deferred checks.
+
 Godot 4.7.2 / GDScript, Compatibility renderer. The default opening in
 `scenes/opening/` runs a continuous bot demo, then rules/controls and a fresh
 player session. Gameplay is the streamed endless 2.5D Mossbank world in `scenes/endless_woods/`, extending the finite

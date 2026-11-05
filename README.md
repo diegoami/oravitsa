@@ -1,5 +1,7 @@
 # Oravitsa
 
+**Release status:** [Published alpha, review and deferred checks](docs/RELEASES.md#current-release).
+
 Contribution and verification rules: [AGENTS.md](AGENTS.md). Independent
 [PR reviews](docs/review-pr.md) use a separate session; formal
 [milestone reviews](docs/RELEASES.md) happen before a release tag.
