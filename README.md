@@ -1,7 +1,7 @@
 # Oravitsa
 
-**Next action: independent release review.**
-[Saved prompt and frozen candidate](docs/RELEASES.md#next-action-round-3-release-review).
+**Next action: release publication decision.**
+[Reviewed candidate and remaining approval](docs/RELEASES.md#next-action-alpha-release-publication-decision).
 
 Contribution and verification rules: [AGENTS.md](AGENTS.md). Independent
 [PR reviews](docs/review-pr.md) use a separate session; formal

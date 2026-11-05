@@ -1,9 +1,9 @@
 # Oravitsa
 
-**Next session priority:** surface the pending independent release review in
-[docs/RELEASES.md](docs/RELEASES.md#next-action-round-3-release-review) before other
-work, unless the owner changes the priority. The owner deferred it; do not start
-it in the implementing session.
+**Next session priority:** surface the alpha release publication decision in
+[docs/RELEASES.md](docs/RELEASES.md#next-action-alpha-release-publication-decision)
+before other work, unless the owner changes the priority. Independent review
+passed; obtain explicit owner tag/publication instructions before that step.
 
 Godot 4.7.2 / GDScript, Compatibility renderer. The default opening in
 `scenes/opening/` runs a continuous bot demo, then rules/controls and a fresh
